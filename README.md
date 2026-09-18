@@ -9,7 +9,15 @@ Codex / Cursor) connecting over MCP stdio. swctx only does retrieval.
 - **Incremental index** per workspace: file discovery, SHA-256 change detection,
   tree-sitter syntax-aware chunks, symbol defs, call/import edges.
 - **Hybrid retrieval**: SQLite FTS5 full-text + on-device embeddings, RRF fusion
-  with symbol/path boosts. Embedding backend is a **per-index model binding**
+  with symbol/path boosts. FTS is fielded (`content`, `path_tokens`,
+  `symbol_names`, `folded`) and scored with weighted BM25; a file-PageRank
+  over resolved call/import edges contributes a static signal; the legs
+  (fts, semantic, symbol, folded-phrase) execute concurrently and fuse by
+  reciprocal rank. Vietnamese diacritic queries get two app-level rescues
+  (unicode61 never folds `đ`): a `folded`-column tail-fill that tops up an
+  under-filled fts window, and a folded adjacent-phrase probe on
+  `path_tokens` for filename intent (`chấm công` → `cham_cong.py`).
+  Embedding backend is a **per-index model binding**
   (`meta.embedding_model`): **bge-base-en-v1.5** CoreML (768-d, default) or
   **distiluse-base-multilingual-cased-v2** (768-d, 50+ langs incl. Vietnamese —
   measured ~10–50× better target ranks on VN queries, ~2.5× faster embed,
@@ -39,9 +47,11 @@ swift build -c release # release
 ## CLI
 
 ```sh
-swctx index <path> [--force] [--skip-embed] [--model <id>] [--format json]
+swctx index <path> [--force] [--skip-embed] [--model <id>] [--trigram] [--format json]
 swctx status <path>
 swctx search <path> "query" [--mode auto|identifier|hybrid|fts|semantic] [--limit N]
+swctx rerank <path> "query" [--limit N]  # hybrid pool + amberoad cross-encoder rescore (opt-in spike)
+swctx rerank2 <path> "query" [--limit N]  # same pool via bge-reranker-v2-m3 — measured REJECT on the vn probe (prose-biased, ~160x slower); kept as reference impl
 swctx tree <path> [--root subdir]
 swctx embed <path> [--reindex] [--model <id>]  # fill on-device vectors (index auto-embeds all pending; --skip-embed opts out)
 swctx watch <path> [--once]      # FSEvents watcher: auto reindex on change (foreground)
@@ -87,7 +97,7 @@ Any MCP client: point it at the built binary, or run
 | fast_understand | deterministic workspace digest: langs, hub symbols, hot files, communities, recent files, optional `query` → top hybrid hits |
 | index_workspace | create/update index (the only mutating tool) |
 | list_workspaces | indexed workspace registry |
-| search | `auto` (default): identifier-shaped queries take the deterministic FTS+symbol path, prose takes full hybrid fusion; explicit `identifier`/`hybrid`/`fts`/`semantic` also accepted; `resolved_mode` reports the pick |
+| search | `auto` (default): identifier-shaped queries take the deterministic FTS+symbol path, prose takes full hybrid fusion; explicit `identifier`/`hybrid`/`fts`/`semantic` also accepted; `resolved_mode` reports the pick. `rerank:true` (opt-in) rescues hard NL queries: pins the fused top-3 and cross-encoder-rescores the 30-candidate pool via the amberoad mBERT model — ~0.4s/call, neutral-to-+1 on the vn probe, off by default |
 | find_definitions | symbol name → definition locations (`kind` = normalized kind like `struct`/`enum`, `raw_kind` = tree-sitter node type) |
 | find_usages | reverse edges: callers/importers/implementers of a symbol |
 | fetch_chunks | full source by chunk IDs |
