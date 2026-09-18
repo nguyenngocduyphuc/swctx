@@ -271,3 +271,11 @@ Immediate information yield:
 
 n=22 makes zero-sum conclusions weaker — the instrument was the
 bottleneck for the last few iterations, now less so.
+
+Correction: crm-10 is NOT fusion damage — fts leg rank 4 → fused ~0.015
+vs cutoff ~0.078 (dominated by higher fts ranks + multi-leg hits). A
+competitive miss, not displacement; the "single-leg floor" idea is
+unnecessary at this evidence level.
+
+Nightly gate updated: --gate 9 → --gate 12 (baseline 13/22 on the
+expanded probe — catches one-query regression).
