@@ -418,6 +418,14 @@ def main():
         sub = [r for r in queries if tag in r["tags"]]
         if sub:
             scopes[f"tag={tag}"] = sub
+    # intent + path-signal splits: which QUESTION CLASS fails, and whether
+    # the expected file's signal lives in its filename vs only its body —
+    # the split the folded path-phrase leg is designed to move.
+    for field in ("query_intent", "path_signal"):
+        for v in sorted({r.get(field) for r in queries if r.get(field)}):
+            sub = [r for r in queries if r.get(field) == v]
+            if sub:
+                scopes[f"{field}={v}"] = sub
 
     by_scope = []
     for name, rs in scopes.items():

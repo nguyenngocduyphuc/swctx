@@ -1,6 +1,6 @@
 # vn-probe — Vietnamese retrieval probe for swctx
 
-Generated: 2026-09-18T19:31:52+00:00 · swctx bin: `/Users/phuongnam/02.AI/NP_AI_macos/tools/swctx/bench/../.build/release/swctx` · limit: recall@5
+Generated: 2026-09-18T19:47:21+00:00 · swctx bin: `/Users/phuongnam/02.AI/NP_AI_macos/tools/swctx/bench/../.build/release/swctx` · limit: recall@5
 
 ## Question
 
@@ -50,8 +50,12 @@ Should swctx swap/extend its embedding model for Vietnamese? The hypothesis unde
 | tag=vn_to_vn (n=12) | 7/12 (58%) | 1/12 (8%) | 10/12 (83%) |
 | tag=vn_to_en (n=2) | 0/2 (0%) | 0/2 (0%) | 0/2 (0%) |
 | tag=en_control (n=2) | 1/2 (50%) | 0/2 (0%) | 1/2 (50%) |
+| query_intent=concept_flow (n=13) | 6/13 (46%) | 1/13 (8%) | 9/13 (69%) |
+| query_intent=symbol_lookup (n=3) | 2/3 (67%) | 0/3 (0%) | 2/3 (67%) |
+| path_signal=in_body_only (n=7) | 4/7 (57%) | 0/7 (0%) | 4/7 (57%) |
+| path_signal=in_path (n=9) | 4/9 (44%) | 1/9 (11%) | 7/9 (78%) |
 
-Median CLI latency per call: fts 283 ms · semantic 735 ms · auto 800 ms.
+Median CLI latency per call: fts 298 ms · semantic 784 ms · auto 800 ms.
 
 ## FTS-miss → semantic-hit (the interesting cases)
 
