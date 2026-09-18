@@ -291,3 +291,43 @@ code-specific option (better retrieval, slower indexing — same tradeoff
 we'd face). Takeaway: our two reranker failures (amberoad + v2m3) are
 model-choice failures, not a wrong architecture — the next reranker
 spike should be jina-v2-base-multilingual via the existing SPTokenizer.
+
+### ITER-7 (~05:20–06:10): bge-m3 embedder + jina reranker — hai verdict NO-GO-vì-latency
+
+**bge-m3 embedder (W4 GO-quality → production NO-GO-latency).**
+W4's offline eval crossed the quality gate decisively: bge-m3 (CLS+L2,
+1024-d) rescued **4/5 dead-leg misses** into top-30 — seo-04 r11,
+seo-05 r1, seo-06 r1, crm-04 r5 — where distiluse scores 1/22. Caveat
+from W4 confirmed by design: must stay an additive leg (pure dense
+regresses 3 currently-passing queries; ours is additive via RRF — fine).
+
+Adoption path executed: EmbeddingModelSpec +tokenizer kind (wordpiece|
+sentencepiece), BGEEmbedder dispatches to SPTokenizer (W1's byte-exact
+XLM-R tokenizer — reused, no new tokenizer code), spec registered,
+convert_bgem3.py produced the mlpackage with **cos(HF,CoreML)=0.9999+**.
+
+Then production reality killed it: **~410ms/embed on every compute unit**
+(CPU_ALL/GPU/NE — XLM-R 24L/1024H runs CPU-bound under CoreML on this
+machine; 1151-chunk CRM re-embed ran ~19min before SIGTERM, ~1s/chunk).
+3-7x over the p95=150ms query gate → REJECTED as live embedder, same
+shape as v2m3: quality clears the bar, latency clears nothing. Spec
+stays registered (opt-in offline use); CRM index restored from backup
+(the killed re-embed had wiped its vectors — incident noted: batch-2000
+single-transaction re-embed is all-or-nothing on kill).
+
+**jina-reranker-v2-base-multilingual (W5): 13/22 → 13/22 net-neutral.**
+gained crm-10, lost crm-01; 1566ms/pair (~100x amberoad's 15ms). Third
+reranker REJECTED — the pattern is now conclusive on this hardware:
+cross-encoders trade hits symmetrically here at 50-200x latency cost.
+Vera's +0.32 MRR does not transfer to our VN docs+code corpus.
+
+**Next lever (W6 in flight)**: `intfloat/multilingual-e5-base` (278M,
+768-d, mean-pooling + query:/passage: prefixes) — quality near bge-m3
+class at ~half the size → plausibly inside the latency gate. Same
+offline harness, same >=2-misses gate.
+
+**Miss-class map after tonight** (13/22 baseline, probe n=22):
+- in_path 9/11 — folded-phrase leg owns this class
+- in_body_only 4/11 — semantic-bound
+- vn_to_en 0/5 — the wall: needs a working multilingual vector space
+- symbol_lookup 2/4
