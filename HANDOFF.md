@@ -262,6 +262,21 @@ extraction land nhưng index cũ giữ 0 implements edges cho tới khi force).
   13 edge có dst_name không hề xuất hiện trong src chunk). Kết luận:
   "better NULL than wrong" đúng — không đuổi edge count.
 
+### Wire-contract fix (2026-09-18, audit opus phát hiện)
+
+- **`obj()` từng flatten params thành sibling keys của `type`/`required`**
+  — không có `properties` wrapper → strict clients (Anthropic API) reject
+  `put_record` ("schema/title must be string"), 18 tools khai báo 0 params.
+  Fix tập trung trong `obj()`: `type`/`required` ở root, còn lại vào
+  `properties`. Verify qua `tools/list` thật.
+- **`prime` giờ là tool thứ 20** (trước chỉ CLI) — `format=markdown|json`.
+- `instructions` server viết lại: encode workflow prime → search → fetch
+  → put_record (inject tự động vào mọi agent context).
+- `SchemaContractTests` (4 tests): mọi schema là draft-07 object, required ⊆
+  properties, reserved keywords không chứa object ở root, prime có mặt.
+- Bài học: bench/test phải đi **qua MCP**, không quanh nó — 0.972 đo qua
+  CLI path, wire path chưa từng được test tới giờ này.
+
 ## Quy ước vận hành
 
 - `swctx index <path>` incremental; `--force` full; `swctx embed` bù vectors;

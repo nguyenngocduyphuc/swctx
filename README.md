@@ -17,7 +17,7 @@ Codex / Cursor) connecting over MCP stdio. swctx only does retrieval.
   neighbors / paths / transitive impact. `extends` vs `implements` is
   split after resolution: concrete type targets become `extends`,
   protocol/interface/trait targets stay `implements`.
-- **MCP server** on stdio with 19 tools; also usable directly as a CLI.
+- **MCP server** on stdio with 20 tools; also usable directly as a CLI.
 
 Languages: swift, python, javascript, typescript, tsx, go, rust, json, yaml,
 html, css, bash, markdown/text. Data formats (json/yaml/html/css) get
@@ -75,6 +75,7 @@ Any MCP client: point it at the built binary, or run
 
 | Tool | Purpose |
 |---|---|
+| prime | ~300-token orientation card — call first each session (branch, counts, freshness, watcher, hub symbols, warnings) |
 | get_status | index state, counts, capabilities |
 | fast_understand | deterministic workspace digest: langs, hub symbols, hot files, communities, recent files, optional `query` → top hybrid hits |
 | index_workspace | create/update index (the only mutating tool) |
@@ -108,7 +109,7 @@ a multi-megabyte payload.
 
 ## Differences vs ctxe
 
-- Tool surface is 19 = 18: 16 tools are shared parity; each side has two the
+- Tool surface is 20 (19 retrieval + index_workspace): 16 tools are shared parity; each side has two the
   other lacks — swctx: `search` (workspace-wide retrieval), `context_pack`
   (deterministic evidence pack); ctxe: `ask_context`, `compose_answer`
   (server-side LLM planner, consumes account credits).

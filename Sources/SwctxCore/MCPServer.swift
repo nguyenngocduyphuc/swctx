@@ -4,8 +4,19 @@ import MCP
 /// stdio MCP server exposing the index/retrieval tools. Any MCP-capable agent
 /// CLI (Claude Code, Codex, Devin, Cursor...) connects by spawning `swctx mcp`.
 public enum MCPServer {
+    /// Build a JSON-Schema object: `type`/`required` stay at the schema
+    /// root, every other pair is a declared property. A flat layout puts
+    /// e.g. `title` (a reserved schema keyword) at the root holding an
+    /// object — strict clients reject the whole tool on load.
     static func obj(_ pairs: [(String, Value)]) -> Value {
-        .object(Dictionary(pairs, uniquingKeysWith: { a, _ in a }))
+        var props: [(String, Value)] = []
+        var top: [(String, Value)] = [("type", .string("object"))]
+        for (k, v) in pairs {
+            if k == "type" || k == "required" { top.append((k, v)) }
+            else { props.append((k, v)) }
+        }
+        top.append(("properties", .object(Dictionary(props, uniquingKeysWith: { a, _ in a }))))
+        return .object(Dictionary(top, uniquingKeysWith: { a, _ in a }))
     }
     static func str(_ s: String) -> Value { .string(s) }
     static func prop(_ type: String, _ desc: String) -> Value {
@@ -220,6 +231,13 @@ public enum MCPServer {
                                   ("status", prop("string", "running | completed | failed — default completed")),
                                   budgetProp, ("type", .string("object")),
                                   ("required", .array([.string("kind"), .string("title"), .string("payload")]))])),
+            Tool(
+                name: "prime",
+                description: "Orientation card for this workspace (~300 tokens): branch, index counts, freshness, watcher state, hub symbols, recent records, warnings. Call FIRST at session start — cheaper and broader than get_status + fast_understand + list_records separately. format=json returns the structured snapshot instead of markdown.",
+                inputSchema: obj([wsProp,
+                                  ("format", prop("string", "markdown (default) | json")),
+                                  budgetProp, ("type", .string("object"))]),
+                annotations: .init(readOnlyHint: true)),
         ]
     }
 
@@ -227,7 +245,7 @@ public enum MCPServer {
         let server = Server(
             name: "swctx",
             version: "0.1.0",
-            instructions: "Local semantic code index. Call get_status first (workspace optional — resolves to the nearest indexed ancestor of the server cwd); if freshness.stale_files > 0 run index_workspace before trusting results. Use search for exploration, find_definitions/find_usages/graph_* for structure, fetch_chunks to read source. List tools return metadata only — set include_content or call fetch_chunks for bodies.",
+            instructions: "Local semantic code index (free, on-device, ms-level). Workflow: 1) prime — call FIRST for the workspace orientation card (freshness, watcher, hub symbols, recent records, warnings; workspace arg optional — resolves to nearest indexed ancestor of server cwd). If the card warns the index is stale, run index_workspace before trusting retrieval. 2) search (mode=auto handles identifier vs prose automatically), find_definitions/find_usages/graph_* for structure, fetch_chunks to read source bodies — list tools return metadata only. 3) put_record at task end for decisions/findings other agents should inherit; search_records scope=global reads fleet memory shared across git worktrees. All tools accept max_tokens to bound response size.",
             capabilities: .init(tools: .init(listChanged: false))
         )
         await server.withMethodHandler(ListTools.self) { _ in

@@ -940,6 +940,16 @@ public enum SwctxTools {
         ])
     }
 
+    /// prime: orientation card — markdown (default, ~300 tokens) or the
+    /// structured snapshot as JSON.
+    static func primeTool(_ args: [String: Value]) throws -> String {
+        let store = try store(args)
+        if args["format"]?.str == "json" {
+            return json(try Prime.snapshot(store: store, root: store.workspaceRoot))
+        }
+        return json(["card": try Prime.card(store: store, root: store.workspaceRoot)])
+    }
+
     static func getRecord(_ args: [String: Value]) throws -> String {
         let store = try store(args)
         guard let id = args["id"]?.int else { throw ToolError.missingArg("id") }
@@ -1255,6 +1265,7 @@ public enum SwctxTools {
         case "list_records": return try listRecords(arguments)
         case "search_records": return try searchRecords(arguments)
         case "put_record": return try putRecord(arguments)
+        case "prime": return try primeTool(arguments)
         default: throw ToolError.unknownTool(name)
         }
     }
