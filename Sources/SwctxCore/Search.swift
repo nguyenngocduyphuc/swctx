@@ -2,7 +2,7 @@ import Accelerate
 import Foundation
 import GRDB
 
-public struct SearchHit {
+public struct SearchHit: Sendable {
     public var chunkID: Int64
     public var path: String
     public var startLine: Int
@@ -538,36 +538,28 @@ public enum Search {
         // connection and query-embed inference (CoreML, CPU-bound) overlaps
         // the FTS IO. Sequential legs measured ~150ms warm on VN hybrid;
         // parallel legs cost ~max(fts, embed+cache) instead of the sum.
-        var ftsHits: [SearchHit] = []
-        var vecHits: [SearchHit] = []
-        var symHits: [SearchHit] = []
-        var phraseHits: [SearchHit] = []
-        var legErr: Error?
-        let errLock = NSLock()
+        let bag = LegBag()
         let group = DispatchGroup()
         let legQueue = DispatchQueue.global(qos: .userInitiated)
-        func note(_ e: Error) {
-            errLock.lock(); if legErr == nil { legErr = e }; errLock.unlock()
-        }
         group.enter()
         legQueue.async {
             defer { group.leave() }
-            do { ftsHits = try fts(store: store, query: query, limit: limit * 3, pathFilter: pathFilter) }
-            catch { note(error) }
+            do { bag.fts = try fts(store: store, query: query, limit: limit * 3, pathFilter: pathFilter) }
+            catch { bag.note(error) }
         }
         if includeVector {
             group.enter()
             legQueue.async {
                 defer { group.leave() }
-                do { vecHits = try semantic(store: store, embedder: embedder, query: query, limit: limit * 3, pathFilter: pathFilter) }
-                catch { note(error) }
+                do { bag.vec = try semantic(store: store, embedder: embedder, query: query, limit: limit * 3, pathFilter: pathFilter) }
+                catch { bag.note(error) }
             }
         }
         group.enter()
         legQueue.async {
             defer { group.leave() }
-            do { symHits = try symbolHits(store: store, query: query, limit: limit * 3, pathFilter: pathFilter) }
-            catch { note(error) }
+            do { bag.sym = try symbolHits(store: store, query: query, limit: limit * 3, pathFilter: pathFilter) }
+            catch { bag.note(error) }
         }
         // Folded-phrase rescue leg (diacritic queries only — ASCII folds
         // are identity so EN legs are unchanged). Adjacent-token phrases
@@ -590,12 +582,13 @@ public enum Search {
                         out.append(h)
                         if out.count == 5 { break }
                     }
-                    phraseHits = out
-                } catch { note(error) }
+                    bag.phrase = out
+                } catch { bag.note(error) }
             }
         }
         group.wait()
-        if let e = legErr { throw e }
+        if let e = bag.error { throw e }
+        let ftsHits = bag.fts, vecHits = bag.vec, symHits = bag.sym, phraseHits = bag.phrase
         let w = fusionWeights()
         var rrf: [Int64: Double] = [:]
         for (i, h) in ftsHits.enumerated() { rrf[h.chunkID, default: 0] += w.fts / (60 + Double(i) + 1) }
@@ -746,5 +739,20 @@ public enum Search {
                     score: -((row["rank"] as? Double) ?? 0), snippet: "")
             }
         }
+    }
+
+    /// Result bag for the concurrent legs in `hybridCandidates`. Each
+    /// property is written by exactly one leg closure and read only after
+    /// `group.wait()`, which establishes the happens-before edge; the lock
+    /// guards only the error slot (any leg may fail).
+    private final class LegBag: @unchecked Sendable {
+        var fts: [SearchHit] = []
+        var vec: [SearchHit] = []
+        var sym: [SearchHit] = []
+        var phrase: [SearchHit] = []
+        private var _err: Error?
+        private let lock = NSLock()
+        func note(_ e: Error) { lock.lock(); if _err == nil { _err = e }; lock.unlock() }
+        var error: Error? { lock.lock(); defer { lock.unlock() }; return _err }
     }
 }
