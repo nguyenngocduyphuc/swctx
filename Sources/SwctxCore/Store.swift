@@ -158,25 +158,50 @@ public final class Store: @unchecked Sendable {
 
     // MARK: - Records
 
+    /// Per-kind ledger bounds — eviction removes the oldest rows OF THAT
+    /// KIND only, so high-volume churn (context_pack/ask telemetry) can
+    /// never push out agent-authored notes.
+    public static let recordKindQuota: [String: Int] = [
+        "context_pack": 500,
+        "ask": 300,
+        "note": 200,
+        "finding": 200,
+        "decision": 200,
+        "todo": 200,
+    ]
+    public static let recordDefaultQuota = 100
+    public static func recordQuota(for kind: String) -> Int {
+        recordKindQuota[kind] ?? recordDefaultQuota
+    }
+
     /// Insert one record and return its row id. The payload is JSON-encoded;
     /// the records_fts sync trigger indexes title + payload automatically.
     @discardableResult
     public func insertRecord(kind: String, source: String, title: String,
                              payload: [String: Any]) throws -> Int64 {
         let data = try JSONSerialization.data(withJSONObject: payload)
-        let json = String(decoding: data, as: UTF8.self)
-        return try pool.write { db in
+        return try insertRecord(kind: kind, source: source, status: "completed",
+                                title: title,
+                                payloadJSON: String(decoding: data, as: UTF8.self))
+    }
+
+    /// Insert one record with a pre-encoded payload (raw text or JSON) and
+    /// explicit status, then apply the per-kind eviction bound.
+    @discardableResult
+    public func insertRecord(kind: String, source: String, status: String,
+                             title: String, payloadJSON: String) throws -> Int64 {
+        try pool.write { db in
             try db.execute(sql: """
-                INSERT INTO records(kind, source, title, payload, created_at)
-                VALUES(?,?,?,?,?)
-                """, arguments: [kind, source, title, json,
+                INSERT INTO records(kind, source, status, title, payload, created_at)
+                VALUES(?,?,?,?,?,?)
+                """, arguments: [kind, source, status, title, payloadJSON,
                                  Date().timeIntervalSince1970])
             let id = db.lastInsertedRowID
-            // Bound the ledger: keep the newest 1000 rows per workspace.
             try db.execute(sql: """
-                DELETE FROM records WHERE id NOT IN (
-                    SELECT id FROM records ORDER BY id DESC LIMIT 1000)
-                """)
+                DELETE FROM records WHERE kind = ? AND id NOT IN (
+                    SELECT id FROM records WHERE kind = ?
+                    ORDER BY id DESC LIMIT ?)
+                """, arguments: [kind, kind, Store.recordQuota(for: kind)])
             return id
         }
     }

@@ -34,6 +34,7 @@ extension Value {
 
 public enum ToolError: Error, LocalizedError {
     case missingArg(String)
+    case invalidArg(String)
     case workspaceNotFound(String)
     case notIndexed(String)
     case unknownTool(String)
@@ -41,6 +42,7 @@ public enum ToolError: Error, LocalizedError {
     public var errorDescription: String? {
         switch self {
         case .missingArg(let a): return "missing required argument: \(a)"
+        case .invalidArg(let m): return m
         case .workspaceNotFound(let p): return "workspace path is not a directory: \(p)"
         case .notIndexed(let p): return "workspace not indexed yet, run index_workspace first: \(p)"
         case .unknownTool(let t): return "unknown tool: \(t)"
@@ -616,20 +618,33 @@ public enum SwctxTools {
         let includeContent = args["include_content"]?.bool ?? false
         let strategy = args["strategy"]?.str ?? "shortest"
         let kinds = args["edge_kinds"]?.strList ?? []
+        let kindCond = kinds.isEmpty ? "" :
+            " AND e.kind IN (\(kinds.map { _ in "?" }.joined(separator: ",")))"
+        let kindParams = kinds.map { $0 as DatabaseValueConvertible }
+        // Ids per edge query: keeps IN() lists index-friendly and bounds
+        // per-level memory instead of loading the whole resolved-edge table.
+        let batchSize = 500
         let paths = try store.pool.read { db -> [[Int64]] in
-            var adj: [Int64: [Int64]] = [:]
-            let kindCond = kinds.isEmpty ? "" :
-                " AND kind IN (\(kinds.map { _ in "?" }.joined(separator: ",")))"
-            let rows = try Row.fetchAll(db, sql:
-                "SELECT src_chunk, dst_chunk FROM edges WHERE dst_chunk IS NOT NULL\(kindCond)",
-                arguments: StatementArguments(kinds.map { $0 as DatabaseValueConvertible }))
-            for r in rows {
-                guard let src = r["src_chunk"] as? Int64, let dst = r["dst_chunk"] as? Int64 else { continue }
-                adj[src, default: []].append(dst)
+            // Resolved outgoing edges out of `ids` via idx_edges_src — only
+            // the current frontier is read, never the full edge table.
+            func edgesFrom(_ ids: [Int64]) throws -> [(src: Int64, dst: Int64)] {
+                let ph = ids.map { _ in "?" }.joined(separator: ",")
+                let rows = try Row.fetchAll(db, sql: """
+                    SELECT e.src_chunk AS src, e.dst_chunk AS dst
+                    FROM edges e WHERE e.dst_chunk IS NOT NULL
+                    AND e.src_chunk IN (\(ph))\(kindCond)
+                    """, arguments: StatementArguments(
+                        ids.map { $0 as DatabaseValueConvertible } + kindParams))
+                return rows.compactMap { r in
+                    guard let s = r["src"] as? Int64, let d = r["dst"] as? Int64
+                    else { return nil }
+                    return (s, d)
+                }
             }
             if strategy == "all" || strategy == "all_simple" {
                 // DFS enumeration of simple paths (no repeated nodes), depth-
-                // first so alternatives beyond the shortest are explored.
+                // first so alternatives beyond the shortest are explored;
+                // neighbors are queried per popped node.
                 var found: [[Int64]] = []
                 var stack: [[Int64]] = [[Int64(from)]]
                 while let path = stack.popLast(), found.count < maxPaths {
@@ -637,28 +652,39 @@ public enum SwctxTools {
                     if last == Int64(to) { found.append(path); continue }
                     if path.count > maxHops { continue }
                     let inPath = Set(path)
-                    for next in adj[last] ?? [] where !inPath.contains(next) {
-                        stack.append(path + [next])
+                    for e in try edgesFrom([last]) where !inPath.contains(e.dst) {
+                        stack.append(path + [e.dst])
                     }
                 }
                 return found
             }
-            // "shortest": BFS — nodes are consumed once, so paths found are
-            // the shortest per reachable ordering.
-            var found: [[Int64]] = []
-            var queue: [[Int64]] = [[Int64(from)]]
+            // "shortest": level-by-level BFS over frontier batches — nodes
+            // are consumed once via `seen`, a parent map replaces per-queue
+            // paths, and discovery of `to` exits before draining the level.
+            let target = Int64(to)
+            var parent: [Int64: Int64] = [:]
             var seen: Set<Int64> = [Int64(from)]
-            while let path = queue.first, found.count < maxPaths {
-                queue.removeFirst()
-                let last = path.last!
-                if last == Int64(to) { found.append(path); continue }
-                if path.count > maxHops { continue }
-                for next in adj[last] ?? [] where !seen.contains(next) {
-                    seen.insert(next)
-                    queue.append(path + [next])
+            var frontier: [Int64] = [Int64(from)]
+            var depth = 0
+            while !frontier.isEmpty, depth < maxHops, !seen.contains(target) {
+                var next: [Int64] = []
+                var i = 0
+                while i < frontier.count, !seen.contains(target) {
+                    let batch = Array(frontier[i..<min(i + batchSize, frontier.count)])
+                    i += batch.count
+                    for (src, dst) in try edgesFrom(batch) where !seen.contains(dst) {
+                        seen.insert(dst)
+                        parent[dst] = src
+                        next.append(dst)
+                    }
                 }
+                frontier = next
+                depth += 1
             }
-            return found
+            guard seen.contains(target) else { return [] }
+            var path = [target]
+            while let p = parent[path.last!] { path.append(p) }
+            return [Array(path.reversed())]
         }
         let allIDs = paths.flatMap { $0 }
         let meta = try chunkMeta(store: store, ids: allIDs)
@@ -839,6 +865,7 @@ public enum SwctxTools {
             "title": (row["title"] as? String) ?? "",
             "created_at": (row["created_at"] as? Double) ?? 0,
         ]
+        if row.hasColumn("ws"), let ws = row["ws"] as? String { d["ws"] = ws }
         guard includePayload else { return d }
         if let p = row["payload"] as? String,
            let obj = try? JSONSerialization.jsonObject(with: Data(p.utf8)) {
@@ -864,6 +891,55 @@ public enum SwctxTools {
         return (clauses.joined(separator: " AND "), params)
     }
 
+    /// Content identity for cross-ledger dedup: id and created_at differ
+    /// between the workspace and global copies of one record.
+    static func recordContentKey(_ r: Row) -> String {
+        let k = (r["kind"] as? String) ?? ""
+        let t = (r["title"] as? String) ?? ""
+        let p = (r["payload"] as? String) ?? ""
+        return "\(k)\u{1f}\(t)\u{1f}\(p)"
+    }
+
+    /// put_record kind allowlist — agent-authored memory plus the two
+    /// telemetry kinds agents may also file deliberately.
+    static let putRecordKinds: Set<String> = [
+        "note", "finding", "decision", "todo", "context_pack", "ask",
+    ]
+
+    /// put_record: write an agent-authored record to the workspace ledger
+    /// AND the repo-wide shared ledger (GlobalRecords), so it is visible
+    /// from every git worktree of the same repository.
+    static func putRecord(_ args: [String: Value]) throws -> String {
+        let store = try store(args)
+        guard let kind = args["kind"]?.str, !kind.isEmpty else {
+            throw ToolError.missingArg("kind")
+        }
+        guard putRecordKinds.contains(kind) else {
+            throw ToolError.invalidArg(
+                "unknown record kind '\(kind)' — allowed: \(putRecordKinds.sorted().joined(separator: ", "))")
+        }
+        guard let title = args["title"]?.str, !title.isEmpty else {
+            throw ToolError.missingArg("title")
+        }
+        guard let payload = args["payload"]?.str else {
+            throw ToolError.missingArg("payload")
+        }
+        let status = args["status"]?.str ?? "completed"
+        let id = try store.insertRecord(kind: kind, source: "mcp", status: status,
+                                        title: title, payloadJSON: payload)
+        let ws = GlobalRecords.repoKey(for: store.workspaceRoot)
+        var sharedID: Int64? = nil
+        if let global = GlobalRecords.shared {
+            sharedID = try? global.insert(ws: ws, kind: kind, source: "mcp",
+                                          status: status, title: title, payload: payload)
+        }
+        return json([
+            "record_id": id, "kind": kind,
+            "scope": sharedID != nil ? "workspace+global" : "workspace",
+            "ws": ws,
+        ])
+    }
+
     static func getRecord(_ args: [String: Value]) throws -> String {
         let store = try store(args)
         guard let id = args["id"]?.int else { throw ToolError.missingArg("id") }
@@ -887,9 +963,62 @@ public enum SwctxTools {
         let store = try store(args)
         let limit = min(max(args["limit"]?.int ?? 50, 1), 100)
         let offset = max(args["offset"]?.int ?? 0, 0)
+        let scope = args["scope"]?.str ?? "workspace"
+        guard scope == "workspace" || scope == "global" || scope == "all" else {
+            throw ToolError.invalidArg("scope must be workspace | global | all")
+        }
         let (whereSQL, params) = recordFilters(args, alias: "")
         let whereClause = whereSQL.isEmpty ? "" : " WHERE \(whereSQL)"
+        let wsClause = whereClause.isEmpty ? " WHERE ws = ?" : "\(whereClause) AND ws = ?"
         do {
+            if scope == "all" {
+                // Union, workspace rows first. put_record dual-writes both
+                // ledgers, so repo rows dedupe on (kind, title, payload).
+                // Ledgers are quota-bounded — merge the full filtered set
+                // and paginate in memory for an exact total.
+                let wsRows = try store.pool.read { db in
+                    try Row.fetchAll(db, sql: """
+                        SELECT id, kind, source, status, title, payload, created_at
+                        FROM records\(whereClause) ORDER BY id DESC
+                        """, arguments: StatementArguments(params))
+                }
+                var merged = wsRows.map { recordDict($0) }
+                var seen = Set(wsRows.map { recordContentKey($0) })
+                if let global = GlobalRecords.shared {
+                    let ws = GlobalRecords.repoKey(for: store.workspaceRoot)
+                    let gRows = try global.pool.read { db in
+                        try Row.fetchAll(db, sql: """
+                            SELECT id, ws, kind, source, status, title, payload, created_at
+                            FROM records\(wsClause) ORDER BY id DESC
+                            """, arguments: StatementArguments(params + [ws]))
+                    }
+                    for r in gRows {
+                        let key = recordContentKey(r)
+                        guard !seen.contains(key) else { continue }
+                        seen.insert(key)
+                        merged.append(recordDict(r))
+                    }
+                }
+                return json(["records": Array(merged.dropFirst(offset).prefix(limit)),
+                             "total": merged.count])
+            }
+            if scope == "global" {
+                guard let global = GlobalRecords.shared else {
+                    return json(["records": [Any](), "total": 0])
+                }
+                let ws = GlobalRecords.repoKey(for: store.workspaceRoot)
+                let gParams = params + [ws]
+                let (rows, total) = try global.pool.read { db in
+                    let t = try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM records\(wsClause)",
+                                             arguments: StatementArguments(gParams)) ?? 0
+                    let r = try Row.fetchAll(db, sql: """
+                        SELECT id, ws, kind, source, status, title, payload, created_at
+                        FROM records\(wsClause) ORDER BY id DESC LIMIT ? OFFSET ?
+                        """, arguments: StatementArguments(gParams + [limit, offset]))
+                    return (r, t)
+                }
+                return json(["records": rows.map { recordDict($0) }, "total": total])
+            }
             let (rows, total) = try store.pool.read { db in
                 let t = try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM records\(whereClause)",
                                          arguments: StatementArguments(params)) ?? 0
@@ -910,12 +1039,73 @@ public enum SwctxTools {
         guard let q = args["query"]?.str else { throw ToolError.missingArg("query") }
         let limit = min(max(args["limit"]?.int ?? 50, 1), 100)
         let offset = max(args["offset"]?.int ?? 0, 0)
+        let scope = args["scope"]?.str ?? "workspace"
+        guard scope == "workspace" || scope == "global" || scope == "all" else {
+            throw ToolError.invalidArg("scope must be workspace | global | all")
+        }
         guard let match = Search.ftsQuery(q) else {
             return json(["records": [Any](), "total": 0])
         }
         let (filterSQL, filterParams) = recordFilters(args, alias: "r.")
         let whereClause = filterSQL.isEmpty ? "" : " AND \(filterSQL)"
+        let wsClause = " AND r.ws = ?"
         do {
+            if scope == "all" {
+                // Ranked union, workspace hits first; same dedup as
+                // list_records scope=all (put_record dual-writes).
+                let wsRows = try store.pool.read { db in
+                    try Row.fetchAll(db, sql: """
+                        SELECT r.id, r.kind, r.source, r.status, r.title, r.payload, r.created_at,
+                               bm25(records_fts) AS rank
+                        FROM records_fts JOIN records r ON r.id = records_fts.rowid
+                        WHERE records_fts MATCH ?\(whereClause)
+                        ORDER BY rank
+                        """, arguments: StatementArguments([match] + filterParams))
+                }
+                var merged = wsRows.map { recordDict($0) }
+                var seen = Set(wsRows.map { recordContentKey($0) })
+                if let global = GlobalRecords.shared {
+                    let ws = GlobalRecords.repoKey(for: store.workspaceRoot)
+                    let gRows = try global.pool.read { db in
+                        try Row.fetchAll(db, sql: """
+                            SELECT r.id, r.ws, r.kind, r.source, r.status, r.title, r.payload, r.created_at,
+                                   bm25(records_fts) AS rank
+                            FROM records_fts JOIN records r ON r.id = records_fts.rowid
+                            WHERE records_fts MATCH ?\(whereClause)\(wsClause)
+                            ORDER BY rank
+                            """, arguments: StatementArguments([match] + filterParams + [ws]))
+                    }
+                    for r in gRows {
+                        let key = recordContentKey(r)
+                        guard !seen.contains(key) else { continue }
+                        seen.insert(key)
+                        merged.append(recordDict(r))
+                    }
+                }
+                return json(["records": Array(merged.dropFirst(offset).prefix(limit)),
+                             "total": merged.count])
+            }
+            if scope == "global" {
+                guard let global = GlobalRecords.shared else {
+                    return json(["records": [Any](), "total": 0])
+                }
+                let ws = GlobalRecords.repoKey(for: store.workspaceRoot)
+                let (rows, total) = try global.pool.read { db in
+                    let t = try Int.fetchOne(db, sql: """
+                        SELECT COUNT(*) FROM records_fts JOIN records r ON r.id = records_fts.rowid
+                        WHERE records_fts MATCH ?\(whereClause)\(wsClause)
+                        """, arguments: StatementArguments([match] + filterParams + [ws])) ?? 0
+                    let r = try Row.fetchAll(db, sql: """
+                        SELECT r.id, r.ws, r.kind, r.source, r.status, r.title, r.payload, r.created_at,
+                               bm25(records_fts) AS rank
+                        FROM records_fts JOIN records r ON r.id = records_fts.rowid
+                        WHERE records_fts MATCH ?\(whereClause)\(wsClause)
+                        ORDER BY rank LIMIT ? OFFSET ?
+                        """, arguments: StatementArguments([match] + filterParams + [ws, limit, offset]))
+                    return (r, t)
+                }
+                return json(["records": rows.map { recordDict($0) }, "total": total])
+            }
             let (rows, total) = try store.pool.read { db in
                 let t = try Int.fetchOne(db, sql: """
                     SELECT COUNT(*) FROM records_fts JOIN records r ON r.id = records_fts.rowid
@@ -1064,6 +1254,7 @@ public enum SwctxTools {
         case "get_record": return try getRecord(arguments)
         case "list_records": return try listRecords(arguments)
         case "search_records": return try searchRecords(arguments)
+        case "put_record": return try putRecord(arguments)
         default: throw ToolError.unknownTool(name)
         }
     }

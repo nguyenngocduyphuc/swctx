@@ -1,0 +1,1818 @@
+{
+ "n": 100,
+ "counts": {
+  "real": 2,
+  "type_ref": 38,
+  "phantom": 60
+ },
+ "absent_total": 15684,
+ "absent_by_type": {
+  "uses_type": 1704,
+  "field_of": 11792,
+  "calls": 2164,
+  "imports": 19,
+  "implements": 5
+ },
+ "edges": [
+  {
+   "i": 0,
+   "verdict": "type_ref",
+   "edge_type": "field_of",
+   "target_name": "delay",
+   "confidence": 1.0,
+   "src_path": "Sources/SiteM/InfraTest+Audit.swift",
+   "src_lines": [
+    46,
+    68
+   ],
+   "dst_path": "Sources/SiteM/InfraTest+Audit.swift",
+   "dst_lines": [
+    6,
+    24
+   ],
+   "dst_symbol": "Response"
+  },
+  {
+   "i": 1,
+   "verdict": "phantom",
+   "edge_type": "field_of",
+   "target_name": "auditAlertsEnabled",
+   "confidence": 0.95,
+   "src_path": "Tests/SiteMTests/LocalAutomationTest.swift",
+   "src_lines": [
+    263,
+    368
+   ],
+   "dst_path": "Sources/SiteM/NotificationStore.swift",
+   "dst_lines": [
+    31,
+    53
+   ],
+   "dst_symbol": "NotificationPreferences"
+  },
+  {
+   "i": 2,
+   "verdict": "phantom",
+   "edge_type": "field_of",
+   "target_name": "level",
+   "confidence": 0.95,
+   "src_path": "Sources/SiteM/ContentStore+RepurposeFormatting.swift",
+   "src_lines": [
+    20,
+    118
+   ],
+   "dst_path": "Sources/SiteM/ContentModels.swift",
+   "dst_lines": [
+    19,
+    29
+   ],
+   "dst_symbol": "ContentHeading"
+  },
+  {
+   "i": 3,
+   "verdict": "type_ref",
+   "edge_type": "field_of",
+   "target_name": "schemaVersion",
+   "confidence": 1.0,
+   "src_path": "Sources/SiteM/CLIAgentSourceIndex.swift",
+   "src_lines": [
+    268,
+    282
+   ],
+   "dst_path": "Sources/SiteM/CLIAgentSourceIndex.swift",
+   "dst_lines": [
+    9,
+    33
+   ],
+   "dst_symbol": "CLIAgentSourceIndex"
+  },
+  {
+   "i": 4,
+   "verdict": "phantom",
+   "edge_type": "field_of",
+   "target_name": "ctr",
+   "confidence": 0.95,
+   "src_path": "Sources/SiteM/DashboardDetailSheet.swift",
+   "src_lines": [
+    105,
+    115
+   ],
+   "dst_path": "Sources/SiteM/KeywordSnapshotStore.swift",
+   "dst_lines": [
+    19,
+    42
+   ],
+   "dst_symbol": "KeywordSnapshotEntry"
+  },
+  {
+   "i": 5,
+   "verdict": "phantom",
+   "edge_type": "imports",
+   "target_name": "contextlib",
+   "confidence": 0.95,
+   "src_path": "engines/p8-core/scripts/p8_analytics_pull.py",
+   "src_lines": [
+    24,
+    66
+   ],
+   "dst_path": "artifacts/dod/G11_p8_exit_probe.py",
+   "dst_lines": [
+    1,
+    11
+   ],
+   "dst_symbol": "argparse"
+  },
+  {
+   "i": 6,
+   "verdict": "phantom",
+   "edge_type": "field_of",
+   "target_name": "responseTimeMs",
+   "confidence": 0.95,
+   "src_path": "Sources/SiteM/AuditStore.swift",
+   "src_lines": [
+    279,
+    358
+   ],
+   "dst_path": "Sources/SiteM/SiteAuditService.swift",
+   "dst_lines": [
+    927,
+    946
+   ],
+   "dst_symbol": "CrawledPageData"
+  },
+  {
+   "i": 7,
+   "verdict": "phantom",
+   "edge_type": "field_of",
+   "target_name": "users",
+   "confidence": 0.95,
+   "src_path": "Sources/SiteM/InfraTest+DashboardUX.swift",
+   "src_lines": [
+    8,
+    78
+   ],
+   "dst_path": "Sources/SiteM/P8AnalyticsService.swift",
+   "dst_lines": [
+    3,
+    17
+   ],
+   "dst_symbol": "P8AnalyticsSiteSnapshot"
+  },
+  {
+   "i": 8,
+   "verdict": "type_ref",
+   "edge_type": "field_of",
+   "target_name": "steps",
+   "confidence": 1.0,
+   "src_path": "Sources/SiteM/OnboardingService.swift",
+   "src_lines": [
+    288,
+    404
+   ],
+   "dst_path": "Sources/SiteM/OnboardingService.swift",
+   "dst_lines": [
+    23,
+    42
+   ],
+   "dst_symbol": "OnboardingReceipt"
+  },
+  {
+   "i": 9,
+   "verdict": "phantom",
+   "edge_type": "calls",
+   "target_name": "print",
+   "confidence": 0.7,
+   "src_path": "Tests/SiteMTests/LocalAutomationTest.swift",
+   "src_lines": [
+    263,
+    368
+   ],
+   "dst_path": "Sources/SiteM/VideoPipelineModels.swift",
+   "dst_lines": [
+    5,
+    44
+   ],
+   "dst_symbol": "VideoPipeline"
+  },
+  {
+   "i": 10,
+   "verdict": "phantom",
+   "edge_type": "field_of",
+   "target_name": "title",
+   "confidence": 0.95,
+   "src_path": "Sources/SiteM/WebAdminView+BrandVoice.swift",
+   "src_lines": [
+    454,
+    479
+   ],
+   "dst_path": "Sources/SiteM/AILocalStore.swift",
+   "dst_lines": [
+    170,
+    176
+   ],
+   "dst_symbol": "ChatThread"
+  },
+  {
+   "i": 11,
+   "verdict": "phantom",
+   "edge_type": "uses_type",
+   "target_name": "Any",
+   "confidence": 0.95,
+   "src_path": "Sources/SiteM/PerformanceService.swift",
+   "src_lines": [
+    748,
+    791
+   ],
+   "dst_path": "engines/p8-core/scripts/p8_analytics_pull.py",
+   "dst_lines": [
+    24,
+    66
+   ],
+   "dst_symbol": "argparse"
+  },
+  {
+   "i": 12,
+   "verdict": "type_ref",
+   "edge_type": "field_of",
+   "target_name": "storeSchemaVersion",
+   "confidence": 0.95,
+   "src_path": "Sources/SiteM/OpsRunbook.swift",
+   "src_lines": [
+    73,
+    81
+   ],
+   "dst_path": "Sources/SiteM/SchemaMigration.swift",
+   "dst_lines": [
+    44,
+    58
+   ],
+   "dst_symbol": "SchemaMigration"
+  },
+  {
+   "i": 13,
+   "verdict": "type_ref",
+   "edge_type": "field_of",
+   "target_name": "fileURL",
+   "confidence": 1.0,
+   "src_path": "Sources/SiteM/ContactIntelligenceStore.swift",
+   "src_lines": [
+    3,
+    31
+   ],
+   "dst_path": "Sources/SiteM/ContactIntelligenceStore.swift",
+   "dst_lines": [
+    3,
+    31
+   ],
+   "dst_symbol": "ContactIntelligenceStore"
+  },
+  {
+   "i": 14,
+   "verdict": "phantom",
+   "edge_type": "field_of",
+   "target_name": "source",
+   "confidence": 0.95,
+   "src_path": "Sources/SiteM/DashboardService.swift",
+   "src_lines": [
+    157,
+    260
+   ],
+   "dst_path": "Sources/SiteM/EngineLocator.swift",
+   "dst_lines": [
+    5,
+    10
+   ],
+   "dst_symbol": "EngineLocator"
+  },
+  {
+   "i": 15,
+   "verdict": "phantom",
+   "edge_type": "calls",
+   "target_name": "contains",
+   "confidence": 0.95,
+   "src_path": "Sources/SiteM/DashboardService.swift",
+   "src_lines": [
+    524,
+    529
+   ],
+   "dst_path": "Sources/SiteM/AuditSustainability+.swift",
+   "dst_lines": [
+    74,
+    79
+   ],
+   "dst_symbol": "contains"
+  },
+  {
+   "i": 16,
+   "verdict": "phantom",
+   "edge_type": "field_of",
+   "target_name": "position",
+   "confidence": 0.95,
+   "src_path": "Sources/SiteM/InfraTest+KeywordSnapshots.swift",
+   "src_lines": [
+    6,
+    69
+   ],
+   "dst_path": "Sources/SiteM/DistributionCommentModels.swift",
+   "dst_lines": [
+    355,
+    422
+   ],
+   "dst_symbol": "SiteComment"
+  },
+  {
+   "i": 17,
+   "verdict": "type_ref",
+   "edge_type": "field_of",
+   "target_name": "label",
+   "confidence": 1.0,
+   "src_path": "Sources/SiteM/VideoPipelineModels.swift",
+   "src_lines": [
+    322,
+    347
+   ],
+   "dst_path": "Sources/SiteM/VideoPipelineModels.swift",
+   "dst_lines": [
+    5,
+    44
+   ],
+   "dst_symbol": "VideoPipeline"
+  },
+  {
+   "i": 18,
+   "verdict": "phantom",
+   "edge_type": "field_of",
+   "target_name": "strikingDistance",
+   "confidence": 0.95,
+   "src_path": "Sources/SiteM/PerformanceView.swift",
+   "src_lines": [
+    195,
+    303
+   ],
+   "dst_path": "Sources/SiteM/PerformanceService.swift",
+   "dst_lines": [
+    49,
+    56
+   ],
+   "dst_symbol": "PerformanceInsights"
+  },
+  {
+   "i": 19,
+   "verdict": "type_ref",
+   "edge_type": "field_of",
+   "target_name": "height",
+   "confidence": 0.95,
+   "src_path": "Sources/SiteM/DesignStudioStore.swift",
+   "src_lines": [
+    603,
+    616
+   ],
+   "dst_path": "Sources/SiteM/DesignStudioModels.swift",
+   "dst_lines": [
+    5,
+    23
+   ],
+   "dst_symbol": "DesignFormat"
+  },
+  {
+   "i": 20,
+   "verdict": "phantom",
+   "edge_type": "field_of",
+   "target_name": "default",
+   "confidence": 0.4,
+   "src_path": "Sources/SiteM/SiteCleanup+Stores.swift",
+   "src_lines": [
+    338,
+    384
+   ],
+   "dst_path": "Sources/SiteM/ConnectorModels.swift",
+   "dst_lines": [
+    13,
+    33
+   ],
+   "dst_symbol": "Connector"
+  },
+  {
+   "i": 21,
+   "verdict": "phantom",
+   "edge_type": "calls",
+   "target_name": "map",
+   "confidence": 0.95,
+   "src_path": "Sources/SiteM/GoogleAuth.swift",
+   "src_lines": [
+    185,
+    254
+   ],
+   "dst_path": "Sources/SiteM/Metrics.swift",
+   "dst_lines": [
+    589,
+    605
+   ],
+   "dst_symbol": "GA4PropertyMapEnvelope"
+  },
+  {
+   "i": 22,
+   "verdict": "type_ref",
+   "edge_type": "field_of",
+   "target_name": "processedAt",
+   "confidence": 0.95,
+   "src_path": "Sources/SiteM/CMSConnectorStore.swift",
+   "src_lines": [
+    744,
+    761
+   ],
+   "dst_path": "Sources/SiteM/CMSConnectorModels.swift",
+   "dst_lines": [
+    219,
+    291
+   ],
+   "dst_symbol": "PublishQueueJob"
+  },
+  {
+   "i": 23,
+   "verdict": "type_ref",
+   "edge_type": "field_of",
+   "target_name": "tool",
+   "confidence": 0.95,
+   "src_path": "Sources/SiteM/AgentToolDispatcher.swift",
+   "src_lines": [
+    70,
+    138
+   ],
+   "dst_path": "Sources/SiteM/CLIAgentToolRequest.swift",
+   "dst_lines": [
+    3,
+    10
+   ],
+   "dst_symbol": "CLIAgentToolRequest"
+  },
+  {
+   "i": 24,
+   "verdict": "phantom",
+   "edge_type": "calls",
+   "target_name": "contains",
+   "confidence": 0.95,
+   "src_path": "Sources/SiteM/ConnectionsService.swift",
+   "src_lines": [
+    436,
+    478
+   ],
+   "dst_path": "Sources/SiteM/AuditSustainability+.swift",
+   "dst_lines": [
+    74,
+    79
+   ],
+   "dst_symbol": "contains"
+  },
+  {
+   "i": 25,
+   "verdict": "phantom",
+   "edge_type": "field_of",
+   "target_name": "requestType",
+   "confidence": 0.95,
+   "src_path": "Sources/SiteM/SEOTabView.swift",
+   "src_lines": [
+    91,
+    216
+   ],
+   "dst_path": "Sources/SiteM/UtilitiesStore.swift",
+   "dst_lines": [
+    4,
+    16
+   ],
+   "dst_symbol": "GoogleIndexRequestItem"
+  },
+  {
+   "i": 26,
+   "verdict": "phantom",
+   "edge_type": "field_of",
+   "target_name": "default",
+   "confidence": 0.4,
+   "src_path": "Sources/SiteM/ConnectorStore.swift",
+   "src_lines": [
+    56,
+    94
+   ],
+   "dst_path": "Sources/SiteM/ConnectorModels.swift",
+   "dst_lines": [
+    13,
+    33
+   ],
+   "dst_symbol": "Connector"
+  },
+  {
+   "i": 27,
+   "verdict": "phantom",
+   "edge_type": "imports",
+   "target_name": "re",
+   "confidence": 0.95,
+   "src_path": "engines/p8-core/scripts/p8_daily_report.py",
+   "src_lines": [
+    680,
+    743
+   ],
+   "dst_path": "engines/p8-core/scripts/p8_ai_visibility.py",
+   "dst_lines": [
+    1,
+    30
+   ],
+   "dst_symbol": "argparse"
+  },
+  {
+   "i": 28,
+   "verdict": "real",
+   "edge_type": "calls",
+   "target_name": "readCollections",
+   "confidence": 1.0,
+   "src_path": "outputs/implementation/T18/wip-1400/AssetStore.swift",
+   "src_lines": [
+    304,
+    312
+   ],
+   "dst_path": "outputs/implementation/T18/wip-1400/AssetStore.swift",
+   "dst_lines": [
+    249,
+    258
+   ],
+   "dst_symbol": "readCollections"
+  },
+  {
+   "i": 29,
+   "verdict": "type_ref",
+   "edge_type": "field_of",
+   "target_name": "hasData",
+   "confidence": 1.0,
+   "src_path": "Sources/SiteM/P8AnalyticsService.swift",
+   "src_lines": [
+    195,
+    316
+   ],
+   "dst_path": "Sources/SiteM/P8AnalyticsService.swift",
+   "dst_lines": [
+    3,
+    17
+   ],
+   "dst_symbol": "P8AnalyticsSiteSnapshot"
+  },
+  {
+   "i": 30,
+   "verdict": "type_ref",
+   "edge_type": "field_of",
+   "target_name": "window",
+   "confidence": 1.0,
+   "src_path": "Sources/SiteM/DashboardService.swift",
+   "src_lines": [
+    375,
+    468
+   ],
+   "dst_path": "Sources/SiteM/DashboardService.swift",
+   "dst_lines": [
+    142,
+    157
+   ],
+   "dst_symbol": "DashboardService"
+  },
+  {
+   "i": 31,
+   "verdict": "type_ref",
+   "edge_type": "field_of",
+   "target_name": "private_key",
+   "confidence": 1.0,
+   "src_path": "Sources/SiteM/OnboardingService.swift",
+   "src_lines": [
+    529,
+    551
+   ],
+   "dst_path": "Sources/SiteM/OnboardingService.swift",
+   "dst_lines": [
+    522,
+    529
+   ],
+   "dst_symbol": "SiteServiceAccountFields"
+  },
+  {
+   "i": 32,
+   "verdict": "phantom",
+   "edge_type": "calls",
+   "target_name": "map",
+   "confidence": 0.95,
+   "src_path": "Sources/SiteM/ContentStore.swift",
+   "src_lines": [
+    661,
+    694
+   ],
+   "dst_path": "Sources/SiteM/Metrics.swift",
+   "dst_lines": [
+    589,
+    605
+   ],
+   "dst_symbol": "GA4PropertyMapEnvelope"
+  },
+  {
+   "i": 33,
+   "verdict": "type_ref",
+   "edge_type": "field_of",
+   "target_name": "clicks",
+   "confidence": 1.0,
+   "src_path": "Sources/SiteM/KeywordSnapshotStore.swift",
+   "src_lines": [
+    183,
+    221
+   ],
+   "dst_path": "Sources/SiteM/KeywordSnapshotStore.swift",
+   "dst_lines": [
+    19,
+    42
+   ],
+   "dst_symbol": "KeywordSnapshotEntry"
+  },
+  {
+   "i": 34,
+   "verdict": "type_ref",
+   "edge_type": "field_of",
+   "target_name": "users",
+   "confidence": 1.0,
+   "src_path": "Sources/SiteM/P8AnalyticsService.swift",
+   "src_lines": [
+    195,
+    316
+   ],
+   "dst_path": "Sources/SiteM/P8AnalyticsService.swift",
+   "dst_lines": [
+    3,
+    17
+   ],
+   "dst_symbol": "P8AnalyticsSiteSnapshot"
+  },
+  {
+   "i": 35,
+   "verdict": "type_ref",
+   "edge_type": "field_of",
+   "target_name": "status",
+   "confidence": 1.0,
+   "src_path": "Sources/SiteM/MetricSnapshotMetadata.swift",
+   "src_lines": [
+    4,
+    67
+   ],
+   "dst_path": "Sources/SiteM/MetricSnapshotMetadata.swift",
+   "dst_lines": [
+    4,
+    67
+   ],
+   "dst_symbol": "MetricSnapshotMetadata"
+  },
+  {
+   "i": 36,
+   "verdict": "type_ref",
+   "edge_type": "uses_type",
+   "target_name": "String",
+   "confidence": 0.95,
+   "src_path": "Sources/SiteM/WebAdminView+Distribution.swift",
+   "src_lines": [
+    388,
+    396
+   ],
+   "dst_path": "Sources/SiteM/DuongDanDuLieu.swift",
+   "dst_lines": [
+    32,
+    34
+   ],
+   "dst_symbol": "String"
+  },
+  {
+   "i": 37,
+   "verdict": "phantom",
+   "edge_type": "calls",
+   "target_name": "map",
+   "confidence": 0.95,
+   "src_path": "Sources/SiteM/InfraTest+Audit.swift",
+   "src_lines": [
+    95,
+    169
+   ],
+   "dst_path": "Sources/SiteM/Metrics.swift",
+   "dst_lines": [
+    589,
+    605
+   ],
+   "dst_symbol": "GA4PropertyMapEnvelope"
+  },
+  {
+   "i": 38,
+   "verdict": "phantom",
+   "edge_type": "field_of",
+   "target_name": "0",
+   "confidence": 0.7,
+   "src_path": "Sources/SiteM/ContactLeadView.swift",
+   "src_lines": [
+    4,
+    128
+   ],
+   "dst_path": "HANDOFF_20260914_site-M_full-function-audit.md",
+   "dst_lines": [
+    293,
+    342
+   ],
+   "dst_symbol": "12. Lead final verification \u2014 2026-09-14 23:10 +0700"
+  },
+  {
+   "i": 39,
+   "verdict": "type_ref",
+   "edge_type": "field_of",
+   "target_name": "captions",
+   "confidence": 0.95,
+   "src_path": "Sources/SiteM/VideoPipelineStore.swift",
+   "src_lines": [
+    730,
+    820
+   ],
+   "dst_path": "Sources/SiteM/VideoPipelineModels.swift",
+   "dst_lines": [
+    225,
+    259
+   ],
+   "dst_symbol": "VideoScene"
+  },
+  {
+   "i": 40,
+   "verdict": "type_ref",
+   "edge_type": "uses_type",
+   "target_name": "String",
+   "confidence": 0.95,
+   "src_path": "Sources/SiteM/AutomationCapabilityService.swift",
+   "src_lines": [
+    54,
+    68
+   ],
+   "dst_path": "Sources/SiteM/DuongDanDuLieu.swift",
+   "dst_lines": [
+    32,
+    34
+   ],
+   "dst_symbol": "String"
+  },
+  {
+   "i": 41,
+   "verdict": "phantom",
+   "edge_type": "field_of",
+   "target_name": "useCount",
+   "confidence": 0.95,
+   "src_path": "Sources/SiteM/WebAdminView+Comments.swift",
+   "src_lines": [
+    1,
+    116
+   ],
+   "dst_path": "Sources/SiteM/DistributionCommentModels.swift",
+   "dst_lines": [
+    435,
+    477
+   ],
+   "dst_symbol": "CommentSnippet"
+  },
+  {
+   "i": 42,
+   "verdict": "phantom",
+   "edge_type": "field_of",
+   "target_name": "healthScore",
+   "confidence": 1.0,
+   "src_path": "Sources/SiteM/SiteAuditService.swift",
+   "src_lines": [
+    96,
+    208
+   ],
+   "dst_path": "Sources/SiteM/SiteAuditService.swift",
+   "dst_lines": [
+    676,
+    683
+   ],
+   "dst_symbol": "EvaluationResult"
+  },
+  {
+   "i": 43,
+   "verdict": "type_ref",
+   "edge_type": "field_of",
+   "target_name": "id",
+   "confidence": 1.0,
+   "src_path": "Sources/SiteM/ViecCanLamStore.swift",
+   "src_lines": [
+    419,
+    447
+   ],
+   "dst_path": "Sources/SiteM/ViecCanLamStore.swift",
+   "dst_lines": [
+    5,
+    40
+   ],
+   "dst_symbol": "ViecCanLam"
+  },
+  {
+   "i": 44,
+   "verdict": "phantom",
+   "edge_type": "field_of",
+   "target_name": "id",
+   "confidence": 1.0,
+   "src_path": "Sources/SiteM/SEOTabView.swift",
+   "src_lines": [
+    91,
+    216
+   ],
+   "dst_path": "Sources/SiteM/SEOTabView.swift",
+   "dst_lines": [
+    6,
+    40
+   ],
+   "dst_symbol": "SEOTab"
+  },
+  {
+   "i": 45,
+   "verdict": "phantom",
+   "edge_type": "field_of",
+   "target_name": "1",
+   "confidence": 0.7,
+   "src_path": "Sources/SiteM/DashboardService.swift",
+   "src_lines": [
+    358,
+    361
+   ],
+   "dst_path": "AGENTS.md",
+   "dst_lines": [
+    1,
+    20
+   ],
+   "dst_symbol": "_section_l1"
+  },
+  {
+   "i": 46,
+   "verdict": "phantom",
+   "edge_type": "field_of",
+   "target_name": "pages",
+   "confidence": 0.95,
+   "src_path": "artifacts/dod/mutant_L11_dut_day.swift",
+   "src_lines": [
+    91,
+    172
+   ],
+   "dst_path": "artifacts/dod/mutant_S2_host_sitemap.swift",
+   "dst_lines": [
+    54,
+    60
+   ],
+   "dst_symbol": "AuditRunDetail"
+  },
+  {
+   "i": 47,
+   "verdict": "phantom",
+   "edge_type": "field_of",
+   "target_name": "htmlSnippet",
+   "confidence": 0.95,
+   "src_path": "Tests/SiteMTests/AssetStoreTest.swift",
+   "src_lines": [
+    9,
+    71
+   ],
+   "dst_path": "Sources/SiteM/AssetModels.swift",
+   "dst_lines": [
+    79,
+    152
+   ],
+   "dst_symbol": "Asset"
+  },
+  {
+   "i": 48,
+   "verdict": "phantom",
+   "edge_type": "implements",
+   "target_name": "Error",
+   "confidence": 0.8,
+   "src_path": "outputs/implementation/T18/wip-1400/AssetStore.swift",
+   "src_lines": [
+    9,
+    33
+   ],
+   "dst_path": "Sources/SiteM/AIVisibilityModels.swift",
+   "dst_lines": [
+    81,
+    118
+   ],
+   "dst_symbol": "PromptExplorerModelResult"
+  },
+  {
+   "i": 49,
+   "verdict": "real",
+   "edge_type": "calls",
+   "target_name": "invalidStore",
+   "confidence": 0.95,
+   "src_path": "outputs/implementation/T18/wip-1400/AssetStore.swift",
+   "src_lines": [
+    260,
+    266
+   ],
+   "dst_path": "Sources/SiteM/SchemaMigration.swift",
+   "dst_lines": [
+    21,
+    44
+   ],
+   "dst_symbol": "SchemaMigrationError"
+  },
+  {
+   "i": 50,
+   "verdict": "type_ref",
+   "edge_type": "field_of",
+   "target_name": "registered",
+   "confidence": 0.95,
+   "src_path": "Sources/SiteM/AgentService.swift",
+   "src_lines": [
+    16,
+    91
+   ],
+   "dst_path": "Sources/SiteM/FleetBridge.swift",
+   "dst_lines": [
+    21,
+    26
+   ],
+   "dst_symbol": "FleetRegistrationResult"
+  },
+  {
+   "i": 51,
+   "verdict": "phantom",
+   "edge_type": "imports",
+   "target_name": "datetime",
+   "confidence": 0.95,
+   "src_path": "engines/p8-core/scripts/p8_daily_report.py",
+   "src_lines": [
+    1,
+    33
+   ],
+   "dst_path": "engines/p8-core/scripts/p8_ai_visibility.py",
+   "dst_lines": [
+    1,
+    30
+   ],
+   "dst_symbol": "argparse"
+  },
+  {
+   "i": 52,
+   "verdict": "phantom",
+   "edge_type": "calls",
+   "target_name": "resolve",
+   "confidence": 0.95,
+   "src_path": "plan/sinh_bang_so_sanh.py",
+   "src_lines": [
+    1,
+    28
+   ],
+   "dst_path": "Sources/SiteM/EngineLocator.swift",
+   "dst_lines": [
+    12,
+    39
+   ],
+   "dst_symbol": "resolve"
+  },
+  {
+   "i": 53,
+   "verdict": "type_ref",
+   "edge_type": "implements",
+   "target_name": "String",
+   "confidence": 0.95,
+   "src_path": "outputs/implementation/T18/wip-1400/AssetModels.swift",
+   "src_lines": [
+    3,
+    29
+   ],
+   "dst_path": "Sources/SiteM/DuongDanDuLieu.swift",
+   "dst_lines": [
+    32,
+    34
+   ],
+   "dst_symbol": "String"
+  },
+  {
+   "i": 54,
+   "verdict": "type_ref",
+   "edge_type": "uses_type",
+   "target_name": "URL",
+   "confidence": 0.95,
+   "src_path": "Tests/SiteMTests/OrphanRunnerContractTest.swift",
+   "src_lines": [
+    52,
+    85
+   ],
+   "dst_path": "Sources/SiteM/GoogleOAuth.swift",
+   "dst_lines": [
+    616,
+    619
+   ],
+   "dst_symbol": "URL"
+  },
+  {
+   "i": 55,
+   "verdict": "type_ref",
+   "edge_type": "uses_type",
+   "target_name": "String",
+   "confidence": 0.95,
+   "src_path": "Sources/SiteM/AIVisibilityModels.swift",
+   "src_lines": [
+    248,
+    285
+   ],
+   "dst_path": "Sources/SiteM/DuongDanDuLieu.swift",
+   "dst_lines": [
+    32,
+    34
+   ],
+   "dst_symbol": "String"
+  },
+  {
+   "i": 56,
+   "verdict": "phantom",
+   "edge_type": "field_of",
+   "target_name": "missingIDs",
+   "confidence": 0.95,
+   "src_path": "Sources/SiteM/InfraTest+Cleanup.swift",
+   "src_lines": [
+    12,
+    79
+   ],
+   "dst_path": "Sources/SiteM/SiteCleanup.swift",
+   "dst_lines": [
+    29,
+    65
+   ],
+   "dst_symbol": "Plan"
+  },
+  {
+   "i": 57,
+   "verdict": "type_ref",
+   "edge_type": "field_of",
+   "target_name": "phone",
+   "confidence": 0.95,
+   "src_path": "Sources/SiteM/GoogleBusinessStore.swift",
+   "src_lines": [
+    647,
+    744
+   ],
+   "dst_path": "Sources/SiteM/GoogleBusinessModels.swift",
+   "dst_lines": [
+    32,
+    83
+   ],
+   "dst_symbol": "GMBLocation"
+  },
+  {
+   "i": 58,
+   "verdict": "phantom",
+   "edge_type": "field_of",
+   "target_name": "slug",
+   "confidence": 0.95,
+   "src_path": "Sources/SiteM/WebAdminView+LibrarySheets.swift",
+   "src_lines": [
+    3,
+    102
+   ],
+   "dst_path": "Sources/SiteM/FleetBridge.swift",
+   "dst_lines": [
+    3,
+    15
+   ],
+   "dst_symbol": "FleetRegistrySite"
+  },
+  {
+   "i": 59,
+   "verdict": "phantom",
+   "edge_type": "calls",
+   "target_name": "append",
+   "confidence": 0.95,
+   "src_path": "Sources/SiteM/KeywordSnapshotStore.swift",
+   "src_lines": [
+    102,
+    165
+   ],
+   "dst_path": "Sources/SiteM/PageSpeedService.swift",
+   "dst_lines": [
+    86,
+    115
+   ],
+   "dst_symbol": "append"
+  },
+  {
+   "i": 60,
+   "verdict": "phantom",
+   "edge_type": "field_of",
+   "target_name": "clicks",
+   "confidence": 0.95,
+   "src_path": "Sources/SiteM/PerformanceView.swift",
+   "src_lines": [
+    195,
+    303
+   ],
+   "dst_path": "Sources/SiteM/DistributionCommentModels.swift",
+   "dst_lines": [
+    138,
+    172
+   ],
+   "dst_symbol": "DistributionMetricValues"
+  },
+  {
+   "i": 61,
+   "verdict": "phantom",
+   "edge_type": "field_of",
+   "target_name": "key",
+   "confidence": 0.95,
+   "src_path": "Sources/SiteM/GoogleBusinessStore.swift",
+   "src_lines": [
+    139,
+    181
+   ],
+   "dst_path": "Sources/SiteM/SEORulesStore.swift",
+   "dst_lines": [
+    20,
+    34
+   ],
+   "dst_symbol": "SEORuleCategory"
+  },
+  {
+   "i": 62,
+   "verdict": "phantom",
+   "edge_type": "field_of",
+   "target_name": "default",
+   "confidence": 0.4,
+   "src_path": "Sources/SiteM/MediaGenerationStore.swift",
+   "src_lines": [
+    562,
+    575
+   ],
+   "dst_path": "Sources/SiteM/ConnectorModels.swift",
+   "dst_lines": [
+    13,
+    33
+   ],
+   "dst_symbol": "Connector"
+  },
+  {
+   "i": 63,
+   "verdict": "type_ref",
+   "edge_type": "field_of",
+   "target_name": "siteURL",
+   "confidence": 0.95,
+   "src_path": "Sources/SiteM/SiteStore.swift",
+   "src_lines": [
+    124,
+    152
+   ],
+   "dst_path": "Sources/SiteM/AutomationCapabilityService.swift",
+   "dst_lines": [
+    54,
+    68
+   ],
+   "dst_symbol": "WebmasterRunResult"
+  },
+  {
+   "i": 64,
+   "verdict": "phantom",
+   "edge_type": "field_of",
+   "target_name": "accentColor",
+   "confidence": 0.95,
+   "src_path": "Sources/SiteM/WebAdminView+Comments.swift",
+   "src_lines": [
+    1,
+    116
+   ],
+   "dst_path": "Sources/SiteM/DesignStudioModels.swift",
+   "dst_lines": [
+    46,
+    76
+   ],
+   "dst_symbol": "DesignSystemInfo"
+  },
+  {
+   "i": 65,
+   "verdict": "type_ref",
+   "edge_type": "uses_type",
+   "target_name": "String",
+   "confidence": 0.95,
+   "src_path": "Sources/SiteM/MediaGenerationModels.swift",
+   "src_lines": [
+    29,
+    77
+   ],
+   "dst_path": "Sources/SiteM/DuongDanDuLieu.swift",
+   "dst_lines": [
+    32,
+    34
+   ],
+   "dst_symbol": "String"
+  },
+  {
+   "i": 66,
+   "verdict": "phantom",
+   "edge_type": "field_of",
+   "target_name": "self",
+   "confidence": 0.4,
+   "src_path": "Sources/SiteM/CLIAgentToolReceiptStore.swift",
+   "src_lines": [
+    5,
+    23
+   ],
+   "dst_path": "engines/p8-core/scripts/p8_link_health.py",
+   "dst_lines": [
+    205,
+    213
+   ],
+   "dst_symbol": "_selftest"
+  },
+  {
+   "i": 67,
+   "verdict": "phantom",
+   "edge_type": "field_of",
+   "target_name": "status",
+   "confidence": 0.95,
+   "src_path": "Sources/SiteM/CMSConnectorStore.swift",
+   "src_lines": [
+    364,
+    460
+   ],
+   "dst_path": "Sources/SiteM/AIVisibilityModels.swift",
+   "dst_lines": [
+    81,
+    118
+   ],
+   "dst_symbol": "PromptExplorerModelResult"
+  },
+  {
+   "i": 68,
+   "verdict": "phantom",
+   "edge_type": "calls",
+   "target_name": "map",
+   "confidence": 0.95,
+   "src_path": "Tests/SiteMTests/SiteRegistryTest.swift",
+   "src_lines": [
+    30,
+    50
+   ],
+   "dst_path": "Sources/SiteM/Metrics.swift",
+   "dst_lines": [
+    589,
+    605
+   ],
+   "dst_symbol": "GA4PropertyMapEnvelope"
+  },
+  {
+   "i": 69,
+   "verdict": "phantom",
+   "edge_type": "field_of",
+   "target_name": "path",
+   "confidence": 0.95,
+   "src_path": "Sources/SiteM/RepurposeStore.swift",
+   "src_lines": [
+    53,
+    65
+   ],
+   "dst_path": "Sources/SiteM/AILocalStore.swift",
+   "dst_lines": [
+    24,
+    29
+   ],
+   "dst_symbol": "LocalAgentStatus"
+  },
+  {
+   "i": 70,
+   "verdict": "phantom",
+   "edge_type": "field_of",
+   "target_name": "id",
+   "confidence": 0.95,
+   "src_path": "Sources/SiteM/P8AnalyticsService.swift",
+   "src_lines": [
+    160,
+    193
+   ],
+   "dst_path": "Sources/SiteM/AILocalStore.swift",
+   "dst_lines": [
+    24,
+    29
+   ],
+   "dst_symbol": "LocalAgentStatus"
+  },
+  {
+   "i": 71,
+   "verdict": "type_ref",
+   "edge_type": "field_of",
+   "target_name": "createdAt",
+   "confidence": 1.0,
+   "src_path": "Sources/SiteM/AIVisibilityModels.swift",
+   "src_lines": [
+    327,
+    361
+   ],
+   "dst_path": "Sources/SiteM/AIVisibilityModels.swift",
+   "dst_lines": [
+    5,
+    39
+   ],
+   "dst_symbol": "AITracker"
+  },
+  {
+   "i": 72,
+   "verdict": "phantom",
+   "edge_type": "field_of",
+   "target_name": "allCases",
+   "confidence": 0.95,
+   "src_path": "Sources/SiteM/WebAdminView+Library.swift",
+   "src_lines": [
+    3,
+    115
+   ],
+   "dst_path": "Sources/SiteM/App.swift",
+   "dst_lines": [
+    218,
+    253
+   ],
+   "dst_symbol": "Section"
+  },
+  {
+   "i": 73,
+   "verdict": "type_ref",
+   "edge_type": "field_of",
+   "target_name": "scanStatusMessage",
+   "confidence": 1.0,
+   "src_path": "Sources/SiteM/AuditView.swift",
+   "src_lines": [
+    68,
+    125
+   ],
+   "dst_path": "Sources/SiteM/AuditView.swift",
+   "dst_lines": [
+    3,
+    36
+   ],
+   "dst_symbol": "AuditModel"
+  },
+  {
+   "i": 74,
+   "verdict": "type_ref",
+   "edge_type": "field_of",
+   "target_name": "message",
+   "confidence": 1.0,
+   "src_path": "Sources/SiteM/WebAdminView+Assets.swift",
+   "src_lines": [
+    3,
+    124
+   ],
+   "dst_path": "Sources/SiteM/WebAdminView+Assets.swift",
+   "dst_lines": [
+    3,
+    124
+   ],
+   "dst_symbol": "AssetLibraryPanel"
+  },
+  {
+   "i": 75,
+   "verdict": "phantom",
+   "edge_type": "field_of",
+   "target_name": "id",
+   "confidence": 0.95,
+   "src_path": "Sources/SiteM/DesignStudioStore.swift",
+   "src_lines": [
+    339,
+    391
+   ],
+   "dst_path": "Sources/SiteM/AILocalStore.swift",
+   "dst_lines": [
+    24,
+    29
+   ],
+   "dst_symbol": "LocalAgentStatus"
+  },
+  {
+   "i": 76,
+   "verdict": "phantom",
+   "edge_type": "field_of",
+   "target_name": "source",
+   "confidence": 0.95,
+   "src_path": "Sources/SiteM/ConnectionsView.swift",
+   "src_lines": [
+    5,
+    114
+   ],
+   "dst_path": "Sources/SiteM/EngineLocator.swift",
+   "dst_lines": [
+    5,
+    10
+   ],
+   "dst_symbol": "EngineLocator"
+  },
+  {
+   "i": 77,
+   "verdict": "phantom",
+   "edge_type": "calls",
+   "target_name": "group",
+   "confidence": 0.95,
+   "src_path": "engines/p8-core/scripts/p8_link_health.py",
+   "src_lines": [
+    205,
+    213
+   ],
+   "dst_path": "artifacts/dod/mutant_L11_dut_day.swift",
+   "dst_lines": [
+    200,
+    233
+   ],
+   "dst_symbol": "Section"
+  },
+  {
+   "i": 78,
+   "verdict": "type_ref",
+   "edge_type": "uses_type",
+   "target_name": "String",
+   "confidence": 0.95,
+   "src_path": "Sources/SiteM/VideoPipelineStore.swift",
+   "src_lines": [
+    82,
+    165
+   ],
+   "dst_path": "Sources/SiteM/DuongDanDuLieu.swift",
+   "dst_lines": [
+    32,
+    34
+   ],
+   "dst_symbol": "String"
+  },
+  {
+   "i": 79,
+   "verdict": "phantom",
+   "edge_type": "field_of",
+   "target_name": "name",
+   "confidence": 0.95,
+   "src_path": "Sources/SiteM/ConnectorStore.swift",
+   "src_lines": [
+    230,
+    260
+   ],
+   "dst_path": "Sources/SiteM/AILocalStore.swift",
+   "dst_lines": [
+    24,
+    29
+   ],
+   "dst_symbol": "LocalAgentStatus"
+  },
+  {
+   "i": 80,
+   "verdict": "type_ref",
+   "edge_type": "field_of",
+   "target_name": "secondaryCards",
+   "confidence": 1.0,
+   "src_path": "Sources/SiteM/DashboardView+KPI.swift",
+   "src_lines": [
+    294,
+    339
+   ],
+   "dst_path": "Sources/SiteM/DashboardView+KPI.swift",
+   "dst_lines": [
+    39,
+    140
+   ],
+   "dst_symbol": "DashboardModel"
+  },
+  {
+   "i": 81,
+   "verdict": "type_ref",
+   "edge_type": "field_of",
+   "target_name": "authURL",
+   "confidence": 0.95,
+   "src_path": "Sources/SiteM/ConnectorStore.swift",
+   "src_lines": [
+    559,
+    561
+   ],
+   "dst_path": "Sources/SiteM/ConnectorModels.swift",
+   "dst_lines": [
+    92,
+    103
+   ],
+   "dst_symbol": "OAuthSession"
+  },
+  {
+   "i": 82,
+   "verdict": "phantom",
+   "edge_type": "field_of",
+   "target_name": "synced",
+   "confidence": 0.95,
+   "src_path": "Tests/SiteMTests/DistributionCommentTest.swift",
+   "src_lines": [
+    5,
+    99
+   ],
+   "dst_path": "Sources/SiteM/DistributionCommentModels.swift",
+   "dst_lines": [
+    265,
+    295
+   ],
+   "dst_symbol": "DistributionSyncResult"
+  },
+  {
+   "i": 83,
+   "verdict": "phantom",
+   "edge_type": "field_of",
+   "target_name": "default",
+   "confidence": 0.4,
+   "src_path": "Tests/SiteMTests/OperationsCompletionTest.swift",
+   "src_lines": [
+    261,
+    306
+   ],
+   "dst_path": "Sources/SiteM/ConnectorModels.swift",
+   "dst_lines": [
+    13,
+    33
+   ],
+   "dst_symbol": "Connector"
+  },
+  {
+   "i": 84,
+   "verdict": "type_ref",
+   "edge_type": "implements",
+   "target_name": "String",
+   "confidence": 0.95,
+   "src_path": "outputs/implementation/T18/wip-1400/AssetModels.swift",
+   "src_lines": [
+    36,
+    54
+   ],
+   "dst_path": "Sources/SiteM/DuongDanDuLieu.swift",
+   "dst_lines": [
+    32,
+    34
+   ],
+   "dst_symbol": "String"
+  },
+  {
+   "i": 85,
+   "verdict": "phantom",
+   "edge_type": "field_of",
+   "target_name": "shared",
+   "confidence": 0.95,
+   "src_path": "Sources/SiteM/AutomationCapabilityView.swift",
+   "src_lines": [
+    338,
+    363
+   ],
+   "dst_path": "Sources/SiteM/AIVisibilityStore.swift",
+   "dst_lines": [
+    26,
+    47
+   ],
+   "dst_symbol": "AIVisibilityStore"
+  },
+  {
+   "i": 86,
+   "verdict": "type_ref",
+   "edge_type": "uses_type",
+   "target_name": "URL",
+   "confidence": 0.95,
+   "src_path": "Tests/SiteMTests/BrandVoiceAITest.swift",
+   "src_lines": [
+    125,
+    169
+   ],
+   "dst_path": "Sources/SiteM/GoogleOAuth.swift",
+   "dst_lines": [
+    616,
+    619
+   ],
+   "dst_symbol": "URL"
+  },
+  {
+   "i": 87,
+   "verdict": "phantom",
+   "edge_type": "field_of",
+   "target_name": "resumedFrom",
+   "confidence": 0.95,
+   "src_path": "Sources/SiteM/InfraTest+DailyReview.swift",
+   "src_lines": [
+    19,
+    107
+   ],
+   "dst_path": "Sources/SiteM/DailyReviewService.swift",
+   "dst_lines": [
+    37,
+    57
+   ],
+   "dst_symbol": "DailyReviewRun"
+  },
+  {
+   "i": 88,
+   "verdict": "phantom",
+   "edge_type": "field_of",
+   "target_name": "pages",
+   "confidence": 0.95,
+   "src_path": "Sources/SiteM/App+CLI.swift",
+   "src_lines": [
+    60,
+    133
+   ],
+   "dst_path": "artifacts/dod/mutant_S2_host_sitemap.swift",
+   "dst_lines": [
+    54,
+    60
+   ],
+   "dst_symbol": "AuditRunDetail"
+  },
+  {
+   "i": 89,
+   "verdict": "phantom",
+   "edge_type": "field_of",
+   "target_name": "id",
+   "confidence": 1.0,
+   "src_path": "Sources/SiteM/RankAutomationService.swift",
+   "src_lines": [
+    79,
+    107
+   ],
+   "dst_path": "Sources/SiteM/RankAutomationService.swift",
+   "dst_lines": [
+    3,
+    9
+   ],
+   "dst_symbol": "GscCapturedLink"
+  },
+  {
+   "i": 90,
+   "verdict": "phantom",
+   "edge_type": "uses_type",
+   "target_name": "Any",
+   "confidence": 0.95,
+   "src_path": "Tests/SiteMTests/OperationsCompletionTest.swift",
+   "src_lines": [
+    630,
+    678
+   ],
+   "dst_path": "engines/p8-core/scripts/p8_analytics_pull.py",
+   "dst_lines": [
+    24,
+    66
+   ],
+   "dst_symbol": "argparse"
+  },
+  {
+   "i": 91,
+   "verdict": "type_ref",
+   "edge_type": "field_of",
+   "target_name": "totalImpressions",
+   "confidence": 1.0,
+   "src_path": "Sources/SiteM/KeywordClusterService.swift",
+   "src_lines": [
+    30,
+    81
+   ],
+   "dst_path": "Sources/SiteM/KeywordClusterService.swift",
+   "dst_lines": [
+    13,
+    25
+   ],
+   "dst_symbol": "KeywordCluster"
+  },
+  {
+   "i": 92,
+   "verdict": "phantom",
+   "edge_type": "field_of",
+   "target_name": "email",
+   "confidence": 0.95,
+   "src_path": "Sources/SiteM/ContactLeadView.swift",
+   "src_lines": [
+    412,
+    457
+   ],
+   "dst_path": "Sources/SiteM/AutomationCapabilityService.swift",
+   "dst_lines": [
+    6,
+    22
+   ],
+   "dst_symbol": "GoogleAccountInfo"
+  },
+  {
+   "i": 93,
+   "verdict": "type_ref",
+   "edge_type": "uses_type",
+   "target_name": "URL",
+   "confidence": 0.95,
+   "src_path": "Sources/SiteM/LogsView+Export.swift",
+   "src_lines": [
+    6,
+    19
+   ],
+   "dst_path": "Sources/SiteM/GoogleOAuth.swift",
+   "dst_lines": [
+    616,
+    619
+   ],
+   "dst_symbol": "URL"
+  },
+  {
+   "i": 94,
+   "verdict": "type_ref",
+   "edge_type": "field_of",
+   "target_name": "agentId",
+   "confidence": 1.0,
+   "src_path": "Sources/SiteM/MediaGenerationModels.swift",
+   "src_lines": [
+    89,
+    114
+   ],
+   "dst_path": "Sources/SiteM/MediaGenerationModels.swift",
+   "dst_lines": [
+    89,
+    114
+   ],
+   "dst_symbol": "AgentImageCapability"
+  },
+  {
+   "i": 95,
+   "verdict": "phantom",
+   "edge_type": "field_of",
+   "target_name": "finishedAt",
+   "confidence": 0.95,
+   "src_path": "Sources/SiteM/CLIAgentToolReceiptStore.swift",
+   "src_lines": [
+    45,
+    58
+   ],
+   "dst_path": "Sources/SiteM/OnboardingService.swift",
+   "dst_lines": [
+    23,
+    42
+   ],
+   "dst_symbol": "OnboardingReceipt"
+  },
+  {
+   "i": 96,
+   "verdict": "phantom",
+   "edge_type": "uses_type",
+   "target_name": "Int",
+   "confidence": 0.8,
+   "src_path": "Sources/SiteM/NotificationView.swift",
+   "src_lines": [
+    3,
+    137
+   ],
+   "dst_path": "Sources/SiteM/P8AnalyticsService.swift",
+   "dst_lines": [
+    125,
+    128
+   ],
+   "dst_symbol": "int"
+  },
+  {
+   "i": 97,
+   "verdict": "phantom",
+   "edge_type": "field_of",
+   "target_name": "id",
+   "confidence": 0.95,
+   "src_path": "Sources/SiteM/WebAdminView+Comments.swift",
+   "src_lines": [
+    1,
+    116
+   ],
+   "dst_path": "Sources/SiteM/AILocalStore.swift",
+   "dst_lines": [
+    24,
+    29
+   ],
+   "dst_symbol": "LocalAgentStatus"
+  },
+  {
+   "i": 98,
+   "verdict": "type_ref",
+   "edge_type": "field_of",
+   "target_name": "propertyIDs",
+   "confidence": 1.0,
+   "src_path": "Sources/SiteM/MetricSnapshotMetadata.swift",
+   "src_lines": [
+    4,
+    67
+   ],
+   "dst_path": "Sources/SiteM/MetricSnapshotMetadata.swift",
+   "dst_lines": [
+    4,
+    67
+   ],
+   "dst_symbol": "MetricSnapshotMetadata"
+  },
+  {
+   "i": 99,
+   "verdict": "phantom",
+   "edge_type": "field_of",
+   "target_name": "stderr",
+   "confidence": 0.95,
+   "src_path": "engines/p8-core/scripts/p8_analytics_pull.py",
+   "src_lines": [
+    697,
+    784
+   ],
+   "dst_path": "Sources/SiteM/CLIAgentBridge.swift",
+   "dst_lines": [
+    18,
+    23
+   ],
+   "dst_symbol": "ProcessResult"
+  }
+ ]
+}

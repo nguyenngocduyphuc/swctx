@@ -1,0 +1,16 @@
+timestamp,engine,workspace,kind,recall_at_5,n_queries,notes
+2026-09-18T09:07:57+00:00,ctxe:find_definitions,21.linkeldn,definition,1.0,6,mcp; first gold run
+2026-09-18T09:07:57+00:00,ctxe:find_definitions,22.site-M,definition,1.0,6,mcp; first gold run
+2026-09-18T09:07:57+00:00,ctxe:find_definitions,25.event-qr-checkin,definition,1.0,6,mcp; first gold run
+2026-09-18T09:07:57+00:00,ctxe:inspect_path,21.linkeldn,search,0.1667,6,scoped assist: ctxe has no workspace search; inspect_path scoped to expected file's top dir; first gold run
+2026-09-18T09:07:57+00:00,ctxe:inspect_path,22.site-M,search,0.0,6,scoped assist: ctxe has no workspace search; inspect_path scoped to expected file's top dir; first gold run
+2026-09-18T09:07:57+00:00,ctxe:inspect_path,25.event-qr-checkin,search,1.0,6,scoped assist: ctxe has no workspace search; inspect_path scoped to expected file's top dir; first gold run
+2026-09-18T09:07:57+00:00,swctx:find_definitions,21.linkeldn,definition,1.0,6,mcp; first gold run
+2026-09-18T09:07:57+00:00,swctx:find_definitions,22.site-M,definition,1.0,6,mcp; first gold run
+2026-09-18T09:07:57+00:00,swctx:find_definitions,25.event-qr-checkin,definition,1.0,6,mcp; first gold run
+2026-09-18T09:07:57+00:00,swctx:search,21.linkeldn,definition,1.0,6,cli `swctx search --mode auto`; first gold run
+2026-09-18T09:07:57+00:00,swctx:search,21.linkeldn,search,1.0,6,cli `swctx search --mode auto`; first gold run
+2026-09-18T09:07:57+00:00,swctx:search,22.site-M,definition,1.0,6,cli `swctx search --mode auto`; first gold run
+2026-09-18T09:07:57+00:00,swctx:search,22.site-M,search,1.0,6,cli `swctx search --mode auto`; first gold run
+2026-09-18T09:07:57+00:00,swctx:search,25.event-qr-checkin,definition,1.0,6,cli `swctx search --mode auto`; first gold run
+2026-09-18T09:07:57+00:00,swctx:search,25.event-qr-checkin,search,0.8333,6,cli `swctx search --mode auto`; first gold run

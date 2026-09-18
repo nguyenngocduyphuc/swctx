@@ -23,6 +23,15 @@ public final class IndexWatcher: @unchecked Sendable {
     private var indexing = false
     private var rerunRequested = false
     private var stopped = false
+    private var gitLockRetries = 0
+
+    /// Git holds `.git/index.lock` while mid-operation (rebase, checkout,
+    /// commit); the files it touches flap rapidly and reindexing each
+    /// event batch churns the index. A locked root defers the reindex by
+    /// `gitLockDelay`, up to `gitLockMaxRetries` times, then proceeds
+    /// anyway — a stuck lock must not stall watching forever.
+    static let gitLockDelay: TimeInterval = 5
+    static let gitLockMaxRetries = 3
 
     public init(store: Store, debounce: TimeInterval = 1.5) {
         self.store = store
@@ -155,13 +164,48 @@ public final class IndexWatcher: @unchecked Sendable {
         return Languages.languageID(forPath: name) != nil
     }
 
+    // MARK: - Git lock
+
+    /// Path of git's `index.lock` for a workspace root, or nil when the
+    /// root is not a git work tree. `<root>/.git` as a directory means a
+    /// plain repo; as a file it is the worktree/submodule pointer
+    /// `gitdir: <path>` (absolute or root-relative) and the lock lives in
+    /// the real git dir it names.
+    static func gitLockPath(forRoot root: URL) -> URL? {
+        let dotGit = root.appendingPathComponent(".git")
+        var isDir: ObjCBool = false
+        guard FileManager.default.fileExists(atPath: dotGit.path, isDirectory: &isDir)
+        else { return nil }
+        if isDir.boolValue {
+            return dotGit.appendingPathComponent("index.lock")
+        }
+        guard let text = try? String(contentsOf: dotGit, encoding: .utf8) else { return nil }
+        for raw in text.split(separator: "\n") {
+            let line = raw.trimmingCharacters(in: .whitespaces)
+            guard line.hasPrefix("gitdir:") else { continue }
+            let p = line.dropFirst("gitdir:".count)
+                .trimmingCharacters(in: .whitespaces)
+            let gitDir = p.hasPrefix("/")
+                ? URL(fileURLWithPath: p)
+                : root.appendingPathComponent(p).standardizedFileURL
+            return gitDir.appendingPathComponent("index.lock")
+        }
+        return nil
+    }
+
+    /// True while git holds the workspace's index lock.
+    static func isGitLocked(root: URL) -> Bool {
+        guard let lock = gitLockPath(forRoot: root) else { return false }
+        return FileManager.default.fileExists(atPath: lock.path)
+    }
+
     // MARK: - Debounce (runs on `queue`)
 
-    private func scheduleFire() {
+    private func scheduleFire(delay: TimeInterval? = nil) {
         pendingItem?.cancel()
         let item = DispatchWorkItem { [weak self] in self?.fire() }
         pendingItem = item
-        queue.asyncAfter(deadline: .now() + debounce, execute: item)
+        queue.asyncAfter(deadline: .now() + (delay ?? debounce), execute: item)
     }
 
     private func fire() {
@@ -170,6 +214,16 @@ public final class IndexWatcher: @unchecked Sendable {
             rerunRequested = true
             return
         }
+        if IndexWatcher.isGitLocked(root: store.workspaceRoot) {
+            gitLockRetries += 1
+            if gitLockRetries <= IndexWatcher.gitLockMaxRetries {
+                note("watch: git lock held — deferring reindex (\(gitLockRetries)/\(IndexWatcher.gitLockMaxRetries))")
+                scheduleFire(delay: IndexWatcher.gitLockDelay)
+                return
+            }
+            note("watch: git lock still held after \(gitLockRetries) deferrals — indexing anyway")
+        }
+        gitLockRetries = 0
         indexing = true
         indexQueue.async { [weak self] in
             guard let self else { return }

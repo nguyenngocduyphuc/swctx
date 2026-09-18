@@ -17,7 +17,7 @@ Codex / Cursor) connecting over MCP stdio. swctx only does retrieval.
   neighbors / paths / transitive impact. `extends` vs `implements` is
   split after resolution: concrete type targets become `extends`,
   protocol/interface/trait targets stay `implements`.
-- **MCP server** on stdio with 18 tools; also usable directly as a CLI.
+- **MCP server** on stdio with 19 tools; also usable directly as a CLI.
 
 Languages: swift, python, javascript, typescript, tsx, go, rust, json, yaml,
 html, css, bash, markdown/text. Data formats (json/yaml/html/css) get
@@ -46,6 +46,7 @@ swctx ask <path> "question"   # evidence pack -> local agent CLI (claude/codex/g
 swctx mcp              # stdio MCP server
 swctx mcp-config       # print client config snippet
 swctx install-agent [--dry-run]  # register swctx MCP in claude/codex/gemini/cursor/windsurf/devin configs
+swctx prime <path> [--format md|json]  # compact context card: counts, freshness, watcher, hub symbols, recent records (alias: brief)
 ```
 
 Index data lives in `~/.swctx/indexes/<workspace-key>/index.db`; workspace
@@ -86,12 +87,13 @@ Any MCP client: point it at the built binary, or run
 | get_workspace_tree | paginated file list with counts |
 | graph_neighbors | call/import/implements neighbors; `depth` 1-3 BFS; `include_content` |
 | graph_expand | scored-seed neighborhood expansion (depth ≤2, score decay) |
-| graph_paths | BFS paths between chunks; `max_hops`, `max_paths`, `include_content` |
+| graph_paths | frontier-batched BFS paths between chunks (≤500-id queries, no full-table load); `max_hops`, `max_paths`, `include_content` |
 | get_impact | transitive dependents ("what breaks if I change this"); `include_content` |
 | context_pack | deterministic multi-round retrieval: hybrid hits + 1-hop call-graph expansion; persists a `records` row |
 | get_record | one workspace record by id |
-| list_records | records ledger, filters: kind/source/status + pagination |
-| search_records | FTS5 over record titles/payloads |
+| list_records | records ledger, filters: kind/source/status + pagination + `scope` (workspace/global/all) |
+| search_records | FTS5 over record titles/payloads, same filters + `scope` |
+| put_record | agent-writable memory: kind (note/finding/decision/todo/context_pack/ask) + title + payload; dual-writes the workspace ledger and the cross-worktree global ledger (`~/.swctx/records.db`, keyed by main checkout) |
 
 ### Response budget
 
@@ -106,7 +108,7 @@ a multi-megabyte payload.
 
 ## Differences vs ctxe
 
-- Tool surface is 18 = 18: 16 tools are shared parity; each side has two the
+- Tool surface is 19 = 18: 16 tools are shared parity; each side has two the
   other lacks — swctx: `search` (workspace-wide retrieval), `context_pack`
   (deterministic evidence pack); ctxe: `ask_context`, `compose_answer`
   (server-side LLM planner, consumes account credits).

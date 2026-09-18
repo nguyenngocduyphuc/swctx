@@ -89,6 +89,26 @@ functions) — adjust expectations there if the workspace changes.
   call + retry handles this — it is a startup artifact, not a benchmark
   signal.
 
+## Gold recall set (2026-09-18)
+
+- `bench/gold_queries.json` — 36 verified queries across 22.site-M,
+  21.linkeldn, 25.event-qr-checkin (6 `definition` + 6 `search` each).
+  Definition symbols were mined from the swctx `symbols` table (mix of
+  high in-degree and in-degree≤1 obscure defs); search expectations were
+  verified by reading the target files.
+- `bench/recall.py` — runs every gold query through
+  `swctx search --mode auto --limit 5` (CLI per query) plus
+  `find_definitions` over one persistent `swctx mcp` stdio session for
+  definition-kind queries. ctxe is evaluated too (`find_definitions`
+  like-for-like; search-kind via `inspect_path` scoped to the expected
+  file's top dir — an assist, not comparable recall). Prints per-query +
+  aggregate JSON, appends `timestamp,engine,workspace,kind,recall_at_5,
+  n_queries,notes` rows to `bench/results.csv`.
+- `bench/edge-audit.md` + `bench/edge_audit.py`, `bench/edge_classify.py`,
+  `bench/edge_sample_verdicts.json` — 100-edge audit of ctxe resolved
+  edges absent from swctx's site-M index (verdict: mostly phantom
+  resolutions + deliberately-skipped field/type edges, ~2% genuine).
+
 ## Output
 
 - `bench/results.json` — full machine record: server argv/info, seeds used,

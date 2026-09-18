@@ -220,6 +220,48 @@ extraction land nhưng index cũ giữ 0 implements edges cho tới khi force).
   (`callRaw` giữ logic gốc).
 - Tests 26 → 31.
 
+## Week 2-3 (2026-09-18, 5 agent song song)
+
+- **`put_record`** (tool 19): agent-writable memory — kind allowlist
+  (note/finding/decision/todo/context_pack/ask), dual-write workspace records
+  + global ledger `~/.swctx/records.db` (`ws` = key của main checkout qua
+  `git rev-parse --git-common-dir` → worktree chia sẻ memory với root).
+  `list_records`/`search_records` có `scope`: workspace|global|all (union
+  dedup theo kind+title+payload).
+- **Per-kind record quotas** thay FIFO 1000: context_pack 500, ask 300,
+  agent kinds 200, khác 100 — telemetry churn không evict note của agent.
+- **`swctx prime`/`brief`**: Markdown context card ~300 token (branch,
+  counts, freshness qua `Indexer.freshness`, watcher alive qua pgrep,
+  hub symbols theo resolved-edge degree, 5 records gần nhất, warnings).
+  `--format json`. Unindexed path → exit 2, không tạo DB rỗng.
+- **Force reindex giữ embeddings**: snapshot `(embedText,dim,vec)` vào TEMP
+  table trước wipe, restore `INSERT OR IGNORE` join theo exact embed-text
+  (path+symbol+content prefix 1800 — đổi path thì re-embed, đúng). Report
+  `vectorsPreserved`. P8 force trước đây mất 87% vectors → giờ không.
+- **Watcher git-lock backoff**: `.git/index.lock` (kể cả worktree `gitdir:`)
+  → defer 5s ×3 rồi mới fire.
+- **`graph_paths` frontier-batched**: BFS từng level, `src_chunk IN` ≤500
+  ids/query — không load full edge table; `all_simple` query neighbors
+  per-node thay vì preload adjacency.
+- Tests 31 → 45 (FleetMemory 5, Prime 3, IndexOps 3, GraphPaths 3 — mỗi
+  feature 1 test file riêng).
+
+### Bench (bench/ — gold recall + edge audit, chạy thật)
+
+- `bench/gold_queries.json` — 36 câu đã verify đáp án (3 ws × 6 def + 6
+  search); `bench/recall.py` — recall@5 qua CLI `search` + `find_definitions`
+  MCP persistent session; append `bench/results.csv` (timestamped rows).
+- **Kết quả**: swctx search 35/36 = 0.972 (miss duy nhất là near-miss file
+  liên quan); `find_definitions` cả hai 18/18. ctxe không có workspace search
+  — `inspect_path` scoped 7/18, và trên 2 ws lớn trả **cùng vài hub file cho
+  mọi query** (degenerate retrieval).
+- **`bench/edge-audit.md` — ctxe 2.38x resolved edges chủ yếu là nhiễu**:
+  42% edge ctxe không có trong swctx (75% là `field_of` swctx không emit).
+  Sample 100 edge: **real 2, type_ref 38, phantom 60** — phantom = resolve
+  sai target (`snapshots.contains`→URL-matcher, `.map`→struct property,
+  13 edge có dst_name không hề xuất hiện trong src chunk). Kết luận:
+  "better NULL than wrong" đúng — không đuổi edge count.
+
 ## Quy ước vận hành
 
 - `swctx index <path>` incremental; `--force` full; `swctx embed` bù vectors;

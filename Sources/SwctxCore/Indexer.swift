@@ -14,6 +14,8 @@ public struct IndexReport: Codable, Sendable {
     public var edgesResolved: Int = 0
     public var embeddedChunks: Int = 0
     public var pendingEmbeddings: Int = 0
+    /// Force reindex only: vectors re-attached from the pre-wipe snapshot.
+    public var vectorsPreserved: Int = 0
     public var embeddingModel: String? = nil
     public var durationMs: Int = 0
     public var errors: [String] = []
@@ -169,6 +171,12 @@ public final class Indexer {
         report.filesTotal = files.count
         let discovered = Set(files)
 
+        // A force reindex deletes every file row below, and ON DELETE
+        // CASCADE takes the chunks' embeddings with it — the bounded embed
+        // batch at the end then covers only a fraction of the workspace.
+        // Snapshot the vectors first so unchanged chunks get theirs back.
+        if force { try snapshotEmbeddings() }
+
         // Remove stale file rows
         let staleIDs: [Int64] = try store.pool.read { db in
             try Row.fetchAll(db, sql: "SELECT id, path FROM files")
@@ -210,6 +218,12 @@ public final class Indexer {
             if report.filesIndexed % 200 == 0 {
                 progress("indexed \(report.filesIndexed)/\(toIndex.count)")
             }
+        }
+
+        // All chunk rows are re-inserted now: re-attach the snapshotted
+        // vectors whose embedded text survived the wipe unchanged.
+        if force {
+            report.vectorsPreserved = try restoreEmbeddings()
         }
 
         // Resolve edges: dst_name -> symbols
@@ -294,6 +308,64 @@ public final class Indexer {
             report.edges += analysis.edges.count
         }
         report.filesIndexed += 1
+    }
+
+    /// SQL reconstruction of the text `embedPending` feeds the model for a
+    /// chunk — `path + "\n" + (symbol ?? kind) + "\n" + content`, prefix
+    /// 1800 — where `c` is the chunks row and `f` its files row. The
+    /// snapshot key is this exact text, not just content: identical chunk
+    /// bodies in different files embed differently via the path prefix.
+    static let embedTextSQL = """
+        substr(f.path || char(10) || COALESCE(c.symbol, c.kind, '') \
+        || char(10) || c.content, 1, 1800)
+        """
+
+    /// Stage all stored vectors in a TEMP table keyed by `embedTextSQL` so
+    /// `restoreEmbeddings` can re-attach them after a force reindex
+    /// recreates the chunk rows. TEMP tables live on the pool's single
+    /// writer connection — visible to later `pool.write` calls — so no
+    /// vector blobs pass through memory. The PK on `k` doubles as the
+    /// restore join index and dedupes same-text rows.
+    private func snapshotEmbeddings() throws {
+        try store.pool.write { db in
+            try db.execute(sql: """
+                CREATE TEMP TABLE IF NOT EXISTS vec_snapshot(
+                    k TEXT PRIMARY KEY,
+                    dim INTEGER NOT NULL,
+                    vec BLOB NOT NULL)
+                """)
+            try db.execute(sql: "DELETE FROM vec_snapshot")
+            try db.execute(sql: """
+                INSERT OR REPLACE INTO vec_snapshot(k, dim, vec)
+                SELECT \(Indexer.embedTextSQL), e.dim, e.vec
+                FROM embeddings e
+                JOIN chunks c ON c.id = e.chunk_id
+                JOIN files f ON f.id = c.file_id
+                """)
+        }
+    }
+
+    /// Re-attach snapshotted vectors to chunks whose embedded text is
+    /// unchanged, restoring only rows stored at the active model's dim —
+    /// the same mixed-dim guard as `embedAll`. OR IGNORE keeps the count
+    /// honest for files that kept their rows (unreadable under --force).
+    /// Returns the count restored.
+    @discardableResult
+    private func restoreEmbeddings() throws -> Int {
+        try store.pool.write { db in
+            defer { try? db.execute(sql: "DROP TABLE IF EXISTS vec_snapshot") }
+            let dim = embedder.dimension
+            guard dim > 0 else { return 0 }
+            try db.execute(sql: """
+                INSERT OR IGNORE INTO embeddings(chunk_id, dim, vec)
+                SELECT c.id, s.dim, s.vec
+                FROM chunks c
+                JOIN files f ON f.id = c.file_id
+                JOIN vec_snapshot s ON s.k = \(Indexer.embedTextSQL)
+                WHERE s.dim = ?
+                """, arguments: [dim])
+            return db.changesCount
+        }
     }
 
     /// Match edge dst_name to symbol rows in precedence passes:

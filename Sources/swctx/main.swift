@@ -11,7 +11,7 @@ struct Swctx: AsyncParsableCommand {
         commandName: "swctx",
         abstract: "Local semantic code index + MCP server (Swift reimplementation of the ctxe model).",
         version: "0.1.0",
-        subcommands: [IndexCmd.self, StatusCmd.self, SearchCmd.self, TreeCmd.self, EmbedCmd.self, DiscoverCmd.self, WatchCmd.self, AskCmd.self, ModelCmd.self, McpCmd.self, McpConfigCmd.self, InstallAgentCmd.self],
+        subcommands: [IndexCmd.self, StatusCmd.self, PrimeCmd.self, SearchCmd.self, TreeCmd.self, EmbedCmd.self, DiscoverCmd.self, WatchCmd.self, AskCmd.self, ModelCmd.self, McpCmd.self, McpConfigCmd.self, InstallAgentCmd.self],
         defaultSubcommand: nil)
 }
 
@@ -45,7 +45,7 @@ struct IndexCmd: AsyncParsableCommand {
             print(String(data: data, encoding: .utf8)!)
         } else {
             print("Indexed \(report.filesIndexed) files (\(report.filesUnchanged) unchanged, \(report.filesDeleted) deleted)")
-            print("  chunks=\(report.chunks) symbols=\(report.symbols) edges=\(report.edges) resolved=\(report.edgesResolved) vectors=\(report.embeddedChunks)")
+            print("  chunks=\(report.chunks) symbols=\(report.symbols) edges=\(report.edges) resolved=\(report.edgesResolved) vectors=\(report.embeddedChunks) preserved=\(report.vectorsPreserved)")
             print("  \(report.durationMs)ms")
             if !report.errors.isEmpty {
                 print("  errors: \(report.errors.count) (first: \(report.errors.first ?? ""))")
@@ -63,6 +63,42 @@ struct StatusCmd: AsyncParsableCommand {
         let out = try await SwctxTools.call(name: "get_status",
             arguments: ["workspace": .string(URL(fileURLWithPath: path).standardizedFileURL.path)])
         print(out)
+    }
+}
+
+struct PrimeCmd: AsyncParsableCommand {
+    static let configuration = CommandConfiguration(commandName: "prime",
+        abstract: "Print a compact Markdown context card for an indexed workspace.",
+        aliases: ["brief"])
+    @Argument(help: "Workspace path") var path: String = "."
+    @Option(name: .long, help: "Output format: md | json") var format: String = "md"
+
+    func run() async throws {
+        let root = URL(fileURLWithPath: path).resolvingSymlinksInPath()
+        var isDir: ObjCBool = false
+        guard FileManager.default.fileExists(atPath: root.path, isDirectory: &isDir),
+              isDir.boolValue else {
+            FileHandle.standardError.write(
+                "swctx: not a directory: \(root.path)\n".data(using: .utf8)!)
+            throw ExitCode(2)
+        }
+        // Store's initializer creates the DB, so the existence check must
+        // come first — unindexed workspace is the only hard error here.
+        guard FileManager.default.fileExists(
+            atPath: Store.indexURL(forKey: Store.key(for: root)).path) else {
+            FileHandle.standardError.write(
+                "swctx: workspace not indexed: \(root.path) — run `swctx index` first\n"
+                    .data(using: .utf8)!)
+            throw ExitCode(2)
+        }
+        let store = try Store(workspaceRoot: root)
+        if format == "json" {
+            let obj = try Prime.snapshot(store: store, root: store.workspaceRoot)
+            let data = try JSONSerialization.data(withJSONObject: obj, options: [.sortedKeys])
+            print(String(decoding: data, as: UTF8.self))
+        } else {
+            print(try Prime.card(store: store, root: store.workspaceRoot))
+        }
     }
 }
 

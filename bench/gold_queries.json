@@ -1,0 +1,50 @@
+{
+  "version": 1,
+  "created": "2026-09-18",
+  "description": "Gold recall set for swctx/ctxe benchmarks. 36 queries x 3 workspaces. kind=definition: query is a real symbol name mined from the swctx index (symbols table); expected_path is its verified definition file; tier=popular means high resolved-calls in-degree, obscure means in-degree<=1. kind=search: natural-language query; expected_path verified by reading the file. Paths are workspace-relative, matching `swctx search` hit paths.",
+  "workspaces": {
+    "site-M": "/Users/phuongnam/02.AI/NP_AI_macos/22.site-M",
+    "linkeldn": "/Users/phuongnam/02.AI/NP_AI_macos/21.linkeldn",
+    "event-qr": "/Users/phuongnam/02.AI/NP_AI_macos/25.event-qr-checkin"
+  },
+  "queries": [
+    {"workspace": "/Users/phuongnam/02.AI/NP_AI_macos/22.site-M", "kind": "definition", "tier": "popular", "query": "CMSConnectorStore", "expected_symbol": "CMSConnectorStore", "expected_path": "Sources/SiteM/CMSConnectorStore.swift"},
+    {"workspace": "/Users/phuongnam/02.AI/NP_AI_macos/22.site-M", "kind": "definition", "tier": "popular", "query": "PipelineEngine", "expected_symbol": "PipelineEngine", "expected_path": "Sources/SiteM/PipelineEngine.swift"},
+    {"workspace": "/Users/phuongnam/02.AI/NP_AI_macos/22.site-M", "kind": "definition", "tier": "popular", "query": "openSQLite", "expected_symbol": "openSQLite", "expected_path": "Sources/SiteM/SiteCleanup+Stores.swift"},
+    {"workspace": "/Users/phuongnam/02.AI/NP_AI_macos/22.site-M", "kind": "definition", "tier": "mid", "query": "searchRowsMulti", "expected_symbol": "searchRowsMulti", "expected_path": "Sources/SiteM/PerformanceService.swift"},
+    {"workspace": "/Users/phuongnam/02.AI/NP_AI_macos/22.site-M", "kind": "definition", "tier": "obscure", "query": "AuditRunIdentifier", "expected_symbol": "AuditRunIdentifier", "expected_path": "Sources/SiteM/AuditSustainability+.swift"},
+    {"workspace": "/Users/phuongnam/02.AI/NP_AI_macos/22.site-M", "kind": "definition", "tier": "obscure", "query": "BingLinkCount", "expected_symbol": "BingLinkCount", "expected_path": "Sources/SiteM/BingWebmasterService.swift"},
+    {"workspace": "/Users/phuongnam/02.AI/NP_AI_macos/22.site-M", "kind": "search", "query": "submit urls to IndexNow for instant indexing", "expected_path": "Sources/SiteM/IndexNowStore.swift"},
+    {"workspace": "/Users/phuongnam/02.AI/NP_AI_macos/22.site-M", "kind": "search", "query": "compare two saved audit runs and diff their issues", "expected_path": "Sources/SiteM/AuditStore+Comparison.swift"},
+    {"workspace": "/Users/phuongnam/02.AI/NP_AI_macos/22.site-M", "kind": "search", "query": "google oauth desktop sign-in flow and token storage", "expected_path": "Sources/SiteM/GoogleOAuth.swift"},
+    {"workspace": "/Users/phuongnam/02.AI/NP_AI_macos/22.site-M", "kind": "search", "query": "wordpress cms credential vault and live publish transport", "expected_path": "Sources/SiteM/CMSLiveTransport.swift"},
+    {"workspace": "/Users/phuongnam/02.AI/NP_AI_macos/22.site-M", "kind": "search", "query": "keyword rank position snapshots and alerts", "expected_path": "Sources/SiteM/RankStore.swift"},
+    {"workspace": "/Users/phuongnam/02.AI/NP_AI_macos/22.site-M", "kind": "search", "query": "start a video generation pipeline run and track progress", "expected_path": "Sources/SiteM/VideoPipelineStore+Execution.swift"},
+
+    {"workspace": "/Users/phuongnam/02.AI/NP_AI_macos/21.linkeldn", "kind": "definition", "tier": "popular", "query": "LocalWorkflow", "expected_symbol": "LocalWorkflow", "expected_path": "Sources/LinkedInAdminCore/Workflow.swift"},
+    {"workspace": "/Users/phuongnam/02.AI/NP_AI_macos/21.linkeldn", "kind": "definition", "tier": "popular", "query": "LinkedInDraft", "expected_symbol": "LinkedInDraft", "expected_path": "Sources/LinkedInAdminCore/Models.swift"},
+    {"workspace": "/Users/phuongnam/02.AI/NP_AI_macos/21.linkeldn", "kind": "definition", "tier": "mid", "query": "beginOperation", "expected_symbol": "beginOperation", "expected_path": "Sources/LinkedInAdminApp/AppState.swift"},
+    {"workspace": "/Users/phuongnam/02.AI/NP_AI_macos/21.linkeldn", "kind": "definition", "tier": "mid", "query": "canonicalShareLink", "expected_symbol": "canonicalShareLink", "expected_path": "Sources/LinkedInAdminCore/LinkedInHistoryStore.swift"},
+    {"workspace": "/Users/phuongnam/02.AI/NP_AI_macos/21.linkeldn", "kind": "definition", "tier": "obscure", "query": "CommandIntentParser", "expected_symbol": "CommandIntentParser", "expected_path": "Sources/LinkedInAdminCore/CommandIntent.swift"},
+    {"workspace": "/Users/phuongnam/02.AI/NP_AI_macos/21.linkeldn", "kind": "definition", "tier": "obscure", "query": "BriefAudience", "expected_symbol": "BriefAudience", "expected_path": "Sources/LinkedInAdminCore/ContentBrief.swift"},
+    {"workspace": "/Users/phuongnam/02.AI/NP_AI_macos/21.linkeldn", "kind": "search", "query": "local loopback server receiving the linkedin oauth callback", "expected_path": "Sources/LinkedInAdminApp/LoopbackOAuthServer.swift"},
+    {"workspace": "/Users/phuongnam/02.AI/NP_AI_macos/21.linkeldn", "kind": "search", "query": "parse an imported linkedin csv export of past shares", "expected_path": "Sources/LinkedInAdminCore/LinkedInHistory.swift"},
+    {"workspace": "/Users/phuongnam/02.AI/NP_AI_macos/21.linkeldn", "kind": "search", "query": "advisory publish readiness score for a draft", "expected_path": "Sources/LinkedInAdminCore/PublishReadiness.swift"},
+    {"workspace": "/Users/phuongnam/02.AI/NP_AI_macos/21.linkeldn", "kind": "search", "query": "credential vault storing account secrets", "expected_path": "Sources/LinkedInAdminCore/AccountCredentials.swift"},
+    {"workspace": "/Users/phuongnam/02.AI/NP_AI_macos/21.linkeldn", "kind": "search", "query": "generate a linkedin image asset via local or openai-compatible client", "expected_path": "Sources/LinkedInAdminCore/ImageGeneration.swift"},
+    {"workspace": "/Users/phuongnam/02.AI/NP_AI_macos/21.linkeldn", "kind": "search", "query": "intake a folder of source material for drafts", "expected_path": "Sources/LinkedInAdminCore/SourceIntake.swift"},
+
+    {"workspace": "/Users/phuongnam/02.AI/NP_AI_macos/25.event-qr-checkin", "kind": "definition", "tier": "popular", "query": "handleError", "expected_symbol": "handleError", "expected_path": "lib/server/api.ts"},
+    {"workspace": "/Users/phuongnam/02.AI/NP_AI_macos/25.event-qr-checkin", "kind": "definition", "tier": "popular", "query": "requireStaff", "expected_symbol": "requireStaff", "expected_path": "lib/server/api.ts"},
+    {"workspace": "/Users/phuongnam/02.AI/NP_AI_macos/25.event-qr-checkin", "kind": "definition", "tier": "mid", "query": "getSession", "expected_symbol": "getSession", "expected_path": "lib/session.ts"},
+    {"workspace": "/Users/phuongnam/02.AI/NP_AI_macos/25.event-qr-checkin", "kind": "definition", "tier": "mid", "query": "verifySessionToken", "expected_symbol": "verifySessionToken", "expected_path": "lib/session.ts"},
+    {"workspace": "/Users/phuongnam/02.AI/NP_AI_macos/25.event-qr-checkin", "kind": "definition", "tier": "obscure", "query": "normalizePhone", "expected_symbol": "normalizePhone", "expected_path": "lib/schemas.ts"},
+    {"workspace": "/Users/phuongnam/02.AI/NP_AI_macos/25.event-qr-checkin", "kind": "definition", "tier": "obscure", "query": "extractQrToken", "expected_symbol": "extractQrToken", "expected_path": "components/admin/qr-scanner.tsx"},
+    {"workspace": "/Users/phuongnam/02.AI/NP_AI_macos/25.event-qr-checkin", "kind": "search", "query": "google apps script backend bridge client posting actions", "expected_path": "lib/gas.ts"},
+    {"workspace": "/Users/phuongnam/02.AI/NP_AI_macos/25.event-qr-checkin", "kind": "search", "query": "scan attendee qr code with camera and extract token", "expected_path": "components/admin/qr-scanner.tsx"},
+    {"workspace": "/Users/phuongnam/02.AI/NP_AI_macos/25.event-qr-checkin", "kind": "search", "query": "export registrations csv download for excel", "expected_path": "app/api/registrations/export/route.ts"},
+    {"workspace": "/Users/phuongnam/02.AI/NP_AI_macos/25.event-qr-checkin", "kind": "search", "query": "resend qr code email form when the email did not arrive", "expected_path": "components/public/resend-qr-form.tsx"},
+    {"workspace": "/Users/phuongnam/02.AI/NP_AI_macos/25.event-qr-checkin", "kind": "search", "query": "sign and verify staff session cookie tokens", "expected_path": "lib/session.ts"},
+    {"workspace": "/Users/phuongnam/02.AI/NP_AI_macos/25.event-qr-checkin", "kind": "search", "query": "public event registration form with email phone validation", "expected_path": "components/public/registration-form.tsx"}
+  ]
+}
