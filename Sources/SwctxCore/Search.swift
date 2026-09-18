@@ -120,6 +120,14 @@ public enum Search {
         return out
     }
 
+    /// Accent-fold for path/term matching: diacritic-insensitive + case fold,
+    /// plus explicit đ/Đ → d (standalone letters Unicode folding leaves intact).
+    static func foldText(_ s: String) -> String {
+        s.folding(options: [.diacriticInsensitive, .caseInsensitive], locale: nil)
+            .replacingOccurrences(of: "đ", with: "d")
+            .replacingOccurrences(of: "Đ", with: "d")
+    }
+
     /// Chunks defining a symbol whose name exactly equals a query token
     /// (identifier-lookup intent). Prose docs mentioning the word never
     /// appear in this leg, so vector noise cannot bury real definitions.
@@ -191,6 +199,10 @@ public enum Search {
         let terms = Set(query.lowercased()
             .components(separatedBy: CharacterSet.alphanumerics.inverted)
             .filter { $0.count >= 2 }.prefix(12))
+        // Folded term set for path matching only: substring matching on the
+        // raw path produced phantom boosts ("quantri" inside unrelated paths)
+        // and accented VN terms could never match ASCII path tokens.
+        let termsFolded = Set(terms.map(foldText))
         return rrf.map { (cid, score) -> (Int64, Double) in
             guard let h = byID[cid] else { return (cid, score) }
             var boost = 0.0
@@ -199,7 +211,10 @@ public enum Search {
                 boost += 0.03 * Double(terms.intersection(st).count)
             }
             let lp = h.path.lowercased()
-            boost += 0.015 * Double(terms.filter { lp.contains($0) }.count)
+            let pathTokens = Set(foldText(h.path)
+                .components(separatedBy: CharacterSet.alphanumerics.inverted)
+                .filter { $0.count >= 2 })
+            boost += 0.015 * Double(termsFolded.intersection(pathTokens).count)
             if lp.hasPrefix("archive/") { boost -= 0.01 }
             return (cid, score + min(boost, 0.09))
         }.sorted { $0.1 > $1.1 }.prefix(limit).compactMap { (cid, score) in

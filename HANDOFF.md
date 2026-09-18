@@ -378,3 +378,17 @@ extraction land nhưng index cũ giữ 0 implements edges cho tới khi force).
   rank regressed — keep bge on English-heavy workspaces. P8_SEO_Clean +
   18.CRM-Nam-Pham are bound to distiluse (`index.db.bge-bak` beside each
   DB; rollback `swctx embed --reindex --model bge-base-en-v1.5`).
+- **Folded token-boundary path boost (2026-09-18):** `Search.hybrid`'s
+  path boost was raw `lp.contains(term)` — phantom substring boosts and
+  accented VN terms never matched ASCII path tokens. Now `foldText`
+  (diacritic+case fold, explicit đ/Đ→d) applied to both query terms and
+  per-path tokens split on non-alphanumerics; boost stays 0.015/token.
+  Measured on the 16-query vn-probe: `crm-06` miss→rank 1, auto 6/16→
+  **7/16** (VN 5/14→**6/14**), zero regressions; matches the offline
+  simulation. Covered by `testFoldText` + `testPathBoostFoldedTokenBoundary`.
+  **Rejected after measurement:** widening the vector-leg candidate window
+  `limit*3→limit*12` — deep vector noise (ranks 15-60) diluted RRF and
+  regressed auto to 6/16 (lost seo-08); true targets sit at vector ranks
+  ~140-800, unreachable anyway. Next VN lever is weighted fusion or
+  query rewriting, not window size. Ratchet still PASS (0.9722, p95
+  46.1ms, 20-tool golden); cold_cwd PASS; 78/78 tests.

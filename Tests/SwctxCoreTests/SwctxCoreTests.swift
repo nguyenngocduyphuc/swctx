@@ -207,6 +207,44 @@ final class SwctxCoreTests: XCTestCase {
         XCTAssertFalse(hits.isEmpty)
     }
 
+    /// foldText: case + diacritic fold for path/term matching, with explicit
+    /// đ/Đ → d (Unicode diacritic folding leaves those letters intact).
+    func testFoldText() {
+        XCTAssertEqual(Search.foldText("Đăng Nhập"), "dang nhap")
+        XCTAssertEqual(Search.foldText("Đường"), "duong")
+        XCTAssertEqual(Search.foldText("CRM"), "crm")
+        XCTAssertEqual(Search.foldText("xac_thuc"), "xac_thuc")
+    }
+
+    /// Path boost matches whole folded path tokens, not substrings: a VN
+    /// query term must boost `dang_nhap.md`, while "quantri" must NOT boost
+    /// `bequantri.md` (substring) — only the exact-token file wins.
+    func testPathBoostFoldedTokenBoundary() throws {
+        let dir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("swctx-test-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let body = "xac thuc nguoi dung qua he thong\n"
+        for name in ["dang_nhap.md", "ghi_chu.md", "bequantri.md", "quantri_ghi_so.md"] {
+            try body.write(to: dir.appendingPathComponent(name), atomically: true, encoding: .utf8)
+        }
+
+        let store = try Store(workspaceRoot: dir)
+        try Indexer(store: store).run(force: true)
+        let emb = Embedder()
+
+        let vn = try Search.hybrid(store: store, embedder: emb,
+                                   query: "đăng nhập xác thực", limit: 4,
+                                   includeVector: false)
+        XCTAssertEqual(vn.first?.path, "dang_nhap.md")
+
+        let sub = try Search.hybrid(store: store, embedder: emb,
+                                    query: "quantri xac thuc", limit: 4,
+                                    includeVector: false)
+        XCTAssertEqual(sub.first?.path, "quantri_ghi_so.md")
+        XCTAssertNotEqual(sub.first?.path, "bequantri.md")
+    }
+
     /// Edge resolution precedence: qualified call via import alias, same-file
     /// `self.`, imported-file bare call, ambiguous cross-file name stays NULL.
     func testResolveEdgesPasses() throws {

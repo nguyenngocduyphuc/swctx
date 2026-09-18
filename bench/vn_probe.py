@@ -290,13 +290,15 @@ def analyse(records, agg, limit):
         "in every mode.")
     analysis.append(
         "Mechanism check (verified in `Sources/SwctxCore/Embedder.swift` + "
-        "`BGEEmbedder.swift`): the live embedder is **bge-base-en-v1.5** "
-        "(CoreML, bert-base-uncased WordPiece vocab). That vocab is "
-        "English-only — Vietnamese syllables with stacked diacritics (`kiểm`, "
-        "`được`, `nhân viên`) mostly map to `[UNK]`, so a Vietnamese sentence "
-        f"embeds to near-noise. The observed semantic-leg VN recall "
-        f"({vi_sem:.0%}) is exactly what that tokenization predicts — it is "
-        "a model property, not a retrieval-pipeline bug.")
+        "`BGEEmbedder.swift`): embedding is per-index — these workspaces are "
+        "bound to **distiluse-base-multilingual-cased-v2** (CoreML, cased "
+        "WordPiece, mean pooling, real VN tokens), while the English default "
+        "remains bge-base-en-v1.5. Vector ordering on VN improved ~10-50x "
+        "after the binding, so a low semantic-leg VN recall "
+        f"({vi_sem:.0%}) now points at ranking/fusion, not vocab. The "
+        "path boost itself is folded + token-boundary (`Search.foldText`): "
+        "accented VN terms match ASCII path tokens, and substrings no "
+        "longer produce phantom boosts.")
     analysis.append(
         "Two qualitative observations from the hit lists: (1) FTS noise is "
         "real — diacritic folding makes common VN morphemes collide "
@@ -316,34 +318,23 @@ def analyse(records, agg, limit):
             f"FTS, and auto lands at {vi_auto:.0%}.")
     elif vi_fts >= vi_sem:
         verdict.append(
-            f"**The stated hypothesis is falsified — and inverted.** "
-            f"Vietnamese queries do NOT fail on FTS ({vi_fts:.0%} recall): "
-            "unicode61 folds diacritics (`chấm công` → `cham cong`), and "
-            "Vietnamese file names/docstrings give FTS plenty to match. The "
-            f"leg that actually dies on Vietnamese is **semantic "
-            f"({vi_sem:.0%})** — bge-base-en-v1.5 has an English-only "
-            "WordPiece vocab, so VN text embeds to near-noise and the vector "
-            "leg rescues zero Vietnamese queries while still working on the "
-            "English control.")
+            f"**Vietnamese queries still lean on FTS** ({vi_fts:.0%} recall "
+            f"vs semantic {vi_sem:.0%}): unicode61 folds diacritics "
+            "(`chấm công` → `cham cong`), and Vietnamese file "
+            "names/docstrings give FTS plenty to match. These indexes are "
+            "bound to distiluse-multilingual, so the weak semantic leg is "
+            "no longer a vocab problem — vector ordering improved "
+            "~10-50x — but deep vector hits rarely survive fusion.")
         verdict.append(
-            "So: **does the current setup lose Vietnamese retrieval? Yes** — "
-            f"auto recall on natural VN queries is only {vi_auto:.0%}, and "
-            "every VN hit is carried entirely by the keyword leg. **Is a "
-            "different embedding model likely to fix it? More likely than "
-            "this probe's framing suggested.** The swap doesn't compete with "
-            "a working FTS leg — it would repair a leg that is currently "
-            f"dead weight for VN (0/{len(vi)}) while providing fusion "
-            "signal elsewhere. Any multilingual model with real Vietnamese "
-            "tokens (bge-m3, paraphrase-multilingual, a VN-specialised "
-            "embedder) can only improve on 0%. The honest bound: en_control "
-            f"semantic recall is only {en_sem:.0%} on n={len(en)}, and "
-            "ad-hoc EN spot checks in the same workspaces also missed "
-            "obvious targets (setup.js dominates the vector top-5 at scores "
-            "~0.7-0.8) — so the vector leg may have corpus-general weakness "
-            "too, and a model swap alone may not reach acceptable recall. "
-            "Cheap gate: re-embed one workspace with a multilingual model "
-            "and re-run this probe; if semantic VN recall moves off 0%, "
-            "the swap is justified for any VN-facing use case.")
+            f"Auto recall on natural VN queries is {vi_auto:.0%}. "
+            "Measured fixes so far: folded token-boundary path boost "
+            "(rescued crm-06 to rank 1, +1 VN hit, zero regressions). "
+            "Measured reject: widening the per-leg candidate window to "
+            "limit*12 — deep vector noise (ranks 15-60) diluted RRF and "
+            "cost the English control (auto dropped). Remaining lever: "
+            "weighted fusion or query rewriting, not bigger windows. "
+            f"Honest bound: en_control semantic recall is "
+            f"{en_sem:.0%} on n={len(en)}.")
     else:
         verdict.append(
             f"Vietnamese queries: FTS {vi_fts:.0%}, semantic {vi_sem:.0%}, "

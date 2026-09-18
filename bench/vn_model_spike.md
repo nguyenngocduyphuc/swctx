@@ -183,3 +183,24 @@ workspaces bound to it). Roll back: same command with
 `--model bge-base-en-v1.5`, or restore `index.db.bge-bak` beside each
 index.db (`~/.swctx/indexes/{6e09ad5e9099,b1617b66c781}/`).
 EN-only workspaces: do nothing — legacy indexes stay on bge by default.
+
+## Follow-up: folded token-boundary path boost (measured 2026-09-18)
+
+Post-binding, fusion was the bottleneck. Two changes evaluated on the same
+16-query probe (`bench/vn_probe.py`):
+
+**Adopted — folded token-boundary path boost** (`Search.foldText`, commit
+pending): the path boost previously did raw `lp.contains(term)` substring
+matching — phantom boosts ("quantri" inside unrelated paths) and accented
+VN terms could never match ASCII path tokens. Now path is tokenized on
+non-alphanumerics, both sides folded (diacritic + case + explicit đ→d),
+intersection × 0.015 unchanged. Measured: `crm-06` miss → rank 1,
+auto recall 6/16 → **7/16**, VN auto 5/14 → **6/14**, zero regressions
+(seo-02/03, crm-03/05/07 held). Matches the offline simulation exactly.
+
+**Rejected — wider candidate window**: `limit*3` → `limit*12` on the
+vector leg was tested to admit deep vector hits (targets sit at vector
+ranks ~140-800, unreachable anyway). Measured result: auto dropped to
+6/16 — vector ranks 15-60 are near-duplicate noise that diluted RRF and
+cost seo-08 (rank 4 → miss) plus seo-02 (2 → 4). Reverted to `limit*3`.
+The remaining lever is weighted fusion or query rewriting, not window size.
