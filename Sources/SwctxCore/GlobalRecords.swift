@@ -115,7 +115,14 @@ public final class GlobalRecords: @unchecked Sendable {
         let out = Pipe(), err = Pipe()
         p.standardOutput = out
         p.standardError = err
-        do { try p.run() } catch { return nil }
+        do {
+            try p.run()
+        } catch {
+            // Transient spawn failure under parallel load — one retry after
+            // a short beat. (StalenessTests flaked twice on this path.)
+            usleep(50_000)
+            do { try p.run() } catch { return nil }
+        }
         let sem = DispatchSemaphore(value: 0)
         DispatchQueue.global().async { p.waitUntilExit(); sem.signal() }
         if sem.wait(timeout: .now() + .seconds(5)) == .timedOut {
