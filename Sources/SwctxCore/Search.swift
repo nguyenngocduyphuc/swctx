@@ -24,12 +24,27 @@ public enum Search {
         return tokens.prefix(12).map { "\"\($0)\"*" }.joined(separator: " OR ")
     }
 
+    /// BM25F column weights for chunks_fts(content, path_tokens,
+    /// symbol_names). Order must match the CREATE TABLE column order
+    /// exactly — body hits are baseline, path/symbol hits outrank them.
+    static let ftsColumnWeights: (content: Double, path: Double, symbol: Double) =
+        (1.0, 2.5, 5.0)
+
+    /// Post-hoc boost magnitudes (all inside the 0.09 cap, tuned on
+    /// bench/vn_probe.py — RRF scores total ~0.05, so boosts must stay
+    /// small to adjust order without drowning the fused signal).
+    static let coverageWeight = 0.01        // per DISTINCT folded term present
+    static let coverageCap = 0.03           // sub-cap on the coverage term
+    static let pagerankWeight = 0.02        // × min-max normalized file rank
+    static let depthPenaltyPerSegment = 0.005
+
     public static func fts(store: Store, query: String, limit: Int, pathFilter: String? = nil) throws -> [SearchHit] {
         guard let match = ftsQuery(query) else { return [] }
+        let w = ftsColumnWeights
         return try store.pool.read { db in
             var sql = """
                 SELECT c.id, f.path, c.start_line, c.end_line, c.kind, c.symbol,
-                       bm25(chunks_fts) AS rank,
+                       bm25(chunks_fts, \(w.content), \(w.path), \(w.symbol)) AS rank,
                        snippet(chunks_fts, 0, '«', '»', ' … ', 24) AS snippet
                 FROM chunks_fts
                 JOIN chunks c ON c.id = chunks_fts.rowid
@@ -128,6 +143,32 @@ public enum Search {
             .replacingOccurrences(of: "Đ", with: "d")
     }
 
+    /// Space-joined folded path tokens for the FTS `path_tokens` column:
+    /// alnum-split, then camelCase subtokens (split BEFORE folding loses
+    /// the case signal), all diacritic-folded — "ui/getUser.py" indexes
+    /// as "ui get user py".
+    static func pathTokenString(_ path: String) -> String {
+        var out: [String] = []
+        for raw in path.components(separatedBy: CharacterSet.alphanumerics.inverted)
+        where !raw.isEmpty {
+            out.append(foldText(raw))
+            for sub in symbolTokens(raw) { out.append(foldText(sub)) }
+        }
+        return out.joined(separator: " ")
+    }
+
+    /// Space-joined tokens for the FTS `symbol_names` column: each name
+    /// contributes its folded raw form plus folded subtokens, so both
+    /// "resolveedges" and "resolve edges" queries reach "resolveEdges".
+    static func symbolTokenString(_ names: [String]) -> String {
+        var out: [String] = []
+        for n in names where !n.isEmpty {
+            out.append(foldText(n))
+            for t in symbolTokens(n) { out.append(foldText(t)) }
+        }
+        return out.joined(separator: " ")
+    }
+
     /// Chunks defining a symbol whose name exactly equals a query token
     /// (identifier-lookup intent). Prose docs mentioning the word never
     /// appear in this leg, so vector noise cannot bury real definitions.
@@ -182,6 +223,21 @@ public enum Search {
     public static func hybrid(store: Store, embedder: Embedder, query: String,
                               limit: Int, pathFilter: String? = nil,
                               includeVector: Bool = true) throws -> [SearchHit] {
+        try hybridCandidates(store: store, embedder: embedder, query: query,
+                             limit: limit, poolLimit: limit,
+                             pathFilter: pathFilter, includeVector: includeVector)
+    }
+
+    /// The fused candidate pool BEFORE the final limit cut: same legs,
+    /// RRF and post-hoc boosts as `hybrid`, but returns up to `poolLimit`
+    /// scored rows so a later rerank stage can rescore the full pool
+    /// instead of only the visible page. When the fused pool under-fills
+    /// `poolLimit`, trigram substring hits top it up (they never join
+    /// RRF — substring noise is too loose for the fused score).
+    public static func hybridCandidates(store: Store, embedder: Embedder, query: String,
+                                        limit: Int, poolLimit: Int,
+                                        pathFilter: String? = nil,
+                                        includeVector: Bool = true) throws -> [SearchHit] {
         let ftsHits = try fts(store: store, query: query, limit: limit * 3, pathFilter: pathFilter)
         let vecHits = includeVector
             ? try semantic(store: store, embedder: embedder, query: query, limit: limit * 3, pathFilter: pathFilter)
@@ -203,7 +259,35 @@ public enum Search {
         // raw path produced phantom boosts ("quantri" inside unrelated paths)
         // and accented VN terms could never match ASCII path tokens.
         let termsFolded = Set(terms.map(foldText))
-        return rrf.map { (cid, score) -> (Int64, Double) in
+
+        // Static-signal metadata for the whole fused pool in one batched
+        // read: chunk content (atom coverage) + file PageRank, plus the
+        // index-wide pagerank span for [0,1] normalization.
+        var candText: [Int64: String] = [:]
+        var candPR: [Int64: Double] = [:]
+        var prMin = 0.0, prSpan = 0.0
+        if !rrf.isEmpty {
+            let ids = Array(rrf.keys)
+            try store.pool.read { db in
+                let ph = ids.map { _ in "?" }.joined(separator: ",")
+                for r in try Row.fetchAll(db, sql: """
+                    SELECT c.id, c.content, f.pagerank
+                    FROM chunks c JOIN files f ON f.id = c.file_id
+                    WHERE c.id IN (\(ph))
+                    """, arguments: StatementArguments(ids)) {
+                    guard let cid = r["id"] as? Int64 else { continue }
+                    candText[cid] = (r["content"] as? String) ?? ""
+                    candPR[cid] = (r["pagerank"] as? Double) ?? 0
+                }
+                if let r = try Row.fetchOne(db, sql:
+                    "SELECT MIN(pagerank) AS mn, MAX(pagerank) AS mx FROM files") {
+                    prMin = (r["mn"] as? Double) ?? 0
+                    prSpan = max(0, ((r["mx"] as? Double) ?? 0) - prMin)
+                }
+            }
+        }
+
+        let scored = rrf.map { (cid, score) -> (Int64, Double) in
             guard let h = byID[cid] else { return (cid, score) }
             var boost = 0.0
             if let sym = h.symbol {
@@ -216,11 +300,94 @@ public enum Search {
                 .filter { $0.count >= 2 })
             boost += 0.015 * Double(termsFolded.intersection(pathTokens).count)
             if lp.hasPrefix("archive/") { boost -= 0.01 }
+            // Atom coverage: +0.01 per DISTINCT folded query term present
+            // in the candidate's folded token set (content+symbol+path),
+            // sub-capped at +0.03 — on 10+ term natural-language queries
+            // raw term-count saturates and would drown the fused score.
+            let hayTokens = Set(foldText(
+                    (candText[cid] ?? "") + " " + (h.symbol ?? "") + " " + h.path)
+                .components(separatedBy: CharacterSet.alphanumerics.inverted)
+                .filter { $0.count >= 2 })
+            boost += min(Search.coverageWeight * Double(termsFolded.intersection(hayTokens).count),
+                         Search.coverageCap)
+            // File-graph PageRank: small static prior so hub definitions
+            // beat same-name dead files, 0 when the index is unranked.
+            if prSpan > 0, let pr = candPR[cid] {
+                boost += Search.pagerankWeight * ((pr - prMin) / prSpan)
+            }
+            // Depth penalty (zoekt root-importance): −0.005 per path
+            // segment beyond the first — deep vendored paths sink.
+            let segments = h.path.split(
+                separator: "/", omittingEmptySubsequences: true).count
+            boost -= Search.depthPenaltyPerSegment * Double(max(0, segments - 1))
             return (cid, score + min(boost, 0.09))
-        }.sorted { $0.1 > $1.1 }.prefix(limit).compactMap { (cid, score) in
+        }.sorted { $0.1 > $1.1 }
+
+        var out = scored.prefix(poolLimit).compactMap { (cid, score) -> SearchHit? in
             guard var h = byID[cid] else { return nil }
             h.score = score
             return h
+        }
+        // Trigram fallback: only when the fused pool under-fills the
+        // request — mid-token substrings (e.g. "edgeshelper" inside
+        // "resolveEdgesHelper") never reach the prefix FTS legs.
+        if out.count < poolLimit {
+            out += try trigramHits(store: store, query: query,
+                                   limit: poolLimit - out.count,
+                                   excluding: Set(out.map { $0.chunkID }),
+                                   pathFilter: pathFilter)
+        }
+        return out
+    }
+
+    /// Substring-level fallback leg over the trigram FTS table. Each
+    /// query term ≥3 chars becomes a quoted trigram phrase (a mid-token
+    /// substring match; the tokenizer folds case only, so folded variants
+    /// are added to reach diacritic-folded content).
+    static func trigramHits(store: Store, query: String, limit: Int,
+                            excluding: Set<Int64> = [],
+                            pathFilter: String? = nil) throws -> [SearchHit] {
+        // Opt-in leg: the trigram index costs ~40-45% of DB size and is
+        // populated only on indexes with meta.trigram=1. Skip entirely on
+        // indexes that never enabled it (empty table = no signal anyway).
+        guard store.trigramEnabled else { return [] }
+        var atoms: [String] = []
+        var seen: Set<String> = []
+        for raw in query.components(separatedBy: CharacterSet.alphanumerics.inverted) {
+            for v in [raw, foldText(raw)] where v.count >= 3 {
+                if seen.insert(v).inserted { atoms.append(v) }
+            }
+            if atoms.count >= 12 { break }
+        }
+        guard !atoms.isEmpty else { return [] }
+        let match = atoms.prefix(12).map { "\"\($0)\"" }.joined(separator: " OR ")
+        return try store.pool.read { db in
+            var sql = """
+                SELECT c.id, f.path, c.start_line, c.end_line, c.kind, c.symbol,
+                       bm25(chunks_trigram) AS rank
+                FROM chunks_trigram
+                JOIN chunks c ON c.id = chunks_trigram.rowid
+                JOIN files f ON f.id = c.file_id
+                WHERE chunks_trigram MATCH ?
+                """
+            var args: [DatabaseValueConvertible] = [match]
+            if let p = pathFilter, !p.isEmpty {
+                sql += " AND f.path LIKE ?"
+                args.append(p.hasSuffix("/") ? p + "%" : p + "/%")
+            }
+            if !excluding.isEmpty {
+                let excl = excluding.map { String($0) }.joined(separator: ",")
+                sql += " AND c.id NOT IN (\(excl))"
+            }
+            sql += " ORDER BY rank LIMIT ?"
+            args.append(limit)
+            return try Row.fetchAll(db, sql: sql, arguments: StatementArguments(args)).map { row in
+                SearchHit(
+                    chunkID: (row["id"] as? Int64) ?? -1, path: (row["path"] as? String) ?? "",
+                    startLine: Int((row["start_line"] as? Int64) ?? 0), endLine: Int((row["end_line"] as? Int64) ?? 0),
+                    kind: row["kind"] as? String, symbol: row["symbol"] as? String,
+                    score: -((row["rank"] as? Double) ?? 0), snippet: "")
+            }
         }
     }
 }

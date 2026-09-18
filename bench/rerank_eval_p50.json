@@ -1,0 +1,305 @@
+{
+ "queries": [
+  {
+   "id": "seo-01",
+   "lang": "vi",
+   "tags": [
+    "vn_to_vn"
+   ],
+   "query": "script kiểm tra google có đang chọn canonical khác với url mình khai báo không",
+   "expected_path": "scripts/p8_canonical_check.py",
+   "base_rank": 0,
+   "rerank_rank": 2,
+   "pool_rank": 11,
+   "pool": 50,
+   "rerank_ms": 752.1309852600098,
+   "ms_per_pair": 15.042619705200195,
+   "cli_ms": 2247.5975829875097
+  },
+  {
+   "id": "seo-02",
+   "lang": "vi",
+   "tags": [
+    "vn_to_vn"
+   ],
+   "query": "gate phát hiện link nội bộ bị gãy 404 trong bài trước khi publish",
+   "expected_path": "scripts/p8_link_health.py",
+   "base_rank": 1,
+   "rerank_rank": 13,
+   "pool_rank": 2,
+   "pool": 50,
+   "rerank_ms": 673.6229658126831,
+   "ms_per_pair": 13.472459316253662,
+   "cli_ms": 2691.5426660561934
+  },
+  {
+   "id": "seo-03",
+   "lang": "vi",
+   "tags": [
+    "vn_to_vn"
+   ],
+   "query": "script tạo file excel để sinh link utm cho chiến dịch zalo linkedin",
+   "expected_path": "scripts/p8_utm_builder.py",
+   "base_rank": 1,
+   "rerank_rank": 1,
+   "pool_rank": 1,
+   "pool": 50,
+   "rerank_ms": 612.9729747772217,
+   "ms_per_pair": 12.259459495544434,
+   "cli_ms": 2557.646124972962
+  },
+  {
+   "id": "seo-04",
+   "lang": "vi",
+   "tags": [
+    "vn_to_en"
+   ],
+   "query": "worker tự sinh ảnh minh họa cho các mục h2 còn thiếu ảnh",
+   "expected_path": "scripts/p8_image_worker.py",
+   "base_rank": 0,
+   "rerank_rank": 0,
+   "pool_rank": 0,
+   "pool": 50,
+   "rerank_ms": 710.7659578323364,
+   "ms_per_pair": 14.215319156646729,
+   "cli_ms": 2226.9912500632927
+  },
+  {
+   "id": "seo-05",
+   "lang": "vi",
+   "tags": [
+    "vn_to_en"
+   ],
+   "query": "lệnh đồng bộ thông tin của từng site thành một file entity mesh chung",
+   "expected_path": "factory/sitectl.py",
+   "base_rank": 0,
+   "rerank_rank": 0,
+   "pool_rank": 0,
+   "pool": 50,
+   "rerank_ms": 638.5159492492676,
+   "ms_per_pair": 12.770318984985352,
+   "cli_ms": 2004.5988330384716
+  },
+  {
+   "id": "seo-06",
+   "lang": "vi",
+   "tags": [
+    "vn_to_vn"
+   ],
+   "query": "trang liệt kê tình trạng các worker trong đội hạm con nào đang bị block",
+   "expected_path": "docs-fleet/doi-ngu.md",
+   "base_rank": 0,
+   "rerank_rank": 0,
+   "pool_rank": 0,
+   "pool": 50,
+   "rerank_ms": 662.1800661087036,
+   "ms_per_pair": 13.243601322174072,
+   "cli_ms": 1903.3370419638231
+  },
+  {
+   "id": "seo-07",
+   "lang": "vi",
+   "tags": [
+    "vn_to_vn"
+   ],
+   "query": "tài liệu quy trình chuẩn để push nội dung bài viết lên site",
+   "expected_path": "WORKFLOW.md",
+   "base_rank": 0,
+   "rerank_rank": 6,
+   "pool_rank": 8,
+   "pool": 50,
+   "rerank_ms": 703.7440538406372,
+   "ms_per_pair": 14.074881076812744,
+   "cli_ms": 2098.980459035374
+  },
+  {
+   "id": "seo-08",
+   "lang": "en",
+   "tags": [
+    "en_control"
+   ],
+   "query": "generate hero image and set featured image for articles missing one",
+   "expected_path": "scripts/p8_fix_featured_images.py",
+   "base_rank": 3,
+   "rerank_rank": 4,
+   "pool_rank": 2,
+   "pool": 50,
+   "rerank_ms": 610.6090545654297,
+   "ms_per_pair": 12.212181091308594,
+   "cli_ms": 1864.484459045343
+  },
+  {
+   "id": "crm-01",
+   "lang": "vi",
+   "tags": [
+    "vn_to_vn"
+   ],
+   "query": "script tính chấm công của nhân viên từ nhật ký hoạt động",
+   "expected_path": "crm-nam-pham/09-build/cham_cong.py",
+   "base_rank": 0,
+   "rerank_rank": 1,
+   "pool_rank": 10,
+   "pool": 50,
+   "rerank_ms": 642.5650119781494,
+   "ms_per_pair": 12.851300239562988,
+   "cli_ms": 1637.2857919195667
+  },
+  {
+   "id": "crm-02",
+   "lang": "vi",
+   "tags": [
+    "vn_to_vn"
+   ],
+   "query": "đoạn code tóm tắt hôm qua làm gì và việc nào sắp tới hạn chấm cho CEO",
+   "expected_path": "crm-nam-pham/09-build/so_tay.py",
+   "base_rank": 3,
+   "rerank_rank": 7,
+   "pool_rank": 20,
+   "pool": 50,
+   "rerank_ms": 631.89697265625,
+   "ms_per_pair": 12.637939453125,
+   "cli_ms": 1659.0514169074595
+  },
+  {
+   "id": "crm-03",
+   "lang": "vi",
+   "tags": [
+    "vn_to_vn"
+   ],
+   "query": "hàm tạo mảnh tin telegram báo có lead mới hôm qua",
+   "expected_path": "crm-nam-pham/09-build/tin_lead.py",
+   "base_rank": 2,
+   "rerank_rank": 1,
+   "pool_rank": 2,
+   "pool": 50,
+   "rerank_ms": 641.7989730834961,
+   "ms_per_pair": 12.835979461669922,
+   "cli_ms": 1599.9164170352742
+  },
+  {
+   "id": "crm-04",
+   "lang": "vi",
+   "tags": [
+    "vn_to_vn"
+   ],
+   "query": "script đối soát quyết định của CEO với trạng thái việc thật để đóng vòng",
+   "expected_path": "crm-nam-pham/09-build/dong_vong.py",
+   "base_rank": 0,
+   "rerank_rank": 0,
+   "pool_rank": 0,
+   "pool": 50,
+   "rerank_ms": 664.4260883331299,
+   "ms_per_pair": 13.288521766662598,
+   "cli_ms": 1642.0610420173034
+  },
+  {
+   "id": "crm-05",
+   "lang": "vi",
+   "tags": [
+    "vn_to_vn"
+   ],
+   "query": "middleware gác cửa kiểm tra đăng nhập bằng vân tay passkey",
+   "expected_path": "crm-nam-pham/functions/_middleware.js",
+   "base_rank": 1,
+   "rerank_rank": 2,
+   "pool_rank": 1,
+   "pool": 50,
+   "rerank_ms": 641.7200565338135,
+   "ms_per_pair": 12.83440113067627,
+   "cli_ms": 1613.5122090345249
+  },
+  {
+   "id": "crm-06",
+   "lang": "vi",
+   "tags": [
+    "vn_to_vn"
+   ],
+   "query": "tài liệu giải thích CEO đăng nhập bằng google qua cloudflare access",
+   "expected_path": "crm-nam-pham/07-docs/DANG_NHAP.md",
+   "base_rank": 1,
+   "rerank_rank": 2,
+   "pool_rank": 1,
+   "pool": 50,
+   "rerank_ms": 745.2050447463989,
+   "ms_per_pair": 14.904100894927979,
+   "cli_ms": 1726.430332986638
+  },
+  {
+   "id": "crm-07",
+   "lang": "vi",
+   "tags": [
+    "vn_to_vn"
+   ],
+   "query": "script nạp file csv export từ serpupdate vào lịch sử từ khóa",
+   "expected_path": "crm-nam-pham/09-build/nap_serp.py",
+   "base_rank": 1,
+   "rerank_rank": 2,
+   "pool_rank": 1,
+   "pool": 50,
+   "rerank_ms": 631.3779354095459,
+   "ms_per_pair": 12.627558708190918,
+   "cli_ms": 1574.734374997206
+  },
+  {
+   "id": "crm-08",
+   "lang": "en",
+   "tags": [
+    "en_control"
+   ],
+   "query": "shared helper writing one decision row into the operations ledger",
+   "expected_path": "crm-nam-pham/09-build/ghi_so.py",
+   "base_rank": 0,
+   "rerank_rank": 0,
+   "pool_rank": 0,
+   "pool": 50,
+   "rerank_ms": 656.561017036438,
+   "ms_per_pair": 13.13122034072876,
+   "cli_ms": 1636.308665969409
+  }
+ ],
+ "aggregate": {
+  "n": 16,
+  "base_recall": [
+   8,
+   16,
+   0.5
+  ],
+  "rerank_recall": [
+   8,
+   16,
+   0.5
+  ],
+  "vi_base": [
+   7,
+   14
+  ],
+  "vi_rerank": [
+   7,
+   14
+  ],
+  "en_base": [
+   1,
+   2
+  ],
+  "en_rerank": [
+   1,
+   2
+  ],
+  "pool_coverage": [
+   11,
+   16
+  ],
+  "gained": [
+   "seo-01",
+   "crm-01"
+  ],
+  "lost": [
+   "seo-02",
+   "crm-02"
+  ],
+  "ms_per_pair_p50": 13.13122034072876,
+  "ms_per_pair_p95": 15.042619705200195,
+  "rerank_ms_p50": 656.561017036438,
+  "rerank_ms_p95": 752.1309852600098
+ }
+}

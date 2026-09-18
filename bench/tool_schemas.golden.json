@@ -607,6 +607,10 @@
       "description": "Natural-language or keyword query",
       "type": "string"
      },
+     "rerank": {
+      "description": "Cross-encoder rerank of a 30-candidate pool; top-3 fused hits stay pinned. Adds ~0.4s/call; use for hard natural-language queries when plain results look off",
+      "type": "boolean"
+     },
      "workspace": {
       "description": "Absolute project path; omit or \"auto\" to resolve the nearest indexed ancestor of the server process cwd",
       "type": "string"

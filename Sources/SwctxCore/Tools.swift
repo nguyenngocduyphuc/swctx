@@ -230,7 +230,7 @@ public enum SwctxTools {
         let mode = requested == "auto"
             ? (Search.identifierLike(q) ? "identifier" : "hybrid")
             : requested
-        let hits: [SearchHit]
+        var hits: [SearchHit]
         switch mode {
         case "fts": hits = try Search.fts(store: store, query: q, limit: limit, pathFilter: pathFilter)
         case "semantic": hits = try Search.semantic(store: store, embedder: Embedder.shared, query: q, limit: limit, pathFilter: pathFilter)
@@ -247,6 +247,58 @@ public enum SwctxTools {
             hits = h
         default: hits = try Search.hybrid(store: store, embedder: Embedder.shared, query: q, limit: limit, pathFilter: pathFilter)
         }
+        // Optional cross-encoder stage (`rerank: true`): pin the top-3
+        // fused hits, rescore the rest of a 30-candidate pool with the
+        // multilingual cross-encoder. Measured +1/16 on the vn probe as a
+        // pinned stage (bench/rerank_spike.md) — pure rescoring demotes
+        // correct code hits (prose-biased 2019 mBERT), so the head stays
+        // pinned. Opt-in per call: adds ~0.4s for the model pass.
+        var rerankMs: Double? = nil
+        if args["rerank"]?.bool == true,
+           (mode == "hybrid" || mode == "identifier"),
+           let rr = Reranker.shared {
+            let identifier = mode == "identifier"
+            var pool = try Search.hybridCandidates(
+                store: store, embedder: Embedder.shared, query: q,
+                limit: limit, poolLimit: 30, pathFilter: pathFilter,
+                includeVector: !identifier)
+            if identifier && pool.isEmpty {
+                pool = try Search.hybridCandidates(
+                    store: store, embedder: Embedder.shared, query: q,
+                    limit: limit, poolLimit: 30, pathFilter: pathFilter)
+            }
+            let pin = min(3, pool.count)
+            if pool.count > pin {
+                let tail = Array(pool.dropFirst(pin))
+                let ids = tail.map { $0.chunkID }
+                let contents = try store.pool.read { db -> [Int64: String] in
+                    let ph = ids.map { _ in "?" }.joined(separator: ",")
+                    var out: [Int64: String] = [:]
+                    for r in try Row.fetchAll(db, sql:
+                        "SELECT id, content FROM chunks WHERE id IN (\(ph))",
+                        arguments: StatementArguments(ids)) {
+                        if let cid = r["id"] as? Int64 {
+                            out[cid] = (r["content"] as? String) ?? ""
+                        }
+                    }
+                    return out
+                }
+                let docs = tail.map {
+                    Reranker.docContext(path: $0.path, symbol: $0.symbol,
+                                        content: contents[$0.chunkID] ?? "")
+                }
+                let t0 = Date()
+                let scores = rr.scoreAll(query: q, docs: docs)
+                rerankMs = Date().timeIntervalSince(t0) * 1000
+                let rankedTail = zip(tail.indices, scores)
+                    .sorted { ($0.1 ?? -.infinity) > ($1.1 ?? -.infinity) }
+                    .map { tail[$0.0] }
+                hits = Array(pool.prefix(pin))
+                    + rankedTail.prefix(max(0, limit - pin))
+            } else {
+                hits = pool
+            }
+        }
         let items = hits.map { h -> [String: Any] in
             var d: [String: Any] = [
                 "chunk_id": h.chunkID, "path": h.path,
@@ -257,7 +309,13 @@ public enum SwctxTools {
             if !h.snippet.isEmpty { d["snippet"] = h.snippet }
             return d
         }
-        return json(["query": q, "mode": requested, "resolved_mode": mode, "hits": items])
+        var payload: [String: Any] = ["query": q, "mode": requested, "resolved_mode": mode, "hits": items]
+        if args["rerank"]?.bool == true {
+            payload["reranked"] = rerankMs != nil
+            if let ms = rerankMs { payload["rerank_ms"] = ms }
+            else { payload["rerank_note"] = Reranker.isInstalled ? "pool too small" : "model not installed" }
+        }
+        return json(payload)
     }
 
     static func findDefinitions(_ args: [String: Value]) throws -> String {

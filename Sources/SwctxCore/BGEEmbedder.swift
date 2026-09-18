@@ -40,21 +40,35 @@ public struct EmbeddingModelSpec: Sendable {
 struct WordPieceTokenizer {
     let vocab: [String: Int32]
     let cased: Bool
+    /// HF BasicTokenizer accent strip (NFD → drop combining marks). Every
+    /// uncased HF model applies it; it stays off for bge-uncased so existing
+    /// indexes keep their tokenization, on for multilingual-uncased vocabs
+    /// that contain no accented forms at all (đ/Đ are base letters there —
+    /// đ has no canonical decomposition, so it survives).
+    let stripAccents: Bool
+    /// Split CJK ideographs into single-char tokens (HF
+    /// `tokenize_chinese_chars`). Defaults to `cased` — the original rule.
+    let splitCJK: Bool
     static let maxTokens = 512
 
-    init(vocab: [String: Int32], cased: Bool) {
+    init(vocab: [String: Int32], cased: Bool,
+         stripAccents: Bool = false, splitCJK: Bool? = nil) {
         self.vocab = vocab
         self.cased = cased
+        self.stripAccents = stripAccents
+        self.splitCJK = splitCJK ?? cased
     }
 
-    init?(vocabAt url: URL, cased: Bool) {
+    init?(vocabAt url: URL, cased: Bool,
+          stripAccents: Bool = false, splitCJK: Bool? = nil) {
         guard let text = try? String(contentsOf: url, encoding: .utf8) else { return nil }
         var v: [String: Int32] = [:]
         for (i, line) in text.split(separator: "\n", omittingEmptySubsequences: false).enumerated() {
             v[String(line)] = Int32(i)
         }
         guard !v.isEmpty else { return nil }
-        self.init(vocab: v, cased: cased)
+        self.init(vocab: v, cased: cased,
+                  stripAccents: stripAccents, splitCJK: splitCJK)
     }
 
     func tokenize(_ text: String) -> [Int32] {
@@ -71,20 +85,49 @@ struct WordPieceTokenizer {
         return ids
     }
 
-    /// Uncased mode: lowercase, split on whitespace+punct (BERT basic tokenizer).
-    /// Cased mode: same split but no lowercasing, and CJK ideographs are broken
-    /// out as single-char tokens (HF `tokenize_chinese_chars`).
+    /// [CLS] a [SEP] b [SEP] pair encoding with segment ids — 0 for the
+    /// a-side (CLS + a + first SEP), 1 for the b-side (+ last SEP). HF
+    /// "longest_first" truncation: drop tail pieces from the longer side
+    /// until both fit (3 specials reserve from maxTokens).
+    func tokenizePair(_ a: String, _ b: String)
+        -> (ids: [Int32], types: [Int32]) {
+        var aPieces = basicTokens(a).flatMap { wordPieces($0) }
+        var bPieces = basicTokens(b).flatMap { wordPieces($0) }
+        let budget = WordPieceTokenizer.maxTokens - 3
+        while aPieces.count + bPieces.count > budget {
+            if aPieces.count >= bPieces.count { aPieces.removeLast() }
+            else { bPieces.removeLast() }
+        }
+        var ids: [Int32] = [vocab["[CLS]"] ?? 101]
+        var types: [Int32] = [0]
+        ids.append(contentsOf: aPieces)
+        types.append(contentsOf: [Int32](repeating: 0, count: aPieces.count))
+        ids.append(vocab["[SEP]"] ?? 102); types.append(0)
+        ids.append(contentsOf: bPieces)
+        types.append(contentsOf: [Int32](repeating: 1, count: bPieces.count))
+        ids.append(vocab["[SEP]"] ?? 102); types.append(1)
+        return (ids, types)
+    }
+
+    /// Uncased mode: lowercase (+ optional accent strip), split on
+    /// whitespace+punct (BERT basic tokenizer). Cased mode: same split but
+    /// no lowercasing/stripping. CJK ideographs are broken out as
+    /// single-char tokens when `splitCJK` (HF `tokenize_chinese_chars`).
     private func basicTokens(_ text: String) -> [String] {
         var tokens: [String] = []
         var cur = ""
         func flush() {
             if !cur.isEmpty { tokens.append(cur); cur = "" }
         }
-        let source = cased ? text : text.lowercased()
+        var source = cased ? text : text.lowercased()
+        if stripAccents { source = source.decomposedStringWithCanonicalMapping }
         for scalar in source.unicodeScalars {
             if scalar.value == 0 || scalar.value == 0xFFFD
                 || CharacterSet.controlCharacters.contains(scalar) { continue }
-            if cased && WordPieceTokenizer.isCJK(scalar) {
+            if stripAccents && CharacterSet.nonBaseCharacters.contains(scalar) {
+                continue
+            }
+            if splitCJK && WordPieceTokenizer.isCJK(scalar) {
                 flush()
                 tokens.append(String(scalar))
             } else if CharacterSet.alphanumerics.contains(scalar) {

@@ -12,8 +12,10 @@ public final class Store: @unchecked Sendable {
     /// read by search/embed paths so each index runs its own vector space.
     public private(set) var embeddingModel: String?
     public private(set) var embeddingDim: Int?
+    /// `meta.trigram` — substring fallback leg opt-in (off by default).
+    public private(set) var trigramEnabled = false
 
-    public static let schemaVersion = 4
+    public static let schemaVersion = 5
 
     public static func key(for root: URL) -> String {
         let digest = SHA256.hash(data: Data(root.standardizedFileURL.path.utf8))
@@ -55,6 +57,9 @@ public final class Store: @unchecked Sendable {
         embeddingModel = binding.0
         embeddingDim = binding.1.flatMap { Int($0) }
         Embedder.bindModel(embeddingModel)
+        trigramEnabled = try pool.read { db in
+            try String.fetchOne(db, sql: "SELECT value FROM meta WHERE key = 'trigram'") == "1"
+        }
     }
 
     /// Record (or update) the index's embedding-model binding in `meta` and
@@ -70,6 +75,17 @@ public final class Store: @unchecked Sendable {
         embeddingModel = modelID
         embeddingDim = dim
         Embedder.bindModel(modelID)
+    }
+
+    /// Opt-in substring index (`chunks_trigram` ~40-45% of DB size): the
+    /// fallback leg and index-time population are both gated on this flag.
+    public func setTrigramEnabled(_ on: Bool) throws {
+        try pool.write { db in
+            try db.execute(sql:
+                "INSERT OR REPLACE INTO meta(key, value) VALUES('trigram', ?)",
+                arguments: [on ? "1" : "0"])
+        }
+        trigramEnabled = on
     }
 
     private func migrate() throws {
@@ -168,6 +184,64 @@ public final class Store: @unchecked Sendable {
             // head movement alone.
             try db.execute(sql: "ALTER TABLE records ADD COLUMN head_sha TEXT")
             try db.execute(sql: "ALTER TABLE records ADD COLUMN anchors TEXT")
+        }
+        migrator.registerMigration("v5") { db in
+            // BM25F columns: split the old (content, symbol, path) fts
+            // into (content, path_tokens, symbol_names) so bm25() can
+            // weight each field (path/symbol matches outrank body hits).
+            // Recreated + repopulated in place — no rebuild needed.
+            try db.execute(sql: "DROP TABLE IF EXISTS chunks_fts")
+            try db.create(virtualTable: "chunks_fts", using: FTS5()) { t in
+                t.column("content")
+                t.column("path_tokens")
+                t.column("symbol_names")
+            }
+            // File-graph PageRank landing zone; Indexer recomputes it
+            // after every resolveEdges pass (0 = unranked/legacy).
+            try db.execute(sql:
+                "ALTER TABLE files ADD COLUMN pagerank REAL NOT NULL DEFAULT 0")
+            // Substring fallback leg. detail stays 'full': phrase queries
+            // — the only form a trigram index answers — are rejected
+            // under detail=column/none. The tokenizer folds case only;
+            // remove_diacritics needs SQLite >= 3.45 (system libsqlite3
+            // is older), so the query side adds folded variants instead.
+            try db.execute(sql: """
+                CREATE VIRTUAL TABLE chunks_trigram
+                USING fts5(content, tokenize='trigram')
+                """)
+            // Left empty: the trigram index costs ~40-45% of DB size and is
+            // populated only when the index opts in via meta.trigram=1
+            // (`swctx index --trigram`) — the fallback leg is gated on the
+            // same flag, so the empty table costs nothing.
+            // Repopulate chunks_fts from existing rows so migrated
+            // indexes keep serving ranked FTS without a rebuild.
+            var namesByChunk: [Int64: [String]] = [:]
+            for r in try Row.fetchAll(db, sql:
+                "SELECT chunk_id, name FROM symbols WHERE chunk_id IS NOT NULL") {
+                guard let cid = r["chunk_id"] as? Int64,
+                      let name = r["name"] as? String else { continue }
+                namesByChunk[cid, default: []].append(name)
+            }
+            let cursor = try Row.fetchCursor(db, sql: """
+                SELECT c.id, c.content, c.symbol, f.path
+                FROM chunks c JOIN files f ON f.id = c.file_id
+                """)
+            while let r = try cursor.next() {
+                guard let cid = r["id"] as? Int64 else { continue }
+                var seen: Set<String> = []
+                let names = (((r["symbol"] as? String).map { [$0] } ?? [])
+                    + (namesByChunk[cid] ?? []))
+                    .filter { seen.insert($0).inserted }
+                try db.execute(sql: """
+                    INSERT INTO chunks_fts(rowid, content, path_tokens, symbol_names)
+                    VALUES(?,?,?,?)
+                    """, arguments: [
+                        cid,
+                        (r["content"] as? String) ?? "",
+                        Search.pathTokenString((r["path"] as? String) ?? ""),
+                        Search.symbolTokenString(names),
+                    ])
+            }
         }
         try migrator.migrate(pool)
         try pool.write { db in

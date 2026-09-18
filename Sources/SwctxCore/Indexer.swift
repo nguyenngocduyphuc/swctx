@@ -232,6 +232,10 @@ public final class Indexer {
         // Resolve edges: dst_name -> symbols
         report.edgesResolved = try resolveEdges()
 
+        // File-graph PageRank over the just-resolved edges: hub files
+        // accumulate rank, hybrid reads it as a small static boost.
+        try updatePageRank()
+
         // Embedding pass: keep embedding in bounded batches until no
         // pending chunks remain (capped at embedMaxBatches); `swctx embed`
         // fills whatever a mid-run failure or the cap leaves. Never fails
@@ -264,6 +268,8 @@ public final class Indexer {
             let q = chunkIDs.map { _ in "?" }.joined(separator: ",")
             try db.execute(sql: "DELETE FROM chunks_fts WHERE rowid IN (\(q))",
                            arguments: StatementArguments(chunkIDs))
+            try db.execute(sql: "DELETE FROM chunks_trigram WHERE rowid IN (\(q))",
+                           arguments: StatementArguments(chunkIDs))
         }
         try db.execute(sql: "DELETE FROM files WHERE id = ?", arguments: [fileID])
     }
@@ -289,6 +295,13 @@ public final class Indexer {
                                  Date().timeIntervalSince1970])
             let fileID = db.lastInsertedRowID
 
+            // Symbol names per chunk for the FTS `symbol_names` column:
+            // the chunk's own symbol first, then every symbol row mapped
+            // to it (deduped — the defining row usually points at itself).
+            var namesByChunk: [Int: [String]] = [:]
+            for s in analysis.symbols where s.chunkIndex >= 0 {
+                namesByChunk[s.chunkIndex, default: []].append(s.name)
+            }
             var chunkIDs: [Int64] = []
             for (i, c) in analysis.chunks.enumerated() {
                 try db.execute(sql: """
@@ -297,9 +310,20 @@ public final class Indexer {
                     """, arguments: [fileID, i, c.startLine, c.endLine, c.kind,
                                      c.symbol, c.content, c.content.count / 4])
                 let cid = db.lastInsertedRowID
+                var seen: Set<String> = []
+                let names = ((c.symbol.map { [$0] } ?? []) + (namesByChunk[i] ?? []))
+                    .filter { seen.insert($0).inserted }
                 try db.execute(sql: """
-                    INSERT INTO chunks_fts(rowid, content, symbol, path) VALUES(?,?,?,?)
-                    """, arguments: [cid, c.content, c.symbol, rel])
+                    INSERT INTO chunks_fts(rowid, content, path_tokens, symbol_names)
+                    VALUES(?,?,?,?)
+                    """, arguments: [cid, c.content,
+                                     Search.pathTokenString(rel),
+                                     Search.symbolTokenString(names)])
+                if store.trigramEnabled {
+                    try db.execute(sql: """
+                        INSERT INTO chunks_trigram(rowid, content) VALUES(?,?)
+                        """, arguments: [cid, c.content])
+                }
                 chunkIDs.append(cid)
             }
 
@@ -592,6 +616,101 @@ public final class Indexer {
                       AND s.norm_kind IN (\(abstract)))
                 """)
             return resolved
+        }
+    }
+
+    /// File-graph PageRank over resolved chunk edges: node = file, arc
+    /// src file -> dst file weighted by resolved edge count (parallel
+    /// edges aggregate, self-links excluded — same-file calls carry no
+    /// inter-file signal). Damping 0.85, up to 20 iterations or 1e-6
+    /// max-delta convergence, dangling rank redistributed. Persisted on
+    /// `files.pagerank` so the ranker reads it as a plain join; stored
+    /// values are recomputed wholesale every index run.
+    private func updatePageRank() throws {
+        let (fileIDs, links) = try store.pool.read { db -> ([Int64], [(Int64, Int64)]) in
+            let fids = try Int64.fetchAll(db, sql: "SELECT id FROM files")
+            var links: [(Int64, Int64)] = []
+            for r in try Row.fetchAll(db, sql: """
+                SELECT sc.file_id AS src, dc.file_id AS dst
+                FROM edges e
+                JOIN chunks sc ON sc.id = e.src_chunk
+                JOIN chunks dc ON dc.id = e.dst_chunk
+                WHERE e.dst_chunk IS NOT NULL
+                """) {
+                guard let s = r["src"] as? Int64,
+                      let d = r["dst"] as? Int64, s != d else { continue }
+                links.append((s, d))
+            }
+            return (fids, links)
+        }
+        let n = fileIDs.count
+        guard n > 0 else { return }
+        var indexOf: [Int64: Int] = [:]
+        indexOf.reserveCapacity(n)
+        for (i, f) in fileIDs.enumerated() { indexOf[f] = i }
+        var pairW: [Int: Double] = [:]
+        for (s, d) in links {
+            guard let si = indexOf[s], let di = indexOf[d] else { continue }
+            pairW[si * n + di, default: 0] += 1
+        }
+        var outAdj = [[(Int, Double)]](repeating: [], count: n)
+        var outDeg = [Double](repeating: 0, count: n)
+        for (key, w) in pairW {
+            let s = key / n, d = key % n
+            outAdj[s].append((d, w))
+            outDeg[s] += w
+        }
+        let damping = 0.85
+        var pr = [Double](repeating: 1.0 / Double(n), count: n)
+        var next = [Double](repeating: 0, count: n)
+        for _ in 0..<20 {
+            let base = (1 - damping) / Double(n)
+            for i in 0..<n { next[i] = base }
+            var dangling = 0.0
+            for u in 0..<n {
+                if outDeg[u] == 0 { dangling += pr[u]; continue }
+                let share = damping * pr[u] / outDeg[u]
+                for (v, w) in outAdj[u] { next[v] += share * w }
+            }
+            let danglingShare = damping * dangling / Double(n)
+            var delta = 0.0
+            for v in 0..<n {
+                next[v] += danglingShare
+                delta = max(delta, abs(next[v] - pr[v]))
+            }
+            swap(&pr, &next)
+            if delta < 1e-6 { break }
+        }
+        // Persist via a staged temp table (same pattern as edge_res) —
+        // one UPDATE over staged values, not n per-file statements.
+        try store.pool.write { db in
+            try db.execute(sql: """
+                CREATE TEMP TABLE IF NOT EXISTS pr_vals(
+                    file_id INTEGER PRIMARY KEY,
+                    pr REAL NOT NULL)
+                """)
+            try db.execute(sql: "DELETE FROM pr_vals")
+            var i = 0
+            while i < n {
+                let slice = fileIDs[i ..< min(i + 400, n)]
+                let placeholders = slice.map { _ in "(?,?)" }.joined(separator: ",")
+                var flat: [DatabaseValueConvertible] = []
+                flat.reserveCapacity(slice.count * 2)
+                for (j, f) in slice.enumerated() {
+                    flat.append(f)
+                    flat.append(pr[i + j])
+                }
+                try db.execute(
+                    sql: "INSERT OR REPLACE INTO pr_vals(file_id, pr) VALUES \(placeholders)",
+                    arguments: StatementArguments(flat))
+                i += slice.count
+            }
+            try db.execute(sql: """
+                UPDATE files SET pagerank = (
+                    SELECT r.pr FROM pr_vals r WHERE r.file_id = files.id)
+                WHERE id IN (SELECT file_id FROM pr_vals)
+                """)
+            try db.execute(sql: "DELETE FROM pr_vals")
         }
     }
 

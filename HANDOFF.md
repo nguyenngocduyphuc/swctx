@@ -392,3 +392,50 @@ extraction land nhưng index cũ giữ 0 implements edges cho tới khi force).
   ~140-800, unreachable anyway. Next VN lever is weighted fusion or
   query rewriting, not window size. Ratchet still PASS (0.9722, p95
   46.1ms, 20-tool golden); cold_cwd PASS; 78/78 tests.
+
+## 2026-09-19 — Phase A/B: BM25F + PageRank + coverage + trigram(opt-in) + reranker(opt-in)
+
+Merged two worker lines (reranker spike + ranking signals); every claim
+below is measured on the live indexes, not simulated.
+
+- **BM25F field scoring (adopted):** `chunks_fts` now has 3 columns —
+  `content`, `path_tokens`, `symbol_names` — scored with weighted
+  `bm25()` (note: bm25 returns negative; sign flipped). Migration v5
+  rebuilds FTS and backfills path/symbol columns for existing chunks.
+- **File PageRank (adopted):** `Indexer.updatePageRank()` runs after
+  edge resolution — file nodes, arcs from resolved chunk edges, result
+  stored in `files.pagerank` and consumed as a plain join in ranking.
+- **Atom coverage + depth penalty (adopted):** coverage capped at 0.03;
+  shallower path wins ties (`testDepthPenaltyPrefersShallower`).
+- **Candidate-pool API:** `Search.hybridCandidates` returns the fused
+  pool before the limit cut — this is what the rerank stage consumes
+  (pool 30), deliberately NOT the rejected `limit*12` RRF widening:
+  reranker re-orders by content score so wide-pool noise self-demotes.
+- **Trigram substring leg (opt-in, off by default):** FTS5 trigram
+  table exists (SQLite 3.43.2 supports it) but only populates when
+  `meta.trigram=1` via `swctx index --trigram`; search leg gated on the
+  flag. Reason: populated trigram cost ~45% index size (P8 719→684MB
+  after reclaim, CRM 15→12MB) and on the vn-probe it never fired — the
+  fused pool never under-filled. Enable per-workspace if substring
+  lookup proves needed (`testTrigramFallbackOnlyUnderFull` +
+  `testTrigramDisabledByDefault` cover both sides).
+- **Cross-encoder reranker (opt-in):** `amberoad/bert-multilingual-
+  passage-reranking-msmarco` → CoreML at `~/.swctx/models/amberoad-
+  bert-multilingual-reranking-msmarco/` (WordPiece, pair-encoding with
+  token_type_ids, relevant-class logit). `search` tool param
+  `rerank:true` + `swctx rerank` CLI; pin top-3 fused hits, rerank the
+  rest of the 30-pool. **Measured on final merged code**
+  (bench/rerank_eval_final.json): pure rescoring net-neutral 8/16→8/16
+  (gained seo-01/seo-07, demoted seo-02/crm-02 — confirms the spike's
+  "pure rescore hurts code hits" finding); pinned mode sim 8/16→
+  **9/16** (+1: gains kept, crm-02 still lost — its best chunk sat at
+  pool rank 25, mBERT-2019 scores short VN queries weak). ~14ms/pair,
+  ~0.4s/call — opt-in only, default search unchanged.
+- **vn-probe on final code: auto 7/16→8/16 (50%), VN 6/14→7/14**;
+  crm-06 semantic leg now hits (sem=1). Ratchet PASS (0.9722,
+  schema 20 tools incl. new `rerank` param, cold_cwd PASS) — but p95
+  moved 46→111ms from BM25F+PageRank+coverage work; under the 150ms
+  gate, logged as a real latency cost of the ranking batch.
+- **85/85 tests.** New: `Reranker.swift`, `RankingSignalTests` (7),
+  `bench/convert_reranker.py`, `bench/rerank_eval.py`,
+  `bench/rerank_spike.md`.

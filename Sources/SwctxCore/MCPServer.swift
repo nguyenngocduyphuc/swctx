@@ -72,6 +72,7 @@ public enum MCPServer {
                                   ("mode", prop("string", "auto (default) | hybrid | fts | semantic | identifier")),
                                   ("path", prop("string", "Optional relative path prefix to scope results")),
                                   ("limit", prop("integer", "Max hits, default 20")),
+                                  ("rerank", prop("boolean", "Cross-encoder rerank of a 30-candidate pool; top-3 fused hits stay pinned. Adds ~0.4s/call; use for hard natural-language queries when plain results look off")),
                                   budgetProp, ("type", .string("object")),
                                   ("required", .array([.string("query")]))]),
                 annotations: .init(readOnlyHint: true)),
