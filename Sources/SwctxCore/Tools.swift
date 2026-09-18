@@ -257,6 +257,7 @@ public enum SwctxTools {
         if args["rerank"]?.bool == true,
            (mode == "hybrid" || mode == "identifier"),
            let rr = Reranker.shared {
+            let baselineTop = hits.prefix(5).map { $0.path }
             let identifier = mode == "identifier"
             var pool = try Search.hybridCandidates(
                 store: store, embedder: Embedder.shared, query: q,
@@ -284,11 +285,11 @@ public enum SwctxTools {
                     return out
                 }
                 let docs = tail.map {
-                    Reranker.docContext(path: $0.path, symbol: $0.symbol,
+                    Reranker.docWindows(path: $0.path, symbol: $0.symbol,
                                         content: contents[$0.chunkID] ?? "")
                 }
                 let t0 = Date()
-                let scores = rr.scoreAll(query: q, docs: docs)
+                let scores = rr.scoreAllMax(query: q, windows: docs)
                 rerankMs = Date().timeIntervalSince(t0) * 1000
                 let rankedTail = zip(tail.indices, scores)
                     .sorted { ($0.1 ?? -.infinity) > ($1.1 ?? -.infinity) }
@@ -297,6 +298,37 @@ public enum SwctxTools {
                     + rankedTail.prefix(max(0, limit - pin))
             } else {
                 hits = pool
+            }
+            // engine_eval telemetry: only when the rerank changed what the
+            // agent actually sees (divergence trigger — never spam the
+            // ledger on no-op reranks). Telemetry failures never fail a
+            // search.
+            if hits.prefix(5).map({ $0.path }) != baselineTop {
+                let payload: [String: Any] = [
+                    "query": q, "mode": mode, "limit": limit,
+                    "baseline_top5": baselineTop,
+                    "rerank_top5": hits.prefix(5).map { $0.path },
+                    "rerank_ms": rerankMs ?? 0,
+                ]
+                if let pd = try? JSONSerialization.data(withJSONObject: payload),
+                   let pj = String(data: pd, encoding: .utf8) {
+                    let title = "engine_eval rerank divergence: \(String(q.prefix(60)))"
+                    let headSHA = GlobalRecords.git(["rev-parse", "HEAD"],
+                                                    cwd: store.workspaceRoot)
+                    let anchors = (try? recordAnchors(
+                        store: store, text: title + "\n" + pj)) ?? []
+                    _ = try? store.insertRecord(
+                        kind: "engine_eval", source: "mcp", status: "completed",
+                        title: title, payloadJSON: pj,
+                        headSHA: headSHA, anchors: anchors)
+                    if let g = GlobalRecords.shared {
+                        _ = try? g.insert(
+                            ws: GlobalRecords.repoKey(for: store.workspaceRoot),
+                            kind: "engine_eval", source: "mcp",
+                            status: "completed", title: title, payload: pj,
+                            headSHA: headSHA, anchors: anchors)
+                    }
+                }
             }
         }
         let items = hits.map { h -> [String: Any] in
@@ -981,6 +1013,7 @@ public enum SwctxTools {
     /// telemetry kinds agents may also file deliberately.
     static let putRecordKinds: Set<String> = [
         "note", "finding", "decision", "todo", "context_pack", "ask",
+        "engine_eval",
     ]
 
     /// put_record anchor capture. Symbol anchors: identifier tokens (≥3

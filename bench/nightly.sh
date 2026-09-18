@@ -36,5 +36,8 @@ run_gate() {
 
 run_gate cold_cwd python3 bench/cold_cwd.py
 run_gate recall_ratchet python3 bench/recall_mcp.py --ratchet
+# VN retrieval regression net: folded-tail-fill baseline is 10/16 auto;
+# gate at 9 catches a one-query regression.
+run_gate vn_probe python3 bench/vn_probe.py --gate 9 --no-report
 
 exit "$rc_all"

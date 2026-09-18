@@ -1,0 +1,2846 @@
+{
+ "queries": [
+  {
+   "id": "seo-01",
+   "lang": "vi",
+   "tags": [
+    "vn_to_vn"
+   ],
+   "query": "script kiểm tra google có đang chọn canonical khác với url mình khai báo không",
+   "expected_path": "scripts/p8_canonical_check.py",
+   "base_rank": 2,
+   "rerank_rank": 3,
+   "pool_rank": 9,
+   "pool": 30,
+   "rerank_ms": 558.6240291595459,
+   "ms_per_pair": 18.620800971984863,
+   "cli_ms": 3361.6936249891296,
+   "base_paths": [
+    "docs/references/seo/google-seo-starter-guide.md",
+    "scripts/p8_canonical_check.py",
+    "docs/plans/PLAN_SEO_AUTOMATION_GOOGLE_FIRST_2026-09-15.md",
+    "docs/plans/PLAN_SEO_AUTOMATION_GOOGLE_FIRST_2026-09-15.md",
+    "docs/plans/PLAN_SEO_AUTOMATION_GOOGLE_FIRST_2026-09-15.md"
+   ],
+   "rerank_hits": [
+    {
+     "path": "docs/references/seo/google-seo-starter-guide.md",
+     "hybrid_rank": 5,
+     "score": 3.578125
+    },
+    {
+     "path": "docs/references/seo/google-seo-starter-guide.md",
+     "hybrid_rank": 2,
+     "score": 3.4375
+    },
+    {
+     "path": "docs/references/seo/google-search-essentials.md",
+     "hybrid_rank": 6,
+     "score": 3.234375
+    },
+    {
+     "path": "docs/references/seo/google-seo-starter-guide.md",
+     "hybrid_rank": 15,
+     "score": 3.19921875
+    },
+    {
+     "path": "scripts/p8_canonical_check.py",
+     "hybrid_rank": 9,
+     "score": 2.587890625
+    },
+    {
+     "path": "docs/references/compliance/_pending/2026-09-18_085611-google_search_blog-draft.md",
+     "hybrid_rank": 20,
+     "score": 2.279296875
+    },
+    {
+     "path": "docs/references/seo/google-seo-starter-guide.md",
+     "hybrid_rank": 22,
+     "score": 2.072265625
+    },
+    {
+     "path": "docs/plans/PLAN_SEO_AUTOMATION_GOOGLE_FIRST_2026-09-15.md",
+     "hybrid_rank": 17,
+     "score": 1.962890625
+    },
+    {
+     "path": "docs/references/seo/google-seo-starter-guide.md",
+     "hybrid_rank": 14,
+     "score": 1.8779296875
+    },
+    {
+     "path": "docs/references/seo/google-seo-starter-guide.md",
+     "hybrid_rank": 10,
+     "score": 1.7109375
+    },
+    {
+     "path": "docs/references/seo/google-seo-starter-guide.md",
+     "hybrid_rank": 1,
+     "score": 1.703125
+    },
+    {
+     "path": "docs/references/seo/google-seo-starter-guide.md",
+     "hybrid_rank": 4,
+     "score": 1.5556640625
+    },
+    {
+     "path": "docs/references/compliance/_pending/2026-09-18_085252-google_search_docs-draft.md",
+     "hybrid_rank": 30,
+     "score": 1.4033203125
+    },
+    {
+     "path": "docs/plans/PLAN_SEO_AUTOMATION_GOOGLE_FIRST_2026-09-15.md",
+     "hybrid_rank": 3,
+     "score": -1.1279296875
+    },
+    {
+     "path": "docs/references/seo/google-seo-starter-guide.md",
+     "hybrid_rank": 13,
+     "score": -1.953125
+    },
+    {
+     "path": "docs/plans/PLAN_SEO_AUTOMATION_GOOGLE_FIRST_2026-09-15.md",
+     "hybrid_rank": 29,
+     "score": -2.158203125
+    },
+    {
+     "path": "docs/plans/PLAN_SEO_AUTOMATION_GOOGLE_FIRST_2026-09-15.md",
+     "hybrid_rank": 24,
+     "score": -2.251953125
+    },
+    {
+     "path": "docs/references/seo/google-seo-starter-guide.md",
+     "hybrid_rank": 11,
+     "score": -2.2890625
+    },
+    {
+     "path": "docs/plans/PLAN_SEO_AUTOMATION_GOOGLE_FIRST_2026-09-15.md",
+     "hybrid_rank": 26,
+     "score": -2.3515625
+    },
+    {
+     "path": "docs/references/seo/google-seo-starter-guide.md",
+     "hybrid_rank": 12,
+     "score": -2.361328125
+    },
+    {
+     "path": "docs/references/seo/google-seo-starter-guide.md",
+     "hybrid_rank": 28,
+     "score": -2.3671875
+    },
+    {
+     "path": "docs/references/seo/google-seo-starter-guide.md",
+     "hybrid_rank": 7,
+     "score": -2.83203125
+    },
+    {
+     "path": "docs/plans/PLAN_SEO_AUTOMATION_GOOGLE_FIRST_2026-09-15.md",
+     "hybrid_rank": 16,
+     "score": -2.994140625
+    },
+    {
+     "path": "docs/plans/PLAN_SEO_AUTOMATION_GOOGLE_FIRST_2026-09-15.md",
+     "hybrid_rank": 18,
+     "score": -3.091796875
+    },
+    {
+     "path": "docs/plans/PLAN_SEO_AUTOMATION_GOOGLE_FIRST_2026-09-15.md",
+     "hybrid_rank": 19,
+     "score": -3.17578125
+    },
+    {
+     "path": "scripts/p8_daily_report.py",
+     "hybrid_rank": 8,
+     "score": -3.390625
+    },
+    {
+     "path": "docs/plans/PLAN_SEO_AUTOMATION_GOOGLE_FIRST_2026-09-15.md",
+     "hybrid_rank": 25,
+     "score": -3.443359375
+    },
+    {
+     "path": "docs/plans/PLAN_SEO_AUTOMATION_GOOGLE_FIRST_2026-09-15.md",
+     "hybrid_rank": 23,
+     "score": -3.53515625
+    },
+    {
+     "path": "docs/plans/PLAN_SEO_AUTOMATION_GOOGLE_FIRST_2026-09-15.md",
+     "hybrid_rank": 21,
+     "score": -3.650390625
+    },
+    {
+     "path": "docs/references/seo/google-seo-starter-guide.md",
+     "hybrid_rank": 27,
+     "score": -4.14453125
+    }
+   ]
+  },
+  {
+   "id": "seo-02",
+   "lang": "vi",
+   "tags": [
+    "vn_to_vn"
+   ],
+   "query": "gate phát hiện link nội bộ bị gãy 404 trong bài trước khi publish",
+   "expected_path": "scripts/p8_link_health.py",
+   "base_rank": 1,
+   "rerank_rank": 11,
+   "pool_rank": 1,
+   "pool": 30,
+   "rerank_ms": 776.7430543899536,
+   "ms_per_pair": 25.891435146331787,
+   "cli_ms": 2485.955832991749,
+   "base_paths": [
+    "scripts/p8_link_health.py",
+    "docs/handoffs/HANDOFF_20260819_ca8-ci-gate-repair-telegram-audit.md",
+    "docs/handoffs/HANDOFF_20260807_bay-cua-noi-doi.md",
+    "docs/NEXT_ACTIONS.md",
+    "docs/00_governance/DRIFT_LOG.md"
+   ],
+   "rerank_hits": [
+    {
+     "path": "docs/00_governance/PENDING_ACTIONS_REGISTRY.md",
+     "hybrid_rank": 10,
+     "score": 3.328125
+    },
+    {
+     "path": "docs/00_governance/DRIFT_LOG.md",
+     "hybrid_rank": 9,
+     "score": 3.056640625
+    },
+    {
+     "path": "plans/007-p8-crawl-defects-2026-08.md",
+     "hybrid_rank": 20,
+     "score": 2.72265625
+    },
+    {
+     "path": "docs/handoffs/HANDOFF_20260811_seo-ops-cowork-loop.md",
+     "hybrid_rank": 15,
+     "score": 1.943359375
+    },
+    {
+     "path": "docs/handoffs/HANDOFF_20260807_bay-cua-noi-doi.md",
+     "hybrid_rank": 3,
+     "score": 1.837890625
+    },
+    {
+     "path": "docs/handoffs/HANDOFF_20260818_gsc-index-audit-blog-meta-fix.md",
+     "hybrid_rank": 19,
+     "score": 1.794921875
+    },
+    {
+     "path": "docs/references/technical/ENTERPRISE_WORDPRESS_AND_INFORMATION_GAIN_2026.md",
+     "hybrid_rank": 25,
+     "score": 1.6796875
+    },
+    {
+     "path": "docs/NEXT_ACTIONS.md",
+     "hybrid_rank": 8,
+     "score": 0.94580078125
+    },
+    {
+     "path": "docs/decisions/DECISIONS.md",
+     "hybrid_rank": 26,
+     "score": 0.1934814453125
+    },
+    {
+     "path": "docs/plans/PLAN_SEO_AUTOMATION_GOOGLE_FIRST_2026-09-15.md",
+     "hybrid_rank": 24,
+     "score": -2.18359375
+    },
+    {
+     "path": "scripts/p8_link_health.py",
+     "hybrid_rank": 1,
+     "score": -2.283203125
+    },
+    {
+     "path": "docs/resources/DOCS_QUALITY_GATE_V2.md",
+     "hybrid_rank": 4,
+     "score": -2.294921875
+    },
+    {
+     "path": "docs/handoffs/HANDOFF_20260819_phaseb-6-7-cong-ty-p8.md",
+     "hybrid_rank": 21,
+     "score": -2.38671875
+    },
+    {
+     "path": "docs/decisions/DECISIONS.md",
+     "hybrid_rank": 28,
+     "score": -2.4453125
+    },
+    {
+     "path": "docs/plans/REDIRECT_MAP_2026-08-19.md",
+     "hybrid_rank": 23,
+     "score": -2.455078125
+    },
+    {
+     "path": "docs/handoffs/HANDOFF_20260817_quota-gate-dispatch-hardening.md",
+     "hybrid_rank": 5,
+     "score": -2.484375
+    },
+    {
+     "path": "docs/handoffs/HANDOFF_20260819_ca8-ci-gate-repair-telegram-audit.md",
+     "hybrid_rank": 2,
+     "score": -2.4921875
+    },
+    {
+     "path": "docs/00_governance/COMPONENT_CONTRACT.md",
+     "hybrid_rank": 13,
+     "score": -2.52734375
+    },
+    {
+     "path": "docs/archive/phamducphuongnam-seo/broken-link-scan-2026-05-16-final-v8-pages-only.json",
+     "hybrid_rank": 22,
+     "score": -2.587890625
+    },
+    {
+     "path": "docs/handoffs/HANDOFF_20260813_1dev-orchestration-aio-citation.md",
+     "hybrid_rank": 29,
+     "score": -2.875
+    },
+    {
+     "path": "docs/00_governance/DRIFT_LOG.md",
+     "hybrid_rank": 30,
+     "score": -2.8984375
+    },
+    {
+     "path": "docs/handoffs/HANDOFF_20260818_aio-citation-reference-update-gate.md",
+     "hybrid_rank": 6,
+     "score": -2.96875
+    },
+    {
+     "path": "docs/plans/NEXT_SESSION_PLAN_2026-07-19.md",
+     "hybrid_rank": 17,
+     "score": -2.970703125
+    },
+    {
+     "path": "docs/operations/P8_PIPELINE_INVENTORY.md",
+     "hybrid_rank": 12,
+     "score": -3.14453125
+    },
+    {
+     "path": "scripts/p8_content_depth_worker.py",
+     "hybrid_rank": 11,
+     "score": -3.2109375
+    },
+    {
+     "path": "docs/seo/campaigns/outreach/T020_NAMPHAM_EDITORIAL_LINK_PACK_2026-05-27.md",
+     "hybrid_rank": 14,
+     "score": -3.291015625
+    },
+    {
+     "path": "docs/handoffs/RECAP_20260729_bo-cuc-va-format.html",
+     "hybrid_rank": 7,
+     "score": -3.876953125
+    },
+    {
+     "path": "plans/007-p8-crawl-defects-2026-08.md",
+     "hybrid_rank": 16,
+     "score": -4.20703125
+    },
+    {
+     "path": "docs/archive/session-reports/data_2026-05-24/link_integrity_and_robots.json",
+     "hybrid_rank": 18,
+     "score": -4.28125
+    },
+    {
+     "path": "docs/archive/P8_OPMAP.html",
+     "hybrid_rank": 27,
+     "score": -4.59765625
+    }
+   ]
+  },
+  {
+   "id": "seo-03",
+   "lang": "vi",
+   "tags": [
+    "vn_to_vn"
+   ],
+   "query": "script tạo file excel để sinh link utm cho chiến dịch zalo linkedin",
+   "expected_path": "scripts/p8_utm_builder.py",
+   "base_rank": 2,
+   "rerank_rank": 1,
+   "pool_rank": 1,
+   "pool": 30,
+   "rerank_ms": 473.99091720581055,
+   "ms_per_pair": 15.799697240193685,
+   "cli_ms": 2026.4118330087513,
+   "base_paths": [
+    "scripts/p8_link_injector.py",
+    "scripts/p8_utm_builder.py",
+    "docs/00_governance/LEGACY_SCRIPT_INDEX.md",
+    "docs/00_governance/SCRIPT_REGISTRY_P8.md",
+    "docs/seo/campaigns/1MKT_VAN_PHONG_VA_HANG_CHO.md"
+   ],
+   "rerank_hits": [
+    {
+     "path": "scripts/p8_utm_builder.py",
+     "hybrid_rank": 3,
+     "score": -1.171875
+    },
+    {
+     "path": "scripts/p8_utm_builder.py",
+     "hybrid_rank": 1,
+     "score": -2.275390625
+    },
+    {
+     "path": "plans/008-lien-he-conversion.md",
+     "hybrid_rank": 19,
+     "score": -2.544921875
+    },
+    {
+     "path": "scripts/SCRIPT_INDEX.md",
+     "hybrid_rank": 7,
+     "score": -2.677734375
+    },
+    {
+     "path": "scripts/p8_pdf_cta_append.py",
+     "hybrid_rank": 16,
+     "score": -2.865234375
+    },
+    {
+     "path": "docs/plans/CRITIQUE_MASTER_PLAN_V2_SCRIPT_GOVERNANCE_2026-08-19.md",
+     "hybrid_rank": 9,
+     "score": -2.87109375
+    },
+    {
+     "path": "docs/00_governance/SCRIPT_REGISTRY_P8.md",
+     "hybrid_rank": 6,
+     "score": -2.890625
+    },
+    {
+     "path": "scripts/p8_docx_xlsx_cta_append.py",
+     "hybrid_rank": 12,
+     "score": -2.947265625
+    },
+    {
+     "path": "docs/00_governance/PENDING_ACTIONS_REGISTRY.md",
+     "hybrid_rank": 30,
+     "score": -3.2265625
+    },
+    {
+     "path": "docs/operations/SOP_1MKT_VAN_HANH_HANG_NGAY.md",
+     "hybrid_rank": 22,
+     "score": -3.349609375
+    },
+    {
+     "path": "plans/008-lien-he-conversion.md",
+     "hybrid_rank": 15,
+     "score": -3.3984375
+    },
+    {
+     "path": "docs/resources/RESOURCE_MASTERPLAN_2026H2.md",
+     "hybrid_rank": 24,
+     "score": -3.501953125
+    },
+    {
+     "path": "scripts/p8_link_injector.py",
+     "hybrid_rank": 2,
+     "score": -3.658203125
+    },
+    {
+     "path": "plans/008-lien-he-conversion.md",
+     "hybrid_rank": 25,
+     "score": -3.677734375
+    },
+    {
+     "path": "docs/plans/NEXT_SESSION_PLAN_2026-07-19.md",
+     "hybrid_rank": 20,
+     "score": -3.703125
+    },
+    {
+     "path": "scripts/_legacy/2026-05-09/p8_export_excel.py",
+     "hybrid_rank": 18,
+     "score": -3.849609375
+    },
+    {
+     "path": "plans/008-lien-he-conversion.md",
+     "hybrid_rank": 14,
+     "score": -3.86328125
+    },
+    {
+     "path": "plans/008-lien-he-conversion.md",
+     "hybrid_rank": 28,
+     "score": -3.869140625
+    },
+    {
+     "path": "docs/seo/campaigns/1MKT_VAN_PHONG_VA_HANG_CHO.md",
+     "hybrid_rank": 10,
+     "score": -3.88671875
+    },
+    {
+     "path": "docs/archive/session-reports/SCRIPT_PORTFOLIO_DEEP_AUDIT_2026-05-23.md",
+     "hybrid_rank": 13,
+     "score": -4.0078125
+    },
+    {
+     "path": "scripts/SCRIPT_INDEX.md",
+     "hybrid_rank": 11,
+     "score": -4.2109375
+    },
+    {
+     "path": "plans/007-p8-crawl-defects-2026-08.md",
+     "hybrid_rank": 26,
+     "score": -4.34765625
+    },
+    {
+     "path": "plans/007-p8-crawl-defects-2026-08.md",
+     "hybrid_rank": 23,
+     "score": -4.3828125
+    },
+    {
+     "path": "docs/plans/PLAN-seo-competitor-audit.md",
+     "hybrid_rank": 29,
+     "score": -4.48046875
+    },
+    {
+     "path": "docs/00_governance/LEGACY_SCRIPT_INDEX.md",
+     "hybrid_rank": 5,
+     "score": -4.49609375
+    },
+    {
+     "path": "vendors/codex-plugin-cc/tests/bump-version.test.mjs",
+     "hybrid_rank": 4,
+     "score": -4.52734375
+    },
+    {
+     "path": "docs-fleet/check-nav.mjs",
+     "hybrid_rank": 27,
+     "score": -4.66015625
+    },
+    {
+     "path": "docs/00_governance/SCRIPT_LIFECYCLE_POLICY.md",
+     "hybrid_rank": 17,
+     "score": -4.6796875
+    },
+    {
+     "path": "vendors/codex-plugin-cc/tests/runtime.test.mjs",
+     "hybrid_rank": 8,
+     "score": -4.6875
+    },
+    {
+     "path": "docs/DOC_GOVERNANCE.md",
+     "hybrid_rank": 21,
+     "score": -4.84765625
+    }
+   ]
+  },
+  {
+   "id": "seo-04",
+   "lang": "vi",
+   "tags": [
+    "vn_to_en"
+   ],
+   "query": "worker tự sinh ảnh minh họa cho các mục h2 còn thiếu ảnh",
+   "expected_path": "scripts/p8_image_worker.py",
+   "base_rank": 0,
+   "rerank_rank": 0,
+   "pool_rank": 0,
+   "pool": 30,
+   "rerank_ms": 609.6010208129883,
+   "ms_per_pair": 20.32003402709961,
+   "cli_ms": 2031.5854590153322,
+   "base_paths": [
+    "docs/handoffs/HANDOFF_20260729_PHIEN_DEM_pipeline-anh-giam-sat.md",
+    "docs/references/visual-identity-guidelines.md",
+    "docs/00_governance/PENDING_ACTIONS_REGISTRY.md",
+    "docs/handoffs/HANDOFF_20260731_nampham-std-ops-e2e.md",
+    "content/images/C2.8/huong_dan_chen_anh.md"
+   ],
+   "rerank_hits": [
+    {
+     "path": "docs/00_governance/PENDING_ACTIONS_REGISTRY.md",
+     "hybrid_rank": 15,
+     "score": 3.92578125
+    },
+    {
+     "path": "docs/handoffs/HANDOFF_20260729_PHIEN_DEM_pipeline-anh-giam-sat.md",
+     "hybrid_rank": 1,
+     "score": 3.16796875
+    },
+    {
+     "path": "docs/plans/asana_payloads/IMAGE_EMPLOYEE_10_BUILD_2026-07-10.md",
+     "hybrid_rank": 17,
+     "score": 3.03515625
+    },
+    {
+     "path": "docs/handoffs/HANDOFF_20260729_PHIEN_DEM_pipeline-anh-giam-sat.md",
+     "hybrid_rank": 3,
+     "score": 2.697265625
+    },
+    {
+     "path": "docs/references/content/image-pipeline-standards.md",
+     "hybrid_rank": 18,
+     "score": 2.421875
+    },
+    {
+     "path": "scripts/_legacy/2026-07-21/README.md",
+     "hybrid_rank": 13,
+     "score": 2.34765625
+    },
+    {
+     "path": "docs/handoffs/HANDOFF_20260731_nampham-std-ops-e2e.md",
+     "hybrid_rank": 19,
+     "score": 1.71875
+    },
+    {
+     "path": "docs/NEXT_ACTIONS.md",
+     "hybrid_rank": 20,
+     "score": -1.6142578125
+    },
+    {
+     "path": "content/images/C1.7/huong_dan_chen_anh.md",
+     "hybrid_rank": 14,
+     "score": -1.8369140625
+    },
+    {
+     "path": "content/images/C2.3/huong_dan_chen_anh.md",
+     "hybrid_rank": 11,
+     "score": -2.166015625
+    },
+    {
+     "path": "content/images/C2.2/huong_dan_chen_anh.md",
+     "hybrid_rank": 5,
+     "score": -2.29296875
+    },
+    {
+     "path": "content/images/C2.1/huong_dan_chen_anh.md",
+     "hybrid_rank": 12,
+     "score": -2.392578125
+    },
+    {
+     "path": "content/images/C1.4/huong_dan_chen_anh.md",
+     "hybrid_rank": 9,
+     "score": -2.544921875
+    },
+    {
+     "path": "docs/handoffs/HANDOFF_20260729_PHIEN_DEM_pipeline-anh-giam-sat.md",
+     "hybrid_rank": 7,
+     "score": -2.7578125
+    },
+    {
+     "path": "docs/plans/AUDIT_5_MUC_WORDPRESS_AUTOMATION_2026-09-15.md",
+     "hybrid_rank": 4,
+     "score": -2.94921875
+    },
+    {
+     "path": "content/images/C1.2/huong_dan_chen_anh.md",
+     "hybrid_rank": 8,
+     "score": -3.31640625
+    },
+    {
+     "path": "tests/golden/C1.1.html",
+     "hybrid_rank": 23,
+     "score": -3.3515625
+    },
+    {
+     "path": "docs/handoffs/HANDOFF_20260820_asana-opc-tach-cong-ty.md",
+     "hybrid_rank": 25,
+     "score": -3.419921875
+    },
+    {
+     "path": "docs/00_governance/COMPONENT_CONTRACT.md",
+     "hybrid_rank": 24,
+     "score": -3.525390625
+    },
+    {
+     "path": "docs/handoffs/HANDOFF_20260807_bay-cua-noi-doi.md",
+     "hybrid_rank": 28,
+     "score": -3.634765625
+    },
+    {
+     "path": "docs/handoffs/HANDOFF_20260729_PHIEN_DEM_pipeline-anh-giam-sat.md",
+     "hybrid_rank": 6,
+     "score": -3.646484375
+    },
+    {
+     "path": "docs/references/visual-identity-guidelines.md",
+     "hybrid_rank": 16,
+     "score": -4.125
+    },
+    {
+     "path": "scripts/p8_content_depth_worker.py",
+     "hybrid_rank": 2,
+     "score": -4.2890625
+    },
+    {
+     "path": "tests/golden/C1.4.html",
+     "hybrid_rank": 29,
+     "score": -4.40234375
+    },
+    {
+     "path": "tests/golden/C3.9.html",
+     "hybrid_rank": 27,
+     "score": -4.4140625
+    },
+    {
+     "path": "docs/plans/PLAN_SEO_AUTOMATION_GOOGLE_FIRST_2026-09-15.md",
+     "hybrid_rank": 26,
+     "score": -4.41796875
+    },
+    {
+     "path": "scripts/_legacy/2026-05-28_worker_sprawl/pdpn_checklist_v2026_full_audit.py",
+     "hybrid_rank": 10,
+     "score": -4.43359375
+    },
+    {
+     "path": "content/images/C2.8/huong_dan_chen_anh.md",
+     "hybrid_rank": 21,
+     "score": -4.4765625
+    },
+    {
+     "path": "tests/golden/C1.7.html",
+     "hybrid_rank": 30,
+     "score": -4.5234375
+    },
+    {
+     "path": "docs/references/1aivault-teardown.html",
+     "hybrid_rank": 22,
+     "score": -4.65625
+    }
+   ]
+  },
+  {
+   "id": "seo-05",
+   "lang": "vi",
+   "tags": [
+    "vn_to_en"
+   ],
+   "query": "lệnh đồng bộ thông tin của từng site thành một file entity mesh chung",
+   "expected_path": "factory/sitectl.py",
+   "base_rank": 0,
+   "rerank_rank": 0,
+   "pool_rank": 0,
+   "pool": 30,
+   "rerank_ms": 766.71302318573,
+   "ms_per_pair": 25.557100772857666,
+   "cli_ms": 2026.418042019941,
+   "base_paths": [
+    "docs/handoffs/HANDOFF_20260814_site-title-cache-va-cua-gac.md",
+    "docs/handoffs/HANDOFF_20260813_cf_access_credential_audit.md",
+    "docs/handoffs/HANDOFF_20260813_cau-noi-cmux-1dev.md",
+    "docs/handoffs/HANDOFF_20260819_ca8-ci-gate-repair-telegram-audit.md",
+    "docs/handoffs/HANDOFF_20260813_1dev-orchestration-aio-citation.md"
+   ],
+   "rerank_hits": [
+    {
+     "path": "docs/decisions/DECISIONS.md",
+     "hybrid_rank": 4,
+     "score": -1.4912109375
+    },
+    {
+     "path": "docs/handoffs/entity_optimization_plan.md",
+     "hybrid_rank": 2,
+     "score": -1.9619140625
+    },
+    {
+     "path": "docs/FLEET_GOVERNANCE_ROADMAP.md",
+     "hybrid_rank": 15,
+     "score": -2.193359375
+    },
+    {
+     "path": "factory/sites/nampham/entity.json",
+     "hybrid_rank": 13,
+     "score": -2.75390625
+    },
+    {
+     "path": "tests/golden/C1.16.html",
+     "hybrid_rank": 21,
+     "score": -2.802734375
+    },
+    {
+     "path": "factory/sites/unify/entity.json",
+     "hybrid_rank": 16,
+     "score": -2.826171875
+    },
+    {
+     "path": "docs/handoffs/HANDOFF_20260813_1dev-orchestration-aio-citation.md",
+     "hybrid_rank": 8,
+     "score": -2.982421875
+    },
+    {
+     "path": "docs/00_governance/AGENT_CAPA_LOG.md",
+     "hybrid_rank": 29,
+     "score": -2.9921875
+    },
+    {
+     "path": "factory/sites/docs-nampham/entity.json",
+     "hybrid_rank": 12,
+     "score": -3.056640625
+    },
+    {
+     "path": "docs/handoffs/HANDOFF_20260813_cf_access_credential_audit.md",
+     "hybrid_rank": 5,
+     "score": -3.16796875
+    },
+    {
+     "path": "factory/sites/phamducphuongnam/entity.json",
+     "hybrid_rank": 3,
+     "score": -3.21484375
+    },
+    {
+     "path": "docs/handoffs/HANDOFF_20260814_site-title-cache-va-cua-gac.md",
+     "hybrid_rank": 1,
+     "score": -3.396484375
+    },
+    {
+     "path": "docs/handoffs/HANDOFF_20260820_chuanhoa-7-lat-va-luat-tu-quyet.md",
+     "hybrid_rank": 17,
+     "score": -3.45703125
+    },
+    {
+     "path": "docs/plans/PLAN_memory_doc_lap_database_20260820.md",
+     "hybrid_rank": 18,
+     "score": -3.544921875
+    },
+    {
+     "path": "tests/golden/C1.16.html",
+     "hybrid_rank": 19,
+     "score": -3.849609375
+    },
+    {
+     "path": "docs/handoffs/HANDOFF_20260819_ca8-ci-gate-repair-telegram-audit.md",
+     "hybrid_rank": 7,
+     "score": -3.9296875
+    },
+    {
+     "path": "tests/test_information_gain_gate.py",
+     "hybrid_rank": 11,
+     "score": -3.943359375
+    },
+    {
+     "path": "tests/golden/C1.13.html",
+     "hybrid_rank": 30,
+     "score": -4.0390625
+    },
+    {
+     "path": "docs/handoffs/HANDOFF_20260813_cau-noi-cmux-1dev.md",
+     "hybrid_rank": 6,
+     "score": -4.04296875
+    },
+    {
+     "path": "docs/archive/session-reports/REVIEW_2026-06-30_REPO_AUDIT.md",
+     "hybrid_rank": 20,
+     "score": -4.05859375
+    },
+    {
+     "path": "tests/golden/C2.14.html",
+     "hybrid_rank": 25,
+     "score": -4.53515625
+    },
+    {
+     "path": "docs/archive/phamducphuongnam-seo/prod-fix-post-2144-kien-truc-du-lieu-ems-nha-may-duoc-gmp-backup-20260521-174512.json",
+     "hybrid_rank": 24,
+     "score": -4.66015625
+    },
+    {
+     "path": "tests/golden/C1.11.html",
+     "hybrid_rank": 23,
+     "score": -4.71484375
+    },
+    {
+     "path": "content/posts_temp_backup/C1.10/schema.json",
+     "hybrid_rank": 28,
+     "score": -4.80078125
+    },
+    {
+     "path": "tests/golden/C2.14.html",
+     "hybrid_rank": 22,
+     "score": -4.8046875
+    },
+    {
+     "path": "content/posts/C1.10/schema.json",
+     "hybrid_rank": 27,
+     "score": -4.82421875
+    },
+    {
+     "path": "tests/golden/C2.9.html",
+     "hybrid_rank": 26,
+     "score": -4.89453125
+    },
+    {
+     "path": "docs/plans/PLAN_memory_app_giai_doan_3_2026-08-22.html",
+     "hybrid_rank": 9,
+     "score": -4.90625
+    },
+    {
+     "path": "tests/golden/C1.1.html",
+     "hybrid_rank": 10,
+     "score": -4.98828125
+    },
+    {
+     "path": "content/posts/C1.11/schema.json",
+     "hybrid_rank": 14,
+     "score": -5.01171875
+    }
+   ]
+  },
+  {
+   "id": "seo-06",
+   "lang": "vi",
+   "tags": [
+    "vn_to_vn"
+   ],
+   "query": "trang liệt kê tình trạng các worker trong đội hạm con nào đang bị block",
+   "expected_path": "docs-fleet/doi-ngu.md",
+   "base_rank": 0,
+   "rerank_rank": 0,
+   "pool_rank": 0,
+   "pool": 30,
+   "rerank_ms": 475.31092166900635,
+   "ms_per_pair": 15.843697388966879,
+   "cli_ms": 1690.2683750959113,
+   "base_paths": [
+    "docs-fleet/ship-log/reports/worker-integration-formula.md",
+    "scripts/_legacy/2026-05-28_worker_sprawl/pdpn_docs_governance_refresh.py",
+    "docs-fleet/onboarding.md",
+    "docs/handoffs/HANDOFF_20260820_asana-opc-tach-cong-ty.md",
+    "docs/fleet/ROLES.md"
+   ],
+   "rerank_hits": [
+    {
+     "path": "scripts/_legacy/2026-05-28_worker_sprawl/pdpn_docs_governance_refresh.py",
+     "hybrid_rank": 3,
+     "score": -2.759765625
+    },
+    {
+     "path": "docs/handoffs/HANDOFF_20260817_quota-gate-dispatch-hardening.md",
+     "hybrid_rank": 22,
+     "score": -3.177734375
+    },
+    {
+     "path": "docs/plans/CHUAN_HOA_REPO_P8_2026-08-19.md",
+     "hybrid_rank": 23,
+     "score": -3.634765625
+    },
+    {
+     "path": "docs-fleet/onboarding.md",
+     "hybrid_rank": 8,
+     "score": -3.7734375
+    },
+    {
+     "path": "docs/handoffs/HANDOFF_20260819_ca6-pha1-4-va-script-governance.md",
+     "hybrid_rank": 14,
+     "score": -3.79296875
+    },
+    {
+     "path": "docs/handoffs/HANDOFF_20260729_ui-bo-cuc-trang-bai-viet.md",
+     "hybrid_rank": 2,
+     "score": -3.798828125
+    },
+    {
+     "path": "docs/00_governance/AGENT_CAPA_LOG.md",
+     "hybrid_rank": 25,
+     "score": -3.822265625
+    },
+    {
+     "path": "docs/handoffs/HANDOFF_20260729_SANG_e2e-flyenv-va-hmi-giam-sat.md",
+     "hybrid_rank": 29,
+     "score": -3.83984375
+    },
+    {
+     "path": "docs/plans/VERIFY_FLOCK_WATCHDOG_COUNTERCLAIM_2026-08-19.md",
+     "hybrid_rank": 19,
+     "score": -3.8515625
+    },
+    {
+     "path": "docs/handoffs/HANDOFF_20260820_asana-opc-tach-cong-ty.md",
+     "hybrid_rank": 12,
+     "score": -3.966796875
+    },
+    {
+     "path": "docs/handoffs/HANDOFF_20260729_CRM-bao-mat-va-ban-ceo.md",
+     "hybrid_rank": 15,
+     "score": -4.1015625
+    },
+    {
+     "path": "docs-fleet/entity-graph.md",
+     "hybrid_rank": 24,
+     "score": -4.109375
+    },
+    {
+     "path": "docs-fleet/ship-log/reports/worker-integration-formula.md",
+     "hybrid_rank": 4,
+     "score": -4.21484375
+    },
+    {
+     "path": "docs-fleet/ship-log/reports/worker-deepseek-estate-inventory.md",
+     "hybrid_rank": 18,
+     "score": -4.2890625
+    },
+    {
+     "path": "infrastructure/cf-workers/form-pdn/src/index.js",
+     "hybrid_rank": 6,
+     "score": -4.32421875
+    },
+    {
+     "path": "docs/fleet/ROLES.md",
+     "hybrid_rank": 11,
+     "score": -4.359375
+    },
+    {
+     "path": "plans/008-lien-he-conversion.md",
+     "hybrid_rank": 20,
+     "score": -4.359375
+    },
+    {
+     "path": "docs/handoffs/HANDOFF_20260727_MASTER_vao-viec.md",
+     "hybrid_rank": 16,
+     "score": -4.38671875
+    },
+    {
+     "path": "docs/plans/PLAN_P8_WORDPRESS_PIPELINE_3TIER_2026-08-19.md",
+     "hybrid_rank": 27,
+     "score": -4.4296875
+    },
+    {
+     "path": "docs-fleet/ship-log/reports/worker-deepseek-tony-distill.md",
+     "hybrid_rank": 9,
+     "score": -4.4765625
+    },
+    {
+     "path": "scripts/p8_content_depth_worker.py",
+     "hybrid_rank": 1,
+     "score": -4.49609375
+    },
+    {
+     "path": "docs/00_governance/PENDING_ACTIONS_REGISTRY.md",
+     "hybrid_rank": 26,
+     "score": -4.5234375
+    },
+    {
+     "path": "docs/handoffs/HANDOFF_20260807_bay-cua-noi-doi.md",
+     "hybrid_rank": 5,
+     "score": -4.54296875
+    },
+    {
+     "path": "plans/007-p8-crawl-defects-2026-08.md",
+     "hybrid_rank": 10,
+     "score": -4.5546875
+    },
+    {
+     "path": "docs/handoffs/HANDOFF_20260817_token-diet-va-governance-audit.md",
+     "hybrid_rank": 17,
+     "score": -4.61328125
+    },
+    {
+     "path": "docs/handoffs/HANDOFF_20260817_quota-gate-dispatch-hardening.md",
+     "hybrid_rank": 30,
+     "score": -4.6484375
+    },
+    {
+     "path": "infrastructure/cf-workers/form-pdn/src/index.js",
+     "hybrid_rank": 7,
+     "score": -4.671875
+    },
+    {
+     "path": "plans/008-lien-he-conversion.md",
+     "hybrid_rank": 21,
+     "score": -4.87890625
+    },
+    {
+     "path": "docs/handoffs/entity_optimization_plan.md",
+     "hybrid_rank": 28,
+     "score": -4.88671875
+    },
+    {
+     "path": "docs/00_governance/CHUAN_BO_CUC_TRANG_BAI_VIET.md",
+     "hybrid_rank": 13,
+     "score": -4.96484375
+    }
+   ]
+  },
+  {
+   "id": "seo-07",
+   "lang": "vi",
+   "tags": [
+    "vn_to_vn"
+   ],
+   "query": "tài liệu quy trình chuẩn để push nội dung bài viết lên site",
+   "expected_path": "WORKFLOW.md",
+   "base_rank": 3,
+   "rerank_rank": 2,
+   "pool_rank": 4,
+   "pool": 30,
+   "rerank_ms": 640.1900053024292,
+   "ms_per_pair": 21.339666843414307,
+   "cli_ms": 1934.1749170562252,
+   "base_paths": [
+    "scripts/_legacy/pdpn_phase4_sentence_manual5.py",
+    "scripts/_legacy/pdpn_phase4_yoast_intro_remediate_from_backup.py",
+    "WORKFLOW.md",
+    "docs/handoffs/HANDOFF_20260729_PHIEN_DEM_pipeline-anh-giam-sat.md",
+    "docs/handoffs/HANDOFF_20260811_seo-ops-cowork-loop.md"
+   ],
+   "rerank_hits": [
+    {
+     "path": "docs/handoffs/HANDOFF_20260729_PHIEN_DEM_pipeline-anh-giam-sat.md",
+     "hybrid_rank": 7,
+     "score": -2.248046875
+    },
+    {
+     "path": "WORKFLOW.md",
+     "hybrid_rank": 4,
+     "score": -2.599609375
+    },
+    {
+     "path": "archive/knowhows/knowhows/20_workflows/WORKFLOW_VIET_BAI_SEO.md",
+     "hybrid_rank": 5,
+     "score": -2.607421875
+    },
+    {
+     "path": "docs/handoffs/HANDOFF_20260731_fleetguard-mobile-story-fix.md",
+     "hybrid_rank": 21,
+     "score": -2.916015625
+    },
+    {
+     "path": "docs/references/README.md",
+     "hybrid_rank": 9,
+     "score": -2.97265625
+    },
+    {
+     "path": "docs/fleet/SITE_BUILD_PLAYBOOK.md",
+     "hybrid_rank": 18,
+     "score": -3
+    },
+    {
+     "path": "scripts/p8_content_depth_worker.py",
+     "hybrid_rank": 10,
+     "score": -3.12109375
+    },
+    {
+     "path": "scripts/_legacy/pdpn_phase4_sentence_manual5.py",
+     "hybrid_rank": 2,
+     "score": -3.16796875
+    },
+    {
+     "path": "scripts/_legacy/2026-05-08/p8_production_readiness_fixer.py",
+     "hybrid_rank": 13,
+     "score": -3.19140625
+    },
+    {
+     "path": "tests/golden/C1.2.html",
+     "hybrid_rank": 28,
+     "score": -3.3515625
+    },
+    {
+     "path": "docs/plans/CHANG3_E2E_BAI_MOI_2026-07-28.md",
+     "hybrid_rank": 1,
+     "score": -3.392578125
+    },
+    {
+     "path": "docs/handoffs/HANDOFF_20260811_seo-ops-cowork-loop.md",
+     "hybrid_rank": 8,
+     "score": -3.44140625
+    },
+    {
+     "path": "docs/references/technical/ENTERPRISE_WORDPRESS_AND_INFORMATION_GAIN_2026.md",
+     "hybrid_rank": 20,
+     "score": -3.494140625
+    },
+    {
+     "path": "docs/resources/prompts/D23-self-inspection-checklist.md",
+     "hybrid_rank": 14,
+     "score": -3.580078125
+    },
+    {
+     "path": "docs/00_governance/AGENT_CAPA_LOG.md",
+     "hybrid_rank": 26,
+     "score": -3.583984375
+    },
+    {
+     "path": "tests/golden/C5.2.html",
+     "hybrid_rank": 27,
+     "score": -3.6484375
+    },
+    {
+     "path": "docs/plans/CRITIQUE_MASTER_PLAN_V2_SCRIPT_GOVERNANCE_2026-08-19.md",
+     "hybrid_rank": 16,
+     "score": -3.66015625
+    },
+    {
+     "path": "tests/golden/C1.1.html",
+     "hybrid_rank": 11,
+     "score": -3.685546875
+    },
+    {
+     "path": "docs/archive/session-reports/HANDOFF_DOCUMENT_STANDARDIZATION_2026-05-12.md",
+     "hybrid_rank": 24,
+     "score": -3.810546875
+    },
+    {
+     "path": "scripts/_legacy/pdpn_phase4_yoast_intro_remediate_from_backup.py",
+     "hybrid_rank": 3,
+     "score": -4.10546875
+    },
+    {
+     "path": "docs/archive/01_operations/OPERATIONS_MASTER.md",
+     "hybrid_rank": 22,
+     "score": -4.109375
+    },
+    {
+     "path": "docs/resources/prompts/D21-process-validation-protocol.md",
+     "hybrid_rank": 17,
+     "score": -4.19921875
+    },
+    {
+     "path": "content/posts/C2.3/content.md",
+     "hybrid_rank": 15,
+     "score": -4.23828125
+    },
+    {
+     "path": "scripts/content-audit-rules.md",
+     "hybrid_rank": 12,
+     "score": -4.26171875
+    },
+    {
+     "path": "WORKFLOW.md",
+     "hybrid_rank": 6,
+     "score": -4.515625
+    },
+    {
+     "path": "tests/golden/C4.1.html",
+     "hybrid_rank": 23,
+     "score": -4.53125
+    },
+    {
+     "path": "tests/golden/C5.1.html",
+     "hybrid_rank": 25,
+     "score": -4.56640625
+    },
+    {
+     "path": "tests/golden/C2.4.html",
+     "hybrid_rank": 29,
+     "score": -4.56640625
+    },
+    {
+     "path": "tests/golden/C5.1.html",
+     "hybrid_rank": 30,
+     "score": -4.58203125
+    },
+    {
+     "path": "tests/golden/C5.2.html",
+     "hybrid_rank": 19,
+     "score": -4.734375
+    }
+   ]
+  },
+  {
+   "id": "seo-08",
+   "lang": "en",
+   "tags": [
+    "en_control"
+   ],
+   "query": "generate hero image and set featured image for articles missing one",
+   "expected_path": "scripts/p8_fix_featured_images.py",
+   "base_rank": 3,
+   "rerank_rank": 1,
+   "pool_rank": 3,
+   "pool": 30,
+   "rerank_ms": 629.8849582672119,
+   "ms_per_pair": 20.99616527557373,
+   "cli_ms": 1821.0730421124026,
+   "base_paths": [
+    "scripts/p8_format_remediation.py",
+    "scripts/_legacy/p8_format_remediation.py",
+    "scripts/p8_fix_featured_images.py",
+    "scripts/_legacy/c1_schema_generate.py",
+    "scripts/_legacy/2026-06-18-reconcile/c1_pipeline_common.py"
+   ],
+   "rerank_hits": [
+    {
+     "path": "scripts/p8_fix_featured_images.py",
+     "hybrid_rank": 9,
+     "score": 2.23046875
+    },
+    {
+     "path": "scripts/_legacy/p8_format_remediation.py",
+     "hybrid_rank": 4,
+     "score": 2.21875
+    },
+    {
+     "path": "scripts/p8_format_remediation.py",
+     "hybrid_rank": 2,
+     "score": 2.19921875
+    },
+    {
+     "path": "scripts/p8_fix_featured_images.py",
+     "hybrid_rank": 3,
+     "score": -1.826171875
+    },
+    {
+     "path": "scripts/_legacy/c1_optimize_images.py",
+     "hybrid_rank": 7,
+     "score": -1.9541015625
+    },
+    {
+     "path": "scripts/_legacy/2026-06-18-reconcile/c1_optimize_images.py",
+     "hybrid_rank": 10,
+     "score": -1.984375
+    },
+    {
+     "path": "scripts/p8_fix_featured_images.py",
+     "hybrid_rank": 14,
+     "score": -2.052734375
+    },
+    {
+     "path": "scripts/_legacy/2026-06-18-reconcile/c1_pipeline_common.py",
+     "hybrid_rank": 16,
+     "score": -2.26953125
+    },
+    {
+     "path": "scripts/_legacy/2026-07-21/p8_image_worker.py",
+     "hybrid_rank": 1,
+     "score": -2.3359375
+    },
+    {
+     "path": "scripts/p8_publisher.py",
+     "hybrid_rank": 5,
+     "score": -2.408203125
+    },
+    {
+     "path": "tests/test_p8_image_worker_live.py",
+     "hybrid_rank": 13,
+     "score": -2.435546875
+    },
+    {
+     "path": "scripts/_legacy/p8_format_remediation.py",
+     "hybrid_rank": 8,
+     "score": -2.609375
+    },
+    {
+     "path": "scripts/p8_format_remediation.py",
+     "hybrid_rank": 6,
+     "score": -2.736328125
+    },
+    {
+     "path": "tests/test_featured_target_guard.py",
+     "hybrid_rank": 18,
+     "score": -3.015625
+    },
+    {
+     "path": "content/images/manifest/c1_images_manifest.backup_20260510_235730.json",
+     "hybrid_rank": 26,
+     "score": -3.01953125
+    },
+    {
+     "path": "content/images/manifest/c1_images_manifest.backup_20260511_070312.json",
+     "hybrid_rank": 30,
+     "score": -3.24609375
+    },
+    {
+     "path": "content/images/manifest/c1_images_manifest_all43_exec_2026-05-21-sanitized.json",
+     "hybrid_rank": 28,
+     "score": -3.275390625
+    },
+    {
+     "path": "content/images/manifest/c1_images_manifest_all43_exec_2026-05-19.json",
+     "hybrid_rank": 23,
+     "score": -3.333984375
+    },
+    {
+     "path": "content/images/manifest/c1_images_manifest_all43_exec_2026-05-18.json",
+     "hybrid_rank": 22,
+     "score": -3.353515625
+    },
+    {
+     "path": "tests/test_featured_target_guard.py",
+     "hybrid_rank": 19,
+     "score": -3.375
+    },
+    {
+     "path": "content/images/manifest/c1_images_manifest_all39.json",
+     "hybrid_rank": 24,
+     "score": -3.37890625
+    },
+    {
+     "path": "scripts/_legacy/2026-06-18-reconcile/c1_schema_generate.py",
+     "hybrid_rank": 20,
+     "score": -3.6640625
+    },
+    {
+     "path": "scripts/p8_image_batch.py",
+     "hybrid_rank": 12,
+     "score": -3.673828125
+    },
+    {
+     "path": "scripts/_legacy/c1_schema_generate.py",
+     "hybrid_rank": 15,
+     "score": -3.76953125
+    },
+    {
+     "path": "scripts/_legacy/2026-05-08/p8_smart_gate_fixer.py",
+     "hybrid_rank": 25,
+     "score": -3.849609375
+    },
+    {
+     "path": "scripts/_legacy/2026-06-18-reconcile/pdpn_prod43_image_metadata_audit.py",
+     "hybrid_rank": 21,
+     "score": -4.15234375
+    },
+    {
+     "path": "scripts/_legacy/pdpn_prod43_image_metadata_audit.py",
+     "hybrid_rank": 17,
+     "score": -4.171875
+    },
+    {
+     "path": "scripts/_legacy/2026-05-08/nlm_fire_and_forget.py",
+     "hybrid_rank": 27,
+     "score": -4.48046875
+    },
+    {
+     "path": "scripts/p8_publisher.py",
+     "hybrid_rank": 11,
+     "score": -4.87109375
+    },
+    {
+     "path": "config/article_intent_registry.json",
+     "hybrid_rank": 29,
+     "score": -5.10546875
+    }
+   ]
+  },
+  {
+   "id": "crm-01",
+   "lang": "vi",
+   "tags": [
+    "vn_to_vn"
+   ],
+   "query": "script tính chấm công của nhân viên từ nhật ký hoạt động",
+   "expected_path": "crm-nam-pham/09-build/cham_cong.py",
+   "base_rank": 0,
+   "rerank_rank": 0,
+   "pool_rank": 0,
+   "pool": 30,
+   "rerank_ms": 618.5250282287598,
+   "ms_per_pair": 20.61750094095866,
+   "cli_ms": 1598.7922499189153,
+   "base_paths": [
+    "crm-nam-pham/07-docs/AUDIT_TONG_KIEM_20260806_grok.md",
+    "crm-nam-pham/07-docs/AUDIT_FULL_20260811_cowork.html",
+    "crm-nam-pham/04-app-frontend/van-hanh.html",
+    "crm-nam-pham/04-app-frontend/phien-20260805.html",
+    "crm-nam-pham/07-docs/THAMCHIEU_1MKT_DULIEU_20260820.md"
+   ],
+   "rerank_hits": [
+    {
+     "path": "crm-nam-pham/07-docs/AUDIT_FULL_20260811_cowork.html",
+     "hybrid_rank": 30,
+     "score": 3.27734375
+    },
+    {
+     "path": "crm-nam-pham/07-docs/AUDIT_FULL_20260811_cowork.html",
+     "hybrid_rank": 22,
+     "score": 3.017578125
+    },
+    {
+     "path": "crm-nam-pham/07-docs/AUDIT_TONG_KIEM_20260806_grok.md",
+     "hybrid_rank": 6,
+     "score": 2.771484375
+    },
+    {
+     "path": "crm-nam-pham/04-app-frontend/cham-cong.html",
+     "hybrid_rank": 2,
+     "score": 2.36328125
+    },
+    {
+     "path": "crm-nam-pham/04-app-frontend/cham-cong.html",
+     "hybrid_rank": 5,
+     "score": 0.9130859375
+    },
+    {
+     "path": "crm-nam-pham/04-app-frontend/nhat-ky.html",
+     "hybrid_rank": 4,
+     "score": -1.3994140625
+    },
+    {
+     "path": "HANDOFF-CRM-20260724.md",
+     "hybrid_rank": 15,
+     "score": -2.482421875
+    },
+    {
+     "path": "crm-nam-pham/07-docs/AUDIT_TONG_KIEM_20260806_grok.md",
+     "hybrid_rank": 14,
+     "score": -2.59765625
+    },
+    {
+     "path": "crm-nam-pham/07-docs/AUDIT_FULL_20260811_cowork.html",
+     "hybrid_rank": 19,
+     "score": -2.748046875
+    },
+    {
+     "path": "crm-nam-pham/07-docs/PHANBIEN_PLAN_UI_20260820.md",
+     "hybrid_rank": 7,
+     "score": -2.7578125
+    },
+    {
+     "path": "crm-nam-pham/04-app-frontend/phien-20260805.html",
+     "hybrid_rank": 26,
+     "score": -2.9140625
+    },
+    {
+     "path": "crm-nam-pham/04-app-frontend/cham-cong.html",
+     "hybrid_rank": 1,
+     "score": -3.05859375
+    },
+    {
+     "path": "crm-nam-pham/04-app-frontend/nhat-ky.html",
+     "hybrid_rank": 3,
+     "score": -3.328125
+    },
+    {
+     "path": "crm-nam-pham/07-docs/CUNGUNG_DULIEU_CRM_20260820.md",
+     "hybrid_rank": 17,
+     "score": -3.49609375
+    },
+    {
+     "path": "crm-nam-pham/04-app-frontend/chu-nhat.html",
+     "hybrid_rank": 9,
+     "score": -3.65625
+    },
+    {
+     "path": "crm-nam-pham/artifacts/team/audit-daily-checklist/notes.md",
+     "hybrid_rank": 18,
+     "score": -3.66796875
+    },
+    {
+     "path": "crm-nam-pham/07-docs/TICHHOP_CRM_1MKT_20260820.md",
+     "hybrid_rank": 16,
+     "score": -3.7109375
+    },
+    {
+     "path": "0-MASTER-PLAN-AUDIT.md",
+     "hybrid_rank": 13,
+     "score": -3.94140625
+    },
+    {
+     "path": "crm-nam-pham/07-docs/WORK_ORDER_20260812.md",
+     "hybrid_rank": 23,
+     "score": -4.03515625
+    },
+    {
+     "path": "crm-nam-pham/07-docs/RESEARCH_CEO_ADMIN_UI_20260820.md",
+     "hybrid_rank": 27,
+     "score": -4.046875
+    },
+    {
+     "path": "crm-nam-pham/07-docs/CUNGUNG_DULIEU_CRM_20260820.md",
+     "hybrid_rank": 28,
+     "score": -4.09375
+    },
+    {
+     "path": "0-MASTER-PLAN-AUDIT.md",
+     "hybrid_rank": 11,
+     "score": -4.22265625
+    },
+    {
+     "path": "PLAN-ceo-nampham-net.md",
+     "hybrid_rank": 20,
+     "score": -4.2734375
+    },
+    {
+     "path": "crm-nam-pham/08-scripts/test-backend-local.MOCK.py",
+     "hybrid_rank": 10,
+     "score": -4.28515625
+    },
+    {
+     "path": "crm-nam-pham/07-docs/THAMCHIEU_1MKT_DULIEU_20260820.md",
+     "hybrid_rank": 25,
+     "score": -4.38671875
+    },
+    {
+     "path": "crm-nam-pham/07-docs/AUDIT_TONG_KIEM_20260806_grok.md",
+     "hybrid_rank": 12,
+     "score": -4.43359375
+    },
+    {
+     "path": "crm-nam-pham/07-docs/AUDIT_3_SURFACE_CEO_20260820_agy.md",
+     "hybrid_rank": 8,
+     "score": -4.44140625
+    },
+    {
+     "path": "crm-nam-pham/04-app-frontend/van-hanh.html",
+     "hybrid_rank": 24,
+     "score": -4.6328125
+    },
+    {
+     "path": "crm-nam-pham/07-docs/HUONG_DAN_VAN_HANH.md",
+     "hybrid_rank": 21,
+     "score": -4.65234375
+    },
+    {
+     "path": "crm-nam-pham/04-app-frontend/van-hanh.html",
+     "hybrid_rank": 29,
+     "score": -4.67578125
+    }
+   ]
+  },
+  {
+   "id": "crm-02",
+   "lang": "vi",
+   "tags": [
+    "vn_to_vn"
+   ],
+   "query": "đoạn code tóm tắt hôm qua làm gì và việc nào sắp tới hạn chấm cho CEO",
+   "expected_path": "crm-nam-pham/09-build/so_tay.py",
+   "base_rank": 3,
+   "rerank_rank": 6,
+   "pool_rank": 16,
+   "pool": 30,
+   "rerank_ms": 548.4520196914673,
+   "ms_per_pair": 18.281733989715576,
+   "cli_ms": 1494.6183749707416,
+   "base_paths": [
+    "HANDOFF-CRM-20260724.md",
+    "0-MASTER-PLAN-AUDIT.md",
+    "crm-nam-pham/09-build/so_tay.py",
+    "crm-nam-pham/07-docs/COWORK_AUDIT.md",
+    "crm-nam-pham/04-app-frontend/van-hanh.html"
+   ],
+   "rerank_hits": [
+    {
+     "path": "crm-nam-pham/07-docs/AUDIT_FULL_20260811_cowork.html",
+     "hybrid_rank": 25,
+     "score": 3.224609375
+    },
+    {
+     "path": "crm-nam-pham/07-docs/HUONG_DAN_VAN_HANH.md",
+     "hybrid_rank": 7,
+     "score": 3.078125
+    },
+    {
+     "path": "crm-nam-pham/07-docs/RESEARCH_CEO_ADMIN_UI_20260820.md",
+     "hybrid_rank": 30,
+     "score": 2.00390625
+    },
+    {
+     "path": "crm-nam-pham/07-docs/PLAN_UI_QUANTRI_CEO_20260820.md",
+     "hybrid_rank": 14,
+     "score": 1.626953125
+    },
+    {
+     "path": "0-MASTER-PLAN-AUDIT.md",
+     "hybrid_rank": 13,
+     "score": 1.451171875
+    },
+    {
+     "path": "crm-nam-pham/07-docs/RESEARCH_CEO_ADMIN_UI_20260820.md",
+     "hybrid_rank": 10,
+     "score": 1.3828125
+    },
+    {
+     "path": "crm-nam-pham/09-build/so_tay.py",
+     "hybrid_rank": 22,
+     "score": 1.21484375
+    },
+    {
+     "path": "PLAN-ceo-nampham-net.md",
+     "hybrid_rank": 11,
+     "score": 1.1259765625
+    },
+    {
+     "path": "crm-nam-pham/09-build/so_tay.py",
+     "hybrid_rank": 16,
+     "score": 1.0947265625
+    },
+    {
+     "path": "crm-nam-pham/07-docs/PLAN_UI_QUANTRI_CEO_20260820.md",
+     "hybrid_rank": 8,
+     "score": 0.50146484375
+    },
+    {
+     "path": "HANDOFF-CRM-20260724.md",
+     "hybrid_rank": 4,
+     "score": -1.984375
+    },
+    {
+     "path": "crm-nam-pham/07-docs/HUONG_DAN_VAN_HANH.md",
+     "hybrid_rank": 5,
+     "score": -2.41796875
+    },
+    {
+     "path": "crm-nam-pham/07-docs/PLAN_UI_QUANTRI_CEO_20260820.html",
+     "hybrid_rank": 29,
+     "score": -2.42578125
+    },
+    {
+     "path": "crm-nam-pham/07-docs/RESEARCH_CEO_ADMIN_UI_20260820.md",
+     "hybrid_rank": 12,
+     "score": -2.51171875
+    },
+    {
+     "path": "crm-nam-pham/07-docs/RECAP_PHIEN_20260820.html",
+     "hybrid_rank": 17,
+     "score": -2.78125
+    },
+    {
+     "path": "0-MASTER-PLAN-AUDIT.md",
+     "hybrid_rank": 15,
+     "score": -2.833984375
+    },
+    {
+     "path": "0-MASTER-PLAN-AUDIT.md",
+     "hybrid_rank": 1,
+     "score": -2.8671875
+    },
+    {
+     "path": "crm-nam-pham/07-docs/THAMCHIEU_1MKT_DULIEU_20260820.md",
+     "hybrid_rank": 27,
+     "score": -2.9140625
+    },
+    {
+     "path": "crm-nam-pham/07-docs/QUYHOACH_CRM_20260820.md",
+     "hybrid_rank": 18,
+     "score": -3.021484375
+    },
+    {
+     "path": "README.md",
+     "hybrid_rank": 23,
+     "score": -3.115234375
+    },
+    {
+     "path": "crm-nam-pham/07-docs/COWORK_AUDIT.md",
+     "hybrid_rank": 2,
+     "score": -3.705078125
+    },
+    {
+     "path": "crm-nam-pham/07-docs/HUONG_DAN_VAN_HANH.md",
+     "hybrid_rank": 3,
+     "score": -3.71875
+    },
+    {
+     "path": "crm-nam-pham/04-app-frontend/co-che.html",
+     "hybrid_rank": 20,
+     "score": -3.736328125
+    },
+    {
+     "path": "crm-nam-pham/07-docs/COWORK_AUDIT.md",
+     "hybrid_rank": 6,
+     "score": -3.865234375
+    },
+    {
+     "path": "crm-nam-pham/04-app-frontend/co-che.html",
+     "hybrid_rank": 24,
+     "score": -4
+    },
+    {
+     "path": "crm-nam-pham/07-docs/COWORK_AUDIT.md",
+     "hybrid_rank": 9,
+     "score": -4.11328125
+    },
+    {
+     "path": "crm-nam-pham/04-app-frontend/van-hanh.html",
+     "hybrid_rank": 21,
+     "score": -4.15234375
+    },
+    {
+     "path": "crm-nam-pham/07-docs/QUYHOACH_CRM_20260820.html",
+     "hybrid_rank": 28,
+     "score": -4.32421875
+    },
+    {
+     "path": "crm-nam-pham/04-app-frontend/van-hanh.html",
+     "hybrid_rank": 19,
+     "score": -4.57421875
+    },
+    {
+     "path": "crm-nam-pham/04-app-frontend/van-hanh.html",
+     "hybrid_rank": 26,
+     "score": -4.62890625
+    }
+   ]
+  },
+  {
+   "id": "crm-03",
+   "lang": "vi",
+   "tags": [
+    "vn_to_vn"
+   ],
+   "query": "hàm tạo mảnh tin telegram báo có lead mới hôm qua",
+   "expected_path": "crm-nam-pham/09-build/tin_lead.py",
+   "base_rank": 2,
+   "rerank_rank": 1,
+   "pool_rank": 2,
+   "pool": 30,
+   "rerank_ms": 499.9150037765503,
+   "ms_per_pair": 16.663833459218342,
+   "cli_ms": 1426.4425419969484,
+   "base_paths": [
+    "crm-nam-pham/09-build/so_tay.py",
+    "crm-nam-pham/09-build/tin_lead.py",
+    "crm-nam-pham/09-build/tin_lead.py",
+    "crm-nam-pham/09-build/tin_lead.py",
+    "crm-nam-pham/07-docs/WORK_ORDER_20260812.md"
+   ],
+   "rerank_hits": [
+    {
+     "path": "crm-nam-pham/09-build/tin_lead.py",
+     "hybrid_rank": 2,
+     "score": 2.5625
+    },
+    {
+     "path": "crm-nam-pham/artifacts/team/audit-daily-checklist/notes.md",
+     "hybrid_rank": 17,
+     "score": 2.416015625
+    },
+    {
+     "path": "crm-nam-pham/07-docs/WORK_ORDER_20260812.md",
+     "hybrid_rank": 6,
+     "score": 2.181640625
+    },
+    {
+     "path": "crm-nam-pham/artifacts/team/audit-daily-checklist/notes.md",
+     "hybrid_rank": 15,
+     "score": -2.0703125
+    },
+    {
+     "path": "crm-nam-pham/07-docs/RESEARCH_CEO_ADMIN_UI_20260820.md",
+     "hybrid_rank": 23,
+     "score": -2.40234375
+    },
+    {
+     "path": "crm-nam-pham/09-build/so_tay.py",
+     "hybrid_rank": 3,
+     "score": -2.494140625
+    },
+    {
+     "path": "crm-nam-pham/09-build/tin_lead.py",
+     "hybrid_rank": 5,
+     "score": -2.607421875
+    },
+    {
+     "path": "crm-nam-pham/09-build/daily.sh",
+     "hybrid_rank": 27,
+     "score": -2.775390625
+    },
+    {
+     "path": "crm-nam-pham/09-build/daily_cloud.sh",
+     "hybrid_rank": 9,
+     "score": -2.79296875
+    },
+    {
+     "path": "crm-nam-pham/07-docs/PHANBIEN_PLAN_UI_20260820.md",
+     "hybrid_rank": 28,
+     "score": -2.966796875
+    },
+    {
+     "path": "crm-nam-pham/09-build/tin_lead.py",
+     "hybrid_rank": 4,
+     "score": -3.0546875
+    },
+    {
+     "path": "crm-nam-pham/04-app-frontend/co-che.html",
+     "hybrid_rank": 11,
+     "score": -3.193359375
+    },
+    {
+     "path": "crm-nam-pham/04-app-frontend/van-hanh.html",
+     "hybrid_rank": 21,
+     "score": -3.40234375
+    },
+    {
+     "path": "PLAN-ceo-nampham-net.md",
+     "hybrid_rank": 13,
+     "score": -3.546875
+    },
+    {
+     "path": "crm-nam-pham/09-build/pull.py",
+     "hybrid_rank": 10,
+     "score": -3.623046875
+    },
+    {
+     "path": "HANDOFF-CRM-20260724.md",
+     "hybrid_rank": 16,
+     "score": -3.638671875
+    },
+    {
+     "path": "crm-nam-pham/07-docs/CUNGUNG_DULIEU_CRM_20260820.md",
+     "hybrid_rank": 29,
+     "score": -3.771484375
+    },
+    {
+     "path": "crm-nam-pham/09-build/push_d1.py",
+     "hybrid_rank": 1,
+     "score": -3.892578125
+    },
+    {
+     "path": "crm-nam-pham/07-docs/PHANBIEN_PLAN_UI_20260820.md",
+     "hybrid_rank": 26,
+     "score": -3.97265625
+    },
+    {
+     "path": "crm-nam-pham/07-docs/AUDIT_FULL_20260811_cowork.html",
+     "hybrid_rank": 30,
+     "score": -4.0625
+    },
+    {
+     "path": "crm-nam-pham/04-app-frontend/phien-20260805.html",
+     "hybrid_rank": 24,
+     "score": -4.2265625
+    },
+    {
+     "path": "HANDOFF-CRM-20260724.md",
+     "hybrid_rank": 14,
+     "score": -4.578125
+    },
+    {
+     "path": "HANDOFF-CRM-20260724.md",
+     "hybrid_rank": 12,
+     "score": -4.609375
+    },
+    {
+     "path": "PLAN-ceo-nampham-net.md",
+     "hybrid_rank": 20,
+     "score": -4.63671875
+    },
+    {
+     "path": "crm-nam-pham/04-app-frontend/phien-20260805.html",
+     "hybrid_rank": 22,
+     "score": -4.65625
+    },
+    {
+     "path": "crm-nam-pham/09-build/init_db.py",
+     "hybrid_rank": 19,
+     "score": -4.69140625
+    },
+    {
+     "path": "crm-nam-pham/04-app-frontend/van-hanh.html",
+     "hybrid_rank": 25,
+     "score": -4.78125
+    },
+    {
+     "path": "crm-nam-pham/09-build/tin_lead.py",
+     "hybrid_rank": 8,
+     "score": -4.84375
+    },
+    {
+     "path": "crm-nam-pham/09-build/tin_lead.py",
+     "hybrid_rank": 7,
+     "score": -4.9375
+    },
+    {
+     "path": "PLAN-ceo-nampham-net.md",
+     "hybrid_rank": 18,
+     "score": -4.953125
+    }
+   ]
+  },
+  {
+   "id": "crm-04",
+   "lang": "vi",
+   "tags": [
+    "vn_to_vn"
+   ],
+   "query": "script đối soát quyết định của CEO với trạng thái việc thật để đóng vòng",
+   "expected_path": "crm-nam-pham/09-build/dong_vong.py",
+   "base_rank": 0,
+   "rerank_rank": 0,
+   "pool_rank": 0,
+   "pool": 30,
+   "rerank_ms": 491.3710355758667,
+   "ms_per_pair": 16.379034519195557,
+   "cli_ms": 1444.2270420258865,
+   "base_paths": [
+    "crm-nam-pham/07-docs/RESEARCH_CEO_ADMIN_UI_20260820.md",
+    "crm-nam-pham/07-docs/RESEARCH_CEO_ADMIN_UI_20260820.md",
+    "crm-nam-pham/07-docs/PLAN_UI_QUANTRI_CEO_20260820.md",
+    "crm-nam-pham/07-docs/RESEARCH_CEO_ADMIN_UI_20260820.md",
+    "crm-nam-pham/07-docs/AUDIT_3_SURFACE_CEO_20260820_agy.md"
+   ],
+   "rerank_hits": [
+    {
+     "path": "crm-nam-pham/07-docs/PLAN_TASK_UI_SITE_20260820.md",
+     "hybrid_rank": 19,
+     "score": 2.923828125
+    },
+    {
+     "path": "HANDOFF-CRM-20260724.md",
+     "hybrid_rank": 6,
+     "score": 2.412109375
+    },
+    {
+     "path": "crm-nam-pham/07-docs/RESEARCH_CEO_ADMIN_UI_20260820.md",
+     "hybrid_rank": 1,
+     "score": 2.3046875
+    },
+    {
+     "path": "crm-nam-pham/07-docs/TICHHOP_CRM_1MKT_20260820.md",
+     "hybrid_rank": 24,
+     "score": 2.25390625
+    },
+    {
+     "path": "crm-nam-pham/07-docs/RESEARCH_CEO_ADMIN_UI_20260820.md",
+     "hybrid_rank": 9,
+     "score": -2.171875
+    },
+    {
+     "path": "crm-nam-pham/07-docs/AUDIT_3_SURFACE_CEO_20260820_agy.md",
+     "hybrid_rank": 13,
+     "score": -2.220703125
+    },
+    {
+     "path": "crm-nam-pham/07-docs/RESEARCH_CEO_ADMIN_UI_20260820.md",
+     "hybrid_rank": 17,
+     "score": -2.251953125
+    },
+    {
+     "path": "crm-nam-pham/07-docs/AUDIT_3_SURFACE_CEO_20260820_agy.md",
+     "hybrid_rank": 12,
+     "score": -2.2578125
+    },
+    {
+     "path": "crm-nam-pham/07-docs/AUDIT_3_SURFACE_CEO_20260820_agy.md",
+     "hybrid_rank": 25,
+     "score": -2.279296875
+    },
+    {
+     "path": "crm-nam-pham/07-docs/PLAN_UI_QUANTRI_CEO_20260820.md",
+     "hybrid_rank": 16,
+     "score": -2.365234375
+    },
+    {
+     "path": "crm-nam-pham/07-docs/RESEARCH_CEO_ADMIN_UI_20260820.md",
+     "hybrid_rank": 2,
+     "score": -2.39453125
+    },
+    {
+     "path": "crm-nam-pham/07-docs/RESEARCH_CEO_ADMIN_UI_20260820.md",
+     "hybrid_rank": 22,
+     "score": -2.408203125
+    },
+    {
+     "path": "crm-nam-pham/07-docs/AUDIT_3_SURFACE_CEO_20260820_agy.md",
+     "hybrid_rank": 28,
+     "score": -2.42578125
+    },
+    {
+     "path": "crm-nam-pham/07-docs/RESEARCH_CEO_ADMIN_UI_20260820.md",
+     "hybrid_rank": 7,
+     "score": -2.505859375
+    },
+    {
+     "path": "crm-nam-pham/07-docs/AUDIT_3_SURFACE_CEO_20260820_agy.md",
+     "hybrid_rank": 4,
+     "score": -2.546875
+    },
+    {
+     "path": "crm-nam-pham/07-docs/MAU_GIAODIEN_CEO_20260820.html",
+     "hybrid_rank": 23,
+     "score": -2.62890625
+    },
+    {
+     "path": "crm-nam-pham/07-docs/RESEARCH_CEO_ADMIN_UI_20260820.md",
+     "hybrid_rank": 20,
+     "score": -2.7109375
+    },
+    {
+     "path": "0-MASTER-PLAN-AUDIT.md",
+     "hybrid_rank": 5,
+     "score": -2.71484375
+    },
+    {
+     "path": "crm-nam-pham/07-docs/RESEARCH_CEO_ADMIN_UI_20260820.md",
+     "hybrid_rank": 15,
+     "score": -2.837890625
+    },
+    {
+     "path": "crm-nam-pham/07-docs/AUDIT_3_SURFACE_CEO_20260820_agy.md",
+     "hybrid_rank": 27,
+     "score": -3.033203125
+    },
+    {
+     "path": "crm-nam-pham/07-docs/RESEARCH_CEO_ADMIN_UI_20260820.md",
+     "hybrid_rank": 14,
+     "score": -3.115234375
+    },
+    {
+     "path": "crm-nam-pham/07-docs/PLAN_UI_QUANTRI_CEO_20260820.html",
+     "hybrid_rank": 18,
+     "score": -3.12890625
+    },
+    {
+     "path": "crm-nam-pham/07-docs/RESEARCH_CEO_ADMIN_UI_20260820.md",
+     "hybrid_rank": 21,
+     "score": -3.306640625
+    },
+    {
+     "path": "PLAN-ceo-nampham-net.md",
+     "hybrid_rank": 8,
+     "score": -3.3125
+    },
+    {
+     "path": "crm-nam-pham/07-docs/AUDIT_3_SURFACE_CEO_20260820_agy.md",
+     "hybrid_rank": 30,
+     "score": -3.32421875
+    },
+    {
+     "path": "crm-nam-pham/07-docs/PLAN_UI_QUANTRI_CEO_20260820.md",
+     "hybrid_rank": 11,
+     "score": -3.439453125
+    },
+    {
+     "path": "crm-nam-pham/07-docs/RESEARCH_CEO_ADMIN_UI_20260820.md",
+     "hybrid_rank": 26,
+     "score": -3.447265625
+    },
+    {
+     "path": "README.md",
+     "hybrid_rank": 10,
+     "score": -3.708984375
+    },
+    {
+     "path": "crm-nam-pham/07-docs/RESEARCH_CEO_ADMIN_UI_20260820.md",
+     "hybrid_rank": 29,
+     "score": -3.712890625
+    },
+    {
+     "path": "crm-nam-pham/04-app-frontend/bang-quyet-dinh.html",
+     "hybrid_rank": 3,
+     "score": -4.09375
+    }
+   ]
+  },
+  {
+   "id": "crm-05",
+   "lang": "vi",
+   "tags": [
+    "vn_to_vn"
+   ],
+   "query": "middleware gác cửa kiểm tra đăng nhập bằng vân tay passkey",
+   "expected_path": "crm-nam-pham/functions/_middleware.js",
+   "base_rank": 1,
+   "rerank_rank": 2,
+   "pool_rank": 1,
+   "pool": 30,
+   "rerank_ms": 551.0480403900146,
+   "ms_per_pair": 18.36826801300049,
+   "cli_ms": 1498.0371249839664,
+   "base_paths": [
+    "crm-nam-pham/functions/_middleware.js",
+    "crm-nam-pham/functions/_middleware.js",
+    "crm-nam-pham/07-docs/DANG_NHAP.md",
+    "crm-nam-pham/07-docs/DANG_NHAP.md",
+    "crm-nam-pham/07-docs/DANG_NHAP.md"
+   ],
+   "rerank_hits": [
+    {
+     "path": "crm-nam-pham/07-docs/DANG_NHAP.md",
+     "hybrid_rank": 3,
+     "score": 2.88671875
+    },
+    {
+     "path": "crm-nam-pham/functions/_middleware.js",
+     "hybrid_rank": 1,
+     "score": -2.296875
+    },
+    {
+     "path": "crm-nam-pham/functions/_middleware.js",
+     "hybrid_rank": 2,
+     "score": -2.41015625
+    },
+    {
+     "path": "crm-nam-pham/07-docs/SECURITY_THREAT_MODEL_codex-security_20260729.md",
+     "hybrid_rank": 22,
+     "score": -2.70703125
+    },
+    {
+     "path": "README.md",
+     "hybrid_rank": 9,
+     "score": -2.734375
+    },
+    {
+     "path": "crm-nam-pham/07-docs/DANG_NHAP.md",
+     "hybrid_rank": 6,
+     "score": -2.76171875
+    },
+    {
+     "path": "crm-nam-pham/07-docs/DANG_NHAP.md",
+     "hybrid_rank": 4,
+     "score": -2.845703125
+    },
+    {
+     "path": "crm-nam-pham/07-docs/DANG_NHAP.md",
+     "hybrid_rank": 7,
+     "score": -2.931640625
+    },
+    {
+     "path": "crm-nam-pham/04-app-frontend/van-hanh.html",
+     "hybrid_rank": 21,
+     "score": -3.171875
+    },
+    {
+     "path": "README.md",
+     "hybrid_rank": 29,
+     "score": -3.203125
+    },
+    {
+     "path": "crm-nam-pham/functions/_middleware.js",
+     "hybrid_rank": 10,
+     "score": -3.224609375
+    },
+    {
+     "path": "crm-nam-pham/functions/_middleware.js",
+     "hybrid_rank": 13,
+     "score": -3.234375
+    },
+    {
+     "path": "PLAN-ceo-nampham-net.md",
+     "hybrid_rank": 30,
+     "score": -3.439453125
+    },
+    {
+     "path": "crm-nam-pham/functions/_middleware.js",
+     "hybrid_rank": 12,
+     "score": -3.49609375
+    },
+    {
+     "path": "crm-nam-pham/07-docs/DANG_NHAP.md",
+     "hybrid_rank": 5,
+     "score": -3.546875
+    },
+    {
+     "path": "crm-nam-pham/09-build/nap_1mkt.py",
+     "hybrid_rank": 19,
+     "score": -3.609375
+    },
+    {
+     "path": "crm-nam-pham/09-build/nap_serp.py",
+     "hybrid_rank": 20,
+     "score": -3.673828125
+    },
+    {
+     "path": "0-MASTER-PLAN-AUDIT.md",
+     "hybrid_rank": 15,
+     "score": -3.94140625
+    },
+    {
+     "path": "crm-nam-pham/09-build/init_db.py",
+     "hybrid_rank": 8,
+     "score": -3.986328125
+    },
+    {
+     "path": "crm-nam-pham/04-app-frontend/van-hanh.html",
+     "hybrid_rank": 23,
+     "score": -4.0234375
+    },
+    {
+     "path": "crm-nam-pham/functions/_middleware.js",
+     "hybrid_rank": 11,
+     "score": -4.05078125
+    },
+    {
+     "path": "crm-nam-pham/07-docs/AUDIT_TONG_KIEM_20260806_grok.md",
+     "hybrid_rank": 26,
+     "score": -4.10546875
+    },
+    {
+     "path": "crm-nam-pham/artifacts/team/kiem-ke-theo-site.md",
+     "hybrid_rank": 25,
+     "score": -4.18359375
+    },
+    {
+     "path": "crm-nam-pham/09-build/so_tay.py",
+     "hybrid_rank": 24,
+     "score": -4.39453125
+    },
+    {
+     "path": "crm-nam-pham/09-build/test_tra_lai_khong_mat_du_lieu.py",
+     "hybrid_rank": 14,
+     "score": -4.5078125
+    },
+    {
+     "path": "crm-nam-pham/07-docs/DANG_NHAP.md",
+     "hybrid_rank": 18,
+     "score": -4.5078125
+    },
+    {
+     "path": "crm-nam-pham/04-app-frontend/van-hanh.html",
+     "hybrid_rank": 28,
+     "score": -4.61328125
+    },
+    {
+     "path": "crm-nam-pham/09-build/push_d1.py",
+     "hybrid_rank": 17,
+     "score": -4.71484375
+    },
+    {
+     "path": "crm-nam-pham/09-build/so_tay.py",
+     "hybrid_rank": 27,
+     "score": -4.81640625
+    },
+    {
+     "path": "crm-nam-pham/04-app-frontend/van-hanh.html",
+     "hybrid_rank": 16,
+     "score": -4.93359375
+    }
+   ]
+  },
+  {
+   "id": "crm-06",
+   "lang": "vi",
+   "tags": [
+    "vn_to_vn"
+   ],
+   "query": "tài liệu giải thích CEO đăng nhập bằng google qua cloudflare access",
+   "expected_path": "crm-nam-pham/07-docs/DANG_NHAP.md",
+   "base_rank": 1,
+   "rerank_rank": 2,
+   "pool_rank": 1,
+   "pool": 30,
+   "rerank_ms": 555.7940006256104,
+   "ms_per_pair": 18.526466687520344,
+   "cli_ms": 1513.309667003341,
+   "base_paths": [
+    "crm-nam-pham/07-docs/DANG_NHAP.md",
+    "crm-nam-pham/07-docs/DANG_NHAP.md",
+    "PLAN-ceo-nampham-net.md",
+    "PLAN-ceo-nampham-net.md",
+    "crm-nam-pham/07-docs/AUDIT_3_SURFACE_CEO_20260820_agy.md"
+   ],
+   "rerank_hits": [
+    {
+     "path": "README.md",
+     "hybrid_rank": 12,
+     "score": 3.8046875
+    },
+    {
+     "path": "crm-nam-pham/07-docs/DANG_NHAP.md",
+     "hybrid_rank": 1,
+     "score": 3.623046875
+    },
+    {
+     "path": "crm-nam-pham/07-docs/AUDIT_3_SURFACE_CEO_20260820_agy.md",
+     "hybrid_rank": 13,
+     "score": 3.298828125
+    },
+    {
+     "path": "crm-nam-pham/07-docs/RESEARCH_CEO_ADMIN_UI_20260820.md",
+     "hybrid_rank": 8,
+     "score": 3.25390625
+    },
+    {
+     "path": "crm-nam-pham/07-docs/AUDIT_3_SURFACE_CEO_20260820_agy.md",
+     "hybrid_rank": 23,
+     "score": 3.216796875
+    },
+    {
+     "path": "crm-nam-pham/07-docs/AUDIT_3_SURFACE_CEO_20260820_agy.md",
+     "hybrid_rank": 17,
+     "score": 3.076171875
+    },
+    {
+     "path": "crm-nam-pham/07-docs/PLAN_UI_QUANTRI_CEO_20260820.md",
+     "hybrid_rank": 10,
+     "score": 3.001953125
+    },
+    {
+     "path": "crm-nam-pham/07-docs/WORK_ORDER_20260812.md",
+     "hybrid_rank": 30,
+     "score": 2.947265625
+    },
+    {
+     "path": "crm-nam-pham/07-docs/PHANBIEN_PLAN_UI_20260820.md",
+     "hybrid_rank": 26,
+     "score": 2.91796875
+    },
+    {
+     "path": "crm-nam-pham/07-docs/RESEARCH_CEO_ADMIN_UI_20260820.md",
+     "hybrid_rank": 9,
+     "score": 2.90234375
+    },
+    {
+     "path": "PLAN-ceo-nampham-net.md",
+     "hybrid_rank": 16,
+     "score": 2.732421875
+    },
+    {
+     "path": "PLAN-ceo-nampham-net.md",
+     "hybrid_rank": 3,
+     "score": 2.69140625
+    },
+    {
+     "path": "crm-nam-pham/07-docs/AUDIT_3_SURFACE_CEO_20260820_agy.md",
+     "hybrid_rank": 20,
+     "score": 2.66015625
+    },
+    {
+     "path": "README.md",
+     "hybrid_rank": 14,
+     "score": 2.6015625
+    },
+    {
+     "path": "crm-nam-pham/07-docs/DANG_NHAP.md",
+     "hybrid_rank": 6,
+     "score": 2.4765625
+    },
+    {
+     "path": "PLAN-ceo-nampham-net.md",
+     "hybrid_rank": 5,
+     "score": 2.400390625
+    },
+    {
+     "path": "crm-nam-pham/07-docs/AUDIT_3_SURFACE_CEO_20260820_agy.md",
+     "hybrid_rank": 7,
+     "score": 2.244140625
+    },
+    {
+     "path": "crm-nam-pham/07-docs/AUDIT_3_SURFACE_CEO_20260820_agy.md",
+     "hybrid_rank": 15,
+     "score": 1.8876953125
+    },
+    {
+     "path": "PLAN-ceo-nampham-net.md",
+     "hybrid_rank": 18,
+     "score": 1.75
+    },
+    {
+     "path": "crm-nam-pham/07-docs/TICHHOP_CRM_1MKT_20260820.md",
+     "hybrid_rank": 27,
+     "score": -1.623046875
+    },
+    {
+     "path": "crm-nam-pham/07-docs/RESEARCH_CEO_ADMIN_UI_20260820.md",
+     "hybrid_rank": 25,
+     "score": -2.203125
+    },
+    {
+     "path": "crm-nam-pham/07-docs/RESEARCH_CEO_ADMIN_UI_20260820.md",
+     "hybrid_rank": 21,
+     "score": -2.216796875
+    },
+    {
+     "path": "PLAN-ceo-nampham-net.md",
+     "hybrid_rank": 19,
+     "score": -2.390625
+    },
+    {
+     "path": "crm-nam-pham/07-docs/DANG_NHAP.md",
+     "hybrid_rank": 2,
+     "score": -2.494140625
+    },
+    {
+     "path": "crm-nam-pham/07-docs/DANG_NHAP.md",
+     "hybrid_rank": 4,
+     "score": -2.568359375
+    },
+    {
+     "path": "crm-nam-pham/07-docs/PLAN_UI_QUANTRI_CEO_20260820.html",
+     "hybrid_rank": 22,
+     "score": -3.228515625
+    },
+    {
+     "path": "crm-nam-pham/07-docs/RESEARCH_CEO_ADMIN_UI_20260820.md",
+     "hybrid_rank": 29,
+     "score": -3.294921875
+    },
+    {
+     "path": "crm-nam-pham/07-docs/RESEARCH_CEO_ADMIN_UI_20260820.md",
+     "hybrid_rank": 28,
+     "score": -4.0703125
+    },
+    {
+     "path": "crm-nam-pham/09-build/pull.py",
+     "hybrid_rank": 11,
+     "score": -4.4296875
+    },
+    {
+     "path": "crm-nam-pham/09-build/build.py",
+     "hybrid_rank": 24,
+     "score": -4.5546875
+    }
+   ]
+  },
+  {
+   "id": "crm-07",
+   "lang": "vi",
+   "tags": [
+    "vn_to_vn"
+   ],
+   "query": "script nạp file csv export từ serpupdate vào lịch sử từ khóa",
+   "expected_path": "crm-nam-pham/09-build/nap_serp.py",
+   "base_rank": 1,
+   "rerank_rank": 2,
+   "pool_rank": 1,
+   "pool": 30,
+   "rerank_ms": 560.3480339050293,
+   "ms_per_pair": 18.67826779683431,
+   "cli_ms": 1530.4847080260515,
+   "base_paths": [
+    "crm-nam-pham/09-build/nap_serp.py",
+    "crm-nam-pham/09-build/init_db.py",
+    "0-MASTER-PLAN-AUDIT.md",
+    "0-MASTER-PLAN-AUDIT.md",
+    "crm-nam-pham/08-scripts/pull-crm-weekly.MOCK.py"
+   ],
+   "rerank_hits": [
+    {
+     "path": "crm-nam-pham/07-docs/REVIEW_NAP_1MKT_20260820.md",
+     "hybrid_rank": 13,
+     "score": 2.615234375
+    },
+    {
+     "path": "crm-nam-pham/09-build/nap_serp.py",
+     "hybrid_rank": 3,
+     "score": 1.94921875
+    },
+    {
+     "path": "crm-nam-pham/09-build/nap_serp.py",
+     "hybrid_rank": 4,
+     "score": 1.0205078125
+    },
+    {
+     "path": "crm-nam-pham/08-scripts/pull-crm-weekly.MOCK.py",
+     "hybrid_rank": 15,
+     "score": 0.1107177734375
+    },
+    {
+     "path": "crm-nam-pham/_archive-genspark/06-import-scripts/import_csv_nampham_landing.py",
+     "hybrid_rank": 26,
+     "score": -2.271484375
+    },
+    {
+     "path": "crm-nam-pham/09-build/nap_serp.py",
+     "hybrid_rank": 1,
+     "score": -2.490234375
+    },
+    {
+     "path": "0-MASTER-PLAN-AUDIT.md",
+     "hybrid_rank": 18,
+     "score": -2.49609375
+    },
+    {
+     "path": "crm-nam-pham/07-docs/TICHHOP_CRM_1MKT_20260820.md",
+     "hybrid_rank": 19,
+     "score": -2.513671875
+    },
+    {
+     "path": "crm-nam-pham/09-build/bundle.py",
+     "hybrid_rank": 2,
+     "score": -2.560546875
+    },
+    {
+     "path": "crm-nam-pham/09-build/nap_serp.py",
+     "hybrid_rank": 7,
+     "score": -2.6484375
+    },
+    {
+     "path": "0-MASTER-PLAN-AUDIT.md",
+     "hybrid_rank": 9,
+     "score": -2.92578125
+    },
+    {
+     "path": "crm-nam-pham/07-docs/REVIEW_NAP_1MKT_20260820.md",
+     "hybrid_rank": 25,
+     "score": -3.03515625
+    },
+    {
+     "path": "crm-nam-pham/04-app-frontend/lich-su-hang.html",
+     "hybrid_rank": 12,
+     "score": -3.072265625
+    },
+    {
+     "path": "0-MASTER-PLAN-AUDIT.md",
+     "hybrid_rank": 16,
+     "score": -3.255859375
+    },
+    {
+     "path": "crm-nam-pham/09-build/nap_1mkt.py",
+     "hybrid_rank": 20,
+     "score": -3.423828125
+    },
+    {
+     "path": "crm-nam-pham/09-build/nap_1mkt.py",
+     "hybrid_rank": 29,
+     "score": -3.455078125
+    },
+    {
+     "path": "crm-nam-pham/09-build/init_db.py",
+     "hybrid_rank": 5,
+     "score": -3.482421875
+    },
+    {
+     "path": "crm-nam-pham/07-docs/WORK_ORDER_20260812.md",
+     "hybrid_rank": 27,
+     "score": -3.515625
+    },
+    {
+     "path": "crm-nam-pham/07-docs/README.md",
+     "hybrid_rank": 24,
+     "score": -3.599609375
+    },
+    {
+     "path": "crm-nam-pham/04-app-frontend/lich-su-hang.html",
+     "hybrid_rank": 10,
+     "score": -3.623046875
+    },
+    {
+     "path": "PLAN-ceo-nampham-net.md",
+     "hybrid_rank": 14,
+     "score": -3.728515625
+    },
+    {
+     "path": "crm-nam-pham/07-docs/AUDIT_FULL_20260811_cowork.html",
+     "hybrid_rank": 22,
+     "score": -3.75390625
+    },
+    {
+     "path": "crm-nam-pham/09-build/init_db.py",
+     "hybrid_rank": 11,
+     "score": -3.869140625
+    },
+    {
+     "path": "crm-nam-pham/09-build/nap_1mkt.py",
+     "hybrid_rank": 23,
+     "score": -3.90625
+    },
+    {
+     "path": "crm-nam-pham/04-app-frontend/lich-su-hang.html",
+     "hybrid_rank": 6,
+     "score": -4.05078125
+    },
+    {
+     "path": "0-MASTER-PLAN-AUDIT.md",
+     "hybrid_rank": 8,
+     "score": -4.1015625
+    },
+    {
+     "path": "crm-nam-pham/07-docs/REVIEW_NAP_1MKT_20260820.md",
+     "hybrid_rank": 28,
+     "score": -4.18359375
+    },
+    {
+     "path": "PLAN-ceo-nampham-net.md",
+     "hybrid_rank": 17,
+     "score": -4.19140625
+    },
+    {
+     "path": "crm-nam-pham/07-docs/REVIEW_NAP_1MKT_20260820.md",
+     "hybrid_rank": 21,
+     "score": -4.30078125
+    },
+    {
+     "path": "crm-nam-pham/07-docs/REVIEW_NAP_1MKT_20260820.md",
+     "hybrid_rank": 30,
+     "score": -4.33984375
+    }
+   ]
+  },
+  {
+   "id": "crm-08",
+   "lang": "en",
+   "tags": [
+    "en_control"
+   ],
+   "query": "shared helper writing one decision row into the operations ledger",
+   "expected_path": "crm-nam-pham/09-build/ghi_so.py",
+   "base_rank": 0,
+   "rerank_rank": 0,
+   "pool_rank": 0,
+   "pool": 30,
+   "rerank_ms": 535.9399318695068,
+   "ms_per_pair": 17.864664395650227,
+   "cli_ms": 1452.1813329774886,
+   "base_paths": [
+    "crm-nam-pham/09-build/daily.sh",
+    "crm-nam-pham/09-build/push_d1.py",
+    "crm-nam-pham/09-build/push_d1.py",
+    "crm-nam-pham/07-docs/SECURITY_THREAT_MODEL_codex-security_20260729.md",
+    "crm-nam-pham/09-build/daily.sh"
+   ],
+   "rerank_hits": [
+    {
+     "path": "crm-nam-pham/07-docs/SECURITY_THREAT_MODEL_codex-security_20260729.md",
+     "hybrid_rank": 6,
+     "score": -3.5078125
+    },
+    {
+     "path": "crm-nam-pham/07-docs/SECURITY_THREAT_MODEL_codex-security_20260729.md",
+     "hybrid_rank": 12,
+     "score": -3.53125
+    },
+    {
+     "path": "crm-nam-pham/07-docs/SECURITY_THREAT_MODEL_codex-security_20260729.md",
+     "hybrid_rank": 26,
+     "score": -4.40234375
+    },
+    {
+     "path": "crm-nam-pham/09-build/build_activity.py",
+     "hybrid_rank": 7,
+     "score": -4.42578125
+    },
+    {
+     "path": "setup.js",
+     "hybrid_rank": 30,
+     "score": -4.5078125
+    },
+    {
+     "path": "crm-nam-pham/09-build/daily.sh",
+     "hybrid_rank": 2,
+     "score": -4.53125
+    },
+    {
+     "path": "crm-nam-pham/09-build/daily.sh",
+     "hybrid_rank": 1,
+     "score": -4.53515625
+    },
+    {
+     "path": "crm-nam-pham/07-docs/SECURITY_THREAT_MODEL_codex-security_20260729.md",
+     "hybrid_rank": 13,
+     "score": -4.54296875
+    },
+    {
+     "path": "crm-nam-pham/07-docs/SECURITY_THREAT_MODEL_codex-security_20260729.md",
+     "hybrid_rank": 14,
+     "score": -4.5625
+    },
+    {
+     "path": "crm-nam-pham/09-build/daily.sh",
+     "hybrid_rank": 3,
+     "score": -4.63671875
+    },
+    {
+     "path": "setup.js",
+     "hybrid_rank": 23,
+     "score": -4.6796875
+    },
+    {
+     "path": "setup.js",
+     "hybrid_rank": 28,
+     "score": -4.734375
+    },
+    {
+     "path": "crm-nam-pham/04-app-frontend/ceo-cockpit.html",
+     "hybrid_rank": 19,
+     "score": -4.7734375
+    },
+    {
+     "path": "crm-nam-pham/07-docs/AUDIT_FULL_20260811_cowork.html",
+     "hybrid_rank": 25,
+     "score": -4.82421875
+    },
+    {
+     "path": "crm-nam-pham/09-build/build_activity.py",
+     "hybrid_rank": 17,
+     "score": -4.83984375
+    },
+    {
+     "path": "crm-nam-pham/07-docs/SECURITY_THREAT_MODEL_codex-security_20260729.md",
+     "hybrid_rank": 11,
+     "score": -4.84375
+    },
+    {
+     "path": "crm-nam-pham/functions/api/[[path]].js",
+     "hybrid_rank": 8,
+     "score": -4.875
+    },
+    {
+     "path": "crm-nam-pham/09-build/pull_d1.py",
+     "hybrid_rank": 24,
+     "score": -4.8984375
+    },
+    {
+     "path": "setup.js",
+     "hybrid_rank": 21,
+     "score": -4.9140625
+    },
+    {
+     "path": "crm-nam-pham/09-build/push_d1.py",
+     "hybrid_rank": 20,
+     "score": -4.9296875
+    },
+    {
+     "path": "crm-nam-pham/04-app-frontend/ceo-cockpit.html",
+     "hybrid_rank": 22,
+     "score": -4.953125
+    },
+    {
+     "path": "crm-nam-pham/09-build/push_d1.py",
+     "hybrid_rank": 18,
+     "score": -4.9609375
+    },
+    {
+     "path": "crm-nam-pham/09-build/push_d1.py",
+     "hybrid_rank": 9,
+     "score": -4.98046875
+    },
+    {
+     "path": "crm-nam-pham/09-build/build_activity.py",
+     "hybrid_rank": 29,
+     "score": -4.98046875
+    },
+    {
+     "path": "crm-nam-pham/09-build/push_d1.py",
+     "hybrid_rank": 5,
+     "score": -5.03515625
+    },
+    {
+     "path": "crm-nam-pham/09-build/push_d1.py",
+     "hybrid_rank": 4,
+     "score": -5.0625
+    },
+    {
+     "path": "crm-nam-pham/07-docs/SECURITY_THREAT_MODEL_codex-security_20260729.md",
+     "hybrid_rank": 15,
+     "score": -5.06640625
+    },
+    {
+     "path": "crm-nam-pham/09-build/test_push_d1_fk.py",
+     "hybrid_rank": 27,
+     "score": -5.09375
+    },
+    {
+     "path": "crm-nam-pham/09-build/push_d1.py",
+     "hybrid_rank": 10,
+     "score": -5.11328125
+    },
+    {
+     "path": "crm-nam-pham/09-build/test_push_d1_fk.py",
+     "hybrid_rank": 16,
+     "score": -5.13671875
+    }
+   ]
+  }
+ ],
+ "aggregate": {
+  "n": 16,
+  "base_recall": [
+   10,
+   16,
+   0.625
+  ],
+  "rerank_recall": [
+   8,
+   16,
+   0.5
+  ],
+  "vi_base": [
+   9,
+   14
+  ],
+  "vi_rerank": [
+   7,
+   14
+  ],
+  "en_base": [
+   1,
+   2
+  ],
+  "en_rerank": [
+   1,
+   2
+  ],
+  "pool_coverage": [
+   10,
+   16
+  ],
+  "gained": [],
+  "lost": [
+   "seo-02",
+   "crm-02"
+  ],
+  "ms_per_pair_p50": 18.620800971984863,
+  "ms_per_pair_p95": 25.891435146331787,
+  "rerank_ms_p50": 558.6240291595459,
+  "rerank_ms_p95": 776.7430543899536
+ }
+}

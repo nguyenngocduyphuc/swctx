@@ -113,6 +113,24 @@ public final class Reranker: @unchecked Sendable {
         return ctx
     }
 
+    /// Head + tail windows for long chunks, max-pooled at score time —
+    /// the documented long-doc scheme (Cohere/Elastic: score per window,
+    /// take max). Relevant code doesn't always sit in the head; the tail
+    /// window catches matches at the end of big chunks. Short chunks
+    /// produce a single window (identical to docContext).
+    public static func docWindows(path: String, symbol: String?, content: String,
+                                  headLines: Int = 10, tailLines: Int = 10,
+                                  maxChars: Int = 1800) -> [String] {
+        let head = docContext(path: path, symbol: symbol, content: content,
+                              headLines: headLines, maxChars: maxChars)
+        let lines = content.split(separator: "\n", omittingEmptySubsequences: false)
+        guard lines.count > headLines + tailLines else { return [head] }
+        var tail = path + "\n" + (symbol ?? "") + "\n"
+        tail += lines.suffix(tailLines).joined(separator: "\n")
+        if tail.count > maxChars { tail = String(tail.prefix(maxChars)) }
+        return [head, tail]
+    }
+
     // MARK: - Scoring
 
     /// Feature dict for one (query, doc) pair at its natural length — seq
@@ -198,5 +216,22 @@ public final class Reranker: @unchecked Sendable {
             start = end
         }
         return scores
+    }
+
+    /// Max-pooled multi-window scoring: flattens every candidate's
+    /// windows into one batch, then returns each candidate's best
+    /// window score. Nil windows never win a candidate's max.
+    public func scoreAllMax(query: String, windows: [[String]],
+                            batchSize: Int = 16) -> [Float?] {
+        var flat: [String] = []
+        var spans: [(Int, Int)] = []  // [start, count) per candidate
+        for w in windows {
+            spans.append((flat.count, w.count))
+            flat += w
+        }
+        let flatScores = scoreAll(query: query, docs: flat, batchSize: batchSize)
+        return spans.map { (s, n) in
+            (0..<n).compactMap { flatScores[s + $0] }.max()
+        }
     }
 }

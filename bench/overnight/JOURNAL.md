@@ -65,3 +65,33 @@ ftsFoldedQuery, ftsRun two-tier, 4-col bm25), RankingSignalTests.
    tokenizer; evaluate vs bge-v2-m3 once W1 lands)
 10. NEW: CodeRankEmbed-137M embedding spike (nomic BERT → may load
     with existing WordPiece tokenizer; code-specialized embedder)
+
+## ITER-2 (01:10–01:40): reranker windows + engine_eval + nightly + pool-semantics fix — ADOPTED
+
+**Found+fixed a real bug:** `swctx rerank` CLI passed `limit: 30` into
+hybridCandidates → legs fetched 90-deep — exactly the rejected
+`limit*12` pattern (deep noise fuses a DIFFERENT ordering than the
+baseline page; crm-02's expected sat at pool rank 25 while baseline
+rank 3). Fixed to `limit: 5, poolLimit: N` — pool now extends the
+production ordering, pin semantics are meaningful. MCP path was
+already correct.
+
+**docWindows + scoreAllMax (head+tail, max-pool):** per Cohere/Elastic
+long-doc practice. Cost ~2x/pair on long chunks (17.6→~20ms).
+
+**engine_eval wiring:** divergence-triggered `put_record
+kind=engine_eval` (baseline_top5 vs rerank_top5 + ms + head_sha +
+anchors, dual-write). Verified live over MCP wire: "sổ tay ghi chú"
+diverged → 1 record written. No-op reranks record nothing.
+
+**nightly += vn_probe --gate 9:** VN regression net (baseline 10/16).
+
+**Honest rerank verdict after folded tail-fill:** baseline absorbed
+the reranker's previous +1 — pinned mode on consistent pool is now
+NEUTRAL 10/16 (zero gains, zero losses). Pure rescore still −1.
+Rerank stays opt-in; its remaining value is hard-NL rescue, not a
+default win. mBERT-2019 ceiling confirmed — the lever is a stronger
+reranker (W1's SentencePiece → bge-reranker-v2-m3), not more tuning
+of this model.
+
+**Tests:** 86/86 (SPTokenizerTests excluded — W1 in flight).

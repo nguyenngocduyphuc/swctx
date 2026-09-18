@@ -209,14 +209,18 @@ struct RerankCmd: AsyncParsableCommand {
         }
         let store = try Store(workspaceRoot: root)
         let identifier = Search.identifierLike(query)
+        // Pool legs must match the production search path (limit*3 = 15
+        // per leg for a 5-hit page) — passing the 30-pool size as `limit`
+        // would deepen each leg to 90 and fuse a different ordering than
+        // the one `search` produces (the limit*12 rejection pattern).
         var hits = try Search.hybridCandidates(
             store: store, embedder: Embedder.shared, query: query,
-            limit: limit, poolLimit: limit,
+            limit: 5, poolLimit: limit,
             pathFilter: nil, includeVector: !identifier)
         if identifier && hits.isEmpty {
             hits = try Search.hybridCandidates(
                 store: store, embedder: Embedder.shared, query: query,
-                limit: limit, poolLimit: limit)
+                limit: 5, poolLimit: limit)
         }
         guard !hits.isEmpty else {
             print("{\"query\":\(jsonStr(query)),\"pool\":0,\"hits\":[]}")
@@ -236,13 +240,13 @@ struct RerankCmd: AsyncParsableCommand {
             return out
         }
         let docs = hits.map {
-            Reranker.docContext(path: $0.path, symbol: $0.symbol,
+            Reranker.docWindows(path: $0.path, symbol: $0.symbol,
                                 content: contents[$0.chunkID] ?? "")
         }
         let reranker = try Reranker()
         reranker.warm()
         let t0 = Date()
-        let scores = reranker.scoreAll(query: query, docs: docs, batchSize: batch)
+        let scores = reranker.scoreAllMax(query: query, windows: docs, batchSize: batch)
         let rerankMs = Date().timeIntervalSince(t0) * 1000
         let ranked = zip(hits.indices, scores)
             .map { (i: $0.0, score: $0.1 ?? -.infinity) }

@@ -365,6 +365,8 @@ def main():
     ap.add_argument("--json", action="store_true")
     ap.add_argument("--limit", type=int, default=5)
     ap.add_argument("--swctx-bin", default=DEFAULT_SWCTX_BIN)
+    ap.add_argument("--gate", type=int, default=None,
+                    help="exit non-zero when ALL-scope auto recall < N hits")
     args = ap.parse_args()
 
     spec = json.load(open(args.queries))
@@ -473,6 +475,15 @@ def main():
         with open(args.out, "w") as f:
             f.write(report)
         print(f"wrote {args.out}", file=sys.stderr)
+
+    if args.gate is not None:
+        all_row = next(r for r in by_scope if r["scope"].startswith("ALL"))
+        hits = all_row["auto"][0]
+        status = "PASS" if hits >= args.gate else "FAIL"
+        print(f"vn_probe gate: {status} auto {hits}/{len(queries)} "
+              f">= {args.gate}", file=sys.stderr)
+        if hits < args.gate:
+            sys.exit(1)
 
 
 if __name__ == "__main__":
