@@ -185,7 +185,12 @@ public enum SwctxTools {
             let obj = try JSONSerialization.jsonObject(with: JSONEncoder().encode(report))
             return json(obj)
         }
-        let report = try indexer.run(force: args["force"]?.bool ?? false) { _ in }
+        let report = try indexer.run(force: args["force"]?.bool ?? false,
+                                     autoEmbed: !(args["skip_embed"]?.bool ?? false)) { _ in }
+        // The 30s freshness cache may still hold a stale>0 reading taken
+        // before this run — drop it so this response's meta.stale reflects
+        // the just-indexed state.
+        invalidateStaleCache(Store.key(for: url))
         let data = try JSONEncoder().encode(report)
         let obj = try JSONSerialization.jsonObject(with: data)
         return json(obj)
@@ -866,6 +871,16 @@ public enum SwctxTools {
             "created_at": (row["created_at"] as? Double) ?? 0,
         ]
         if row.hasColumn("ws"), let ws = row["ws"] as? String { d["ws"] = ws }
+        // Staleness evidence columns (schema v4+ / global ledger). Emitted
+        // only when present so anchor-free records read exactly as before.
+        if row.hasColumn("head_sha"), let h = row["head_sha"] as? String,
+           !h.isEmpty {
+            d["head_sha"] = h
+        }
+        if row.hasColumn("anchors") {
+            let anchors = Store.decodeAnchors(row["anchors"] as? String)
+            if !anchors.isEmpty { d["anchors"] = anchors }
+        }
         guard includePayload else { return d }
         if let p = row["payload"] as? String,
            let obj = try? JSONSerialization.jsonObject(with: Data(p.utf8)) {
@@ -906,6 +921,87 @@ public enum SwctxTools {
         "note", "finding", "decision", "todo", "context_pack", "ask",
     ]
 
+    /// put_record anchor capture. Symbol anchors: identifier tokens (≥3
+    /// chars) that resolve in the symbols table; path anchors: '/'-bearing
+    /// tokens with a known extension that resolve in the files table.
+    /// Unresolvable mentions are dropped — anchors are the evidence a
+    /// later read verifies drift against, so capturing a token that never
+    /// resolved would guarantee a false flag. Order-preserving, cap 10.
+    static func recordAnchors(store: Store, text: String) throws -> [String] {
+        let full = NSRange(text.startIndex..., in: text)
+        let pathRe = try NSRegularExpression(
+            pattern: #"[A-Za-z0-9_.@\-]+(?:/[A-Za-z0-9_.@\-]+)+"#)
+        let rootPrefix = store.workspaceRoot.path + "/"
+        var masked = text  // path spans blanked so identifiers inside skip
+        var pathCands: [String] = []
+        for m in pathRe.matches(in: text, range: full) {
+            guard let r = Range(m.range, in: text),
+                  let r2 = Range(m.range, in: masked) else { continue }
+            var p = String(text[r])
+            masked.replaceSubrange(
+                r2, with: String(repeating: " ", count: p.count))
+            while p.hasPrefix("./") { p.removeFirst(2) }
+            if p.hasPrefix(rootPrefix) { p = String(p.dropFirst(rootPrefix.count)) }
+            while let last = p.last, "./".contains(last) { p.removeLast() }
+            guard !p.isEmpty, !p.hasPrefix("/"), !p.hasPrefix(".."),
+                  Languages.languageID(forPath: p) != nil else { continue }
+            pathCands.append(p)
+        }
+        var pathSeen = Set<String>()
+        let pathUniq = pathCands.filter { pathSeen.insert($0).inserted }
+            .prefix(100)
+        let idRe = try NSRegularExpression(
+            pattern: #"[A-Za-z_][A-Za-z0-9_]{2,}"#)
+        var symSeen = Set<String>()
+        let symUniq = idRe.matches(
+            in: masked, range: NSRange(masked.startIndex..., in: masked))
+            .compactMap { Range($0.range, in: masked).map { String(masked[$0]) } }
+            .filter { symSeen.insert($0).inserted }
+            .prefix(300)
+        return try store.pool.read { db in
+            var liveSyms = Set<String>(), livePaths = Set<String>()
+            if !symUniq.isEmpty {
+                let ph = symUniq.map { _ in "?" }.joined(separator: ",")
+                liveSyms = Set(try String.fetchAll(db, sql:
+                    "SELECT name FROM symbols WHERE name IN (\(ph))",
+                    arguments: StatementArguments(
+                        symUniq.map { $0 as DatabaseValueConvertible })))
+            }
+            if !pathUniq.isEmpty {
+                let ph = pathUniq.map { _ in "?" }.joined(separator: ",")
+                livePaths = Set(try String.fetchAll(db, sql:
+                    "SELECT path FROM files WHERE path IN (\(ph))",
+                    arguments: StatementArguments(
+                        pathUniq.map { $0 as DatabaseValueConvertible })))
+            }
+            var out: [String] = []
+            for s in symUniq where liveSyms.contains(s) && out.count < 10 {
+                out.append(s)
+            }
+            for p in pathUniq where livePaths.contains(p) && out.count < 10 {
+                out.append(p)
+            }
+            return out
+        }
+    }
+
+    /// Attach `stale` + `stale_reasons` to each record dict in a response
+    /// page — Store.staleCheck batches the git probe + anchor resolution.
+    static func withStaleness(_ recs: [[String: Any]],
+                              store: Store) -> [[String: Any]] {
+        guard !recs.isEmpty else { return recs }
+        let checks = store.staleCheck(recs.map {
+            (headSHA: $0["head_sha"] as? String,
+             anchors: ($0["anchors"] as? [String]) ?? [])
+        })
+        return recs.indices.map { i in
+            var d = recs[i]
+            d["stale"] = checks[i].stale
+            d["stale_reasons"] = checks[i].reasons
+            return d
+        }
+    }
+
     /// put_record: write an agent-authored record to the workspace ledger
     /// AND the repo-wide shared ledger (GlobalRecords), so it is visible
     /// from every git worktree of the same repository.
@@ -925,13 +1021,23 @@ public enum SwctxTools {
             throw ToolError.missingArg("payload")
         }
         let status = args["status"]?.str ?? "completed"
+        // Staleness evidence: current HEAD (nil outside git) + the symbol/
+        // path anchors title+payload verifiably mentions. Both go to both
+        // ledgers so scoped reads flag identically.
+        let headSHA = GlobalRecords.git(["rev-parse", "HEAD"],
+                                        cwd: store.workspaceRoot)
+        let anchors = (try? recordAnchors(
+            store: store, text: title + "\n" + payload)) ?? []
         let id = try store.insertRecord(kind: kind, source: "mcp", status: status,
-                                        title: title, payloadJSON: payload)
+                                        title: title, payloadJSON: payload,
+                                        headSHA: headSHA, anchors: anchors)
         let ws = GlobalRecords.repoKey(for: store.workspaceRoot)
         var sharedID: Int64? = nil
         if let global = GlobalRecords.shared {
             sharedID = try? global.insert(ws: ws, kind: kind, source: "mcp",
-                                          status: status, title: title, payload: payload)
+                                          status: status, title: title,
+                                          payload: payload,
+                                          headSHA: headSHA, anchors: anchors)
         }
         return json([
             "record_id": id, "kind": kind,
@@ -956,14 +1062,16 @@ public enum SwctxTools {
         do {
             guard let row = try store.pool.read({ db in
                 try Row.fetchOne(db, sql: """
-                    SELECT id, kind, source, status, title, payload, created_at
+                    SELECT id, kind, source, status, title, payload, created_at,
+                           head_sha, anchors
                     FROM records WHERE id = ?
                     """, arguments: [id])
             }) else {
                 return json(["error": "record not found", "id": id])
             }
-            return json(["record": recordDict(
-                row, includePayload: args["include_payload"]?.bool ?? true)])
+            let d = recordDict(
+                row, includePayload: args["include_payload"]?.bool ?? true)
+            return json(["record": withStaleness([d], store: store)[0]])
         } catch {
             return json(["error": "records unavailable: \(error.localizedDescription)"])
         }
@@ -988,7 +1096,8 @@ public enum SwctxTools {
                 // and paginate in memory for an exact total.
                 let wsRows = try store.pool.read { db in
                     try Row.fetchAll(db, sql: """
-                        SELECT id, kind, source, status, title, payload, created_at
+                        SELECT id, kind, source, status, title, payload, created_at,
+                               head_sha, anchors
                         FROM records\(whereClause) ORDER BY id DESC
                         """, arguments: StatementArguments(params))
                 }
@@ -998,7 +1107,8 @@ public enum SwctxTools {
                     let ws = GlobalRecords.repoKey(for: store.workspaceRoot)
                     let gRows = try global.pool.read { db in
                         try Row.fetchAll(db, sql: """
-                            SELECT id, ws, kind, source, status, title, payload, created_at
+                            SELECT id, ws, kind, source, status, title, payload, created_at,
+                                   head_sha, anchors
                             FROM records\(wsClause) ORDER BY id DESC
                             """, arguments: StatementArguments(params + [ws]))
                     }
@@ -1009,7 +1119,8 @@ public enum SwctxTools {
                         merged.append(recordDict(r))
                     }
                 }
-                return json(["records": Array(merged.dropFirst(offset).prefix(limit)),
+                let page = Array(merged.dropFirst(offset).prefix(limit))
+                return json(["records": withStaleness(page, store: store),
                              "total": merged.count])
             }
             if scope == "global" {
@@ -1022,23 +1133,29 @@ public enum SwctxTools {
                     let t = try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM records\(wsClause)",
                                              arguments: StatementArguments(gParams)) ?? 0
                     let r = try Row.fetchAll(db, sql: """
-                        SELECT id, ws, kind, source, status, title, payload, created_at
+                        SELECT id, ws, kind, source, status, title, payload, created_at,
+                               head_sha, anchors
                         FROM records\(wsClause) ORDER BY id DESC LIMIT ? OFFSET ?
                         """, arguments: StatementArguments(gParams + [limit, offset]))
                     return (r, t)
                 }
-                return json(["records": rows.map { recordDict($0) }, "total": total])
+                return json(["records": withStaleness(rows.map { recordDict($0) },
+                                                      store: store),
+                             "total": total])
             }
             let (rows, total) = try store.pool.read { db in
                 let t = try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM records\(whereClause)",
                                          arguments: StatementArguments(params)) ?? 0
                 let r = try Row.fetchAll(db, sql: """
-                    SELECT id, kind, source, status, title, payload, created_at
+                    SELECT id, kind, source, status, title, payload, created_at,
+                           head_sha, anchors
                     FROM records\(whereClause) ORDER BY id DESC LIMIT ? OFFSET ?
                     """, arguments: StatementArguments(params + [limit, offset]))
                 return (r, t)
             }
-            return json(["records": rows.map { recordDict($0) }, "total": total])
+            return json(["records": withStaleness(rows.map { recordDict($0) },
+                                                  store: store),
+                         "total": total])
         } catch {
             return json(["error": "records unavailable: \(error.localizedDescription)"])
         }
@@ -1066,7 +1183,7 @@ public enum SwctxTools {
                 let wsRows = try store.pool.read { db in
                     try Row.fetchAll(db, sql: """
                         SELECT r.id, r.kind, r.source, r.status, r.title, r.payload, r.created_at,
-                               bm25(records_fts) AS rank
+                               r.head_sha, r.anchors, bm25(records_fts) AS rank
                         FROM records_fts JOIN records r ON r.id = records_fts.rowid
                         WHERE records_fts MATCH ?\(whereClause)
                         ORDER BY rank
@@ -1079,7 +1196,7 @@ public enum SwctxTools {
                     let gRows = try global.pool.read { db in
                         try Row.fetchAll(db, sql: """
                             SELECT r.id, r.ws, r.kind, r.source, r.status, r.title, r.payload, r.created_at,
-                                   bm25(records_fts) AS rank
+                                   r.head_sha, r.anchors, bm25(records_fts) AS rank
                             FROM records_fts JOIN records r ON r.id = records_fts.rowid
                             WHERE records_fts MATCH ?\(whereClause)\(wsClause)
                             ORDER BY rank
@@ -1092,7 +1209,8 @@ public enum SwctxTools {
                         merged.append(recordDict(r))
                     }
                 }
-                return json(["records": Array(merged.dropFirst(offset).prefix(limit)),
+                let page = Array(merged.dropFirst(offset).prefix(limit))
+                return json(["records": withStaleness(page, store: store),
                              "total": merged.count])
             }
             if scope == "global" {
@@ -1107,14 +1225,16 @@ public enum SwctxTools {
                         """, arguments: StatementArguments([match] + filterParams + [ws])) ?? 0
                     let r = try Row.fetchAll(db, sql: """
                         SELECT r.id, r.ws, r.kind, r.source, r.status, r.title, r.payload, r.created_at,
-                               bm25(records_fts) AS rank
+                               r.head_sha, r.anchors, bm25(records_fts) AS rank
                         FROM records_fts JOIN records r ON r.id = records_fts.rowid
                         WHERE records_fts MATCH ?\(whereClause)\(wsClause)
                         ORDER BY rank LIMIT ? OFFSET ?
                         """, arguments: StatementArguments([match] + filterParams + [ws, limit, offset]))
                     return (r, t)
                 }
-                return json(["records": rows.map { recordDict($0) }, "total": total])
+                return json(["records": withStaleness(rows.map { recordDict($0) },
+                                                      store: store),
+                             "total": total])
             }
             let (rows, total) = try store.pool.read { db in
                 let t = try Int.fetchOne(db, sql: """
@@ -1123,20 +1243,72 @@ public enum SwctxTools {
                     """, arguments: StatementArguments([match] + filterParams)) ?? 0
                 let r = try Row.fetchAll(db, sql: """
                     SELECT r.id, r.kind, r.source, r.status, r.title, r.payload, r.created_at,
-                           bm25(records_fts) AS rank
+                           r.head_sha, r.anchors, bm25(records_fts) AS rank
                     FROM records_fts JOIN records r ON r.id = records_fts.rowid
                     WHERE records_fts MATCH ?\(whereClause)
                     ORDER BY rank LIMIT ? OFFSET ?
                     """, arguments: StatementArguments([match] + filterParams + [limit, offset]))
                 return (r, t)
             }
-            return json(["records": rows.map { recordDict($0) }, "total": total])
+            return json(["records": withStaleness(rows.map { recordDict($0) },
+                                                  store: store),
+                         "total": total])
         } catch {
             return json(["error": "records unavailable: \(error.localizedDescription)"])
         }
     }
 
     // MARK: - Response budget
+
+    /// meta.stale health line: the resolved workspace's shallow freshness
+    /// (stat per indexed row — no disk walk, ~0.1s on 5k files) behind a
+    /// per-workspace 30s TTL, so every tool response can carry it for ~0
+    /// on repeat calls. nil = unresolvable workspace / no index / scan
+    /// failure → the key is omitted silently, never breaking a response.
+    // nonisolated(unsafe): every access runs under staleCacheLock below.
+    nonisolated(unsafe) private static var staleCache:
+        [String: (at: Date, stale: Int)] = [:]
+    private static let staleCacheLock = NSLock()
+    private static let staleCacheTTL: TimeInterval = 30
+
+    /// Drop cached freshness — after index_workspace runs, or from tests
+    /// that need a deterministic rescan. nil key = all workspaces.
+    static func invalidateStaleCache(_ key: String? = nil) {
+        staleCacheLock.lock()
+        defer { staleCacheLock.unlock() }
+        if let key { staleCache.removeValue(forKey: key) }
+        else { staleCache.removeAll() }
+    }
+
+    static func indexStaleness(args: [String: Value]) -> Int? {
+        guard let url = try? workspace(args) else { return nil }
+        let key = Store.key(for: url)
+        staleCacheLock.lock()
+        if let c = staleCache[key],
+           Date().timeIntervalSince(c.at) < staleCacheTTL {
+            staleCacheLock.unlock()
+            return c.stale
+        }
+        staleCacheLock.unlock()
+        // Store() creates the index dir on open — guard on the db file
+        // first so the health check never materializes an empty index.
+        guard FileManager.default.fileExists(
+                atPath: Store.indexURL(forKey: key).path),
+              let store = try? Store(workspaceRoot: url),
+              let f = try? Indexer(store: store, embedder: Embedder.shared)
+                    .freshness(deep: false)
+        else { return nil }
+        staleCacheLock.lock()
+        staleCache[key] = (Date(), f.staleCount)
+        staleCacheLock.unlock()
+        return f.staleCount
+    }
+
+    /// meta.stale payload shape — count + the one-line remediation hint.
+    static func staleMeta(_ stale: Int) -> [String: Any] {
+        ["stale_files": stale,
+         "hint": "index is behind the filesystem — run index_workspace"]
+    }
 
     /// Hard ceiling for any single tool response. Oversized payloads blow up
     /// an agent's context; trim within budget or fail loudly instead.
@@ -1168,6 +1340,9 @@ public enum SwctxTools {
         var size = encoded(dict)
         var omitted = 0
         var truncated = false
+        // Health line, resolved once per response (TTL-cached): present
+        // only with evidence — stale>0. Fresh and unresolvable omit.
+        let stale = indexStaleness(args: args).flatMap { $0 > 0 ? $0 : nil }
 
         if size > limit {
             // Cut oversized content strings first, stepping down so a tight
@@ -1193,21 +1368,25 @@ public enum SwctxTools {
             truncated = truncated || omitted > 0
         }
         if size > limit {
+            var em: [String: Any] = ["truncation_applied": true,
+                                     "content_status": "error",
+                                     "omitted": ["items": omitted,
+                                                 "reason": budget != nil ? "max_tokens" : "response_cap",
+                                                 "limit_bytes": limit] as [String: Any]]
+            if let stale { em["stale"] = staleMeta(stale) }
             let err: [String: Any] = [
                 "error": [
                     "code": "E_OUTPUT_TOO_LARGE",
                     "message": "response \(size)B exceeds limit \(limit)B even after trimming; narrow the query or raise max_tokens",
                 ] as [String: Any],
-                "meta": ["truncation_applied": true, "content_status": "error",
-                         "omitted": ["items": omitted,
-                                     "reason": budget != nil ? "max_tokens" : "response_cap",
-                                     "limit_bytes": limit] as [String: Any]],
+                "meta": em,
             ]
             return json(err)
         }
         var meta = dict["meta"] as? [String: Any] ?? [:]
         meta["truncation_applied"] = truncated
         meta["content_status"] = truncated ? "truncated" : "full"
+        if let stale { meta["stale"] = staleMeta(stale) }
         if omitted > 0 {
             meta["omitted"] = [
                 "items": omitted,

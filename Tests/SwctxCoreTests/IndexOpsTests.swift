@@ -95,6 +95,96 @@ final class IndexOpsTests: XCTestCase {
         XCTAssertEqual(counts.0, counts.1)
     }
 
+    /// `swctx index` auto-embeds: a fresh run drains every pending chunk,
+    /// not just a bounded first batch — pendingEmbeddings ends at 0.
+    func testIndexAutoEmbedsAllPending() throws {
+        let embedder = Embedder()
+        guard embedder.isAvailable else {
+            throw XCTSkip("no embedding model available in test environment")
+        }
+        let dir = try tempDir()
+        defer { try? FileManager.default.removeItem(at: dir) }
+        try "def alpha():\n    return 1\n\ndef helper():\n    return alpha() + 1\n".write(
+            to: dir.appendingPathComponent("a.py"), atomically: true, encoding: .utf8)
+        try "def beta():\n    return 2\n".write(
+            to: dir.appendingPathComponent("b.py"), atomically: true, encoding: .utf8)
+
+        let store = try Store(workspaceRoot: dir)
+        let report = try Indexer(store: store, embedder: embedder).run(force: true)
+        XCTAssertEqual(report.pendingEmbeddings, 0)
+        XCTAssertGreaterThan(report.embeddedChunks, 0)
+        let counts = try store.pool.read { db in
+            (try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM chunks") ?? 0,
+             try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM embeddings") ?? 0)
+        }
+        XCTAssertGreaterThan(counts.0, 0)
+        XCTAssertEqual(counts.0, counts.1)
+        XCTAssertEqual(report.embeddedChunks, counts.1)
+    }
+
+    /// `index --skip-embed` keeps the old bounded behavior: no embed pass
+    /// runs, every chunk stays pending for a later `swctx embed`.
+    func testIndexSkipEmbedLeavesPending() throws {
+        let dir = try tempDir()
+        defer { try? FileManager.default.removeItem(at: dir) }
+        try "def alpha():\n    return 1\n".write(
+            to: dir.appendingPathComponent("a.py"), atomically: true, encoding: .utf8)
+
+        let store = try Store(workspaceRoot: dir)
+        let report = try Indexer(store: store).run(force: true, autoEmbed: false)
+        XCTAssertEqual(report.embeddedChunks, 0)
+        XCTAssertNil(report.embeddingModel)
+        let chunks = try store.pool.read { db in
+            try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM chunks") ?? 0
+        }
+        XCTAssertGreaterThan(chunks, 0)
+        XCTAssertEqual(report.pendingEmbeddings, chunks)
+    }
+
+    /// Embed failure must not fail the index: a stored vector at a foreign
+    /// dim trips embedAll's mixed-dim guard, the error lands in
+    /// report.errors, and the still-uncovered chunk reports as pending.
+    func testIndexEmbedFailureDoesNotFailIndex() throws {
+        let embedder = Embedder()
+        guard embedder.isAvailable else {
+            throw XCTSkip("no embedding model available in test environment")
+        }
+        let dir = try tempDir()
+        defer { try? FileManager.default.removeItem(at: dir) }
+        try "def alpha():\n    return 1\n\ndef helper():\n    return alpha() + 1\n".write(
+            to: dir.appendingPathComponent("a.py"), atomically: true, encoding: .utf8)
+        try "def beta():\n    return 2\n".write(
+            to: dir.appendingPathComponent("b.py"), atomically: true, encoding: .utf8)
+
+        let store = try Store(workspaceRoot: dir)
+        let indexer = Indexer(store: store, embedder: embedder)
+        try indexer.run(force: true)
+        let embedded = try store.pool.read { db in
+            try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM embeddings") ?? 0
+        }
+        XCTAssertGreaterThanOrEqual(embedded, 2)
+
+        // Corrupt one vector's dim (trips the mixed-dim guard next run)
+        // and strip another chunk's vector (stays pending, honestly).
+        try store.pool.write { db in
+            try db.execute(sql: """
+                UPDATE embeddings SET dim = dim + 1
+                WHERE chunk_id = (SELECT MIN(chunk_id) FROM embeddings)
+                """)
+            try db.execute(sql: """
+                DELETE FROM embeddings
+                WHERE chunk_id = (SELECT MAX(chunk_id) FROM embeddings)
+                """)
+        }
+
+        let report = try indexer.run(force: false)
+        XCTAssertEqual(report.filesUnchanged, 2)
+        XCTAssertEqual(report.embeddedChunks, 0)
+        XCTAssertEqual(report.pendingEmbeddings, 1)
+        XCTAssertTrue(report.errors.contains { $0.contains("dim") },
+                      "expected dim-guard error, got \(report.errors)")
+    }
+
     /// `.git` as a directory: the lock is `<root>/.git/index.lock`.
     func testGitLockPlainRepo() throws {
         let dir = try tempDir()

@@ -109,6 +109,49 @@ functions) — adjust expectations there if the workspace changes.
   edges absent from swctx's site-M index (verdict: mostly phantom
   resolutions + deliberately-skipped field/type edges, ~2% genuine).
 
+## MCP-wire recall + CI ratchet (2026-09-18)
+
+`bench/recall.py` measures the CLI path (`swctx search`, one process per
+query). The fleet only ever calls MCP tools, so `bench/recall_mcp.py`
+runs the SAME 36 gold queries entirely through one persistent `swctx mcp`
+stdio session — `tools/call search` (`mode=auto`, `limit=5`) on all
+queries, plus `tools/call find_definitions` on definition-kind. One
+discarded warmup call per workspace absorbs first-call index/embedder
+load so recorded latencies are steady-state.
+
+```bash
+python3 bench/recall_mcp.py             # run + append results.csv
+python3 bench/recall_mcp.py --no-csv    # run without touching CSV
+python3 bench/recall_mcp.py --ratchet   # CI gates; exit !=0 on failure
+```
+
+CSV rows are labelled `swctx:search-mcp` / `swctx:find-defs-mcp` —
+compare like-with-like against the CLI `swctx:search` rows by engine
+name. First MCP-wire run: search recall@5 = 0.9722 (35/36), identical to
+the CLI path; same single miss (`lib/gas.ts` query on event-qr-checkin).
+
+**Ratchet gates** (verdict + per-gate lines on stderr, JSON still on
+stdout; implies `--no-csv`):
+
+- `recall@5` — `swctx:search-mcp` recall over all 36 gold queries must be
+  >= `--min-recall` (default 0.95, i.e. at most one miss).
+- `p95-latency` — p95 across every per-query MCP call (search +
+  find_definitions, ~54 samples) must be <= `--max-p95-ms` (default 150).
+- `schema-golden` — live `tools/list` `{name, inputSchema}` must equal
+  `bench/tool_schemas.golden.json` (`--golden` to override). Catches
+  silent tool-surface regressions like the flat-schema bug.
+
+`bench/tool_schemas.golden.json` is a canonical dump (sorted by name,
+sorted keys) of the 20 tools' `{name, inputSchema}` from a live
+`tools/list`. Regenerate after an INTENTIONAL surface change:
+
+```bash
+python3 bench/recall_mcp.py --write-golden
+```
+
+Check just the schema gate without a recall run (cheap, exit !=0 on
+diff): `python3 bench/recall_mcp.py --check-schema`.
+
 ## Output
 
 - `bench/results.json` — full machine record: server argv/info, seeds used,

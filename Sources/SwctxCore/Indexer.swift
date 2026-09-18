@@ -40,7 +40,9 @@ public final class Indexer {
 
     static let maxFileSize = 1_000_000
     static let maxFiles = 60_000
-    static let embedBatchLimit = 4_000
+    /// Cap on `embedAll` batches inside `run()` so a pathological store
+    /// can't loop forever; `swctx embed` stays uncapped.
+    static let embedMaxBatches = 50
     /// File stems that re-export a directory as a module: python __init__,
     /// js/ts index, rust mod.
     static let packageIndexStems: Set<String> = ["__init__", "index", "mod"]
@@ -164,7 +166,8 @@ public final class Indexer {
     // MARK: - Index
 
     @discardableResult
-    public func run(force: Bool, progress: @escaping @Sendable (String) -> Void = { _ in }) throws -> IndexReport {
+    public func run(force: Bool, autoEmbed: Bool = true,
+                    progress: @escaping @Sendable (String) -> Void = { _ in }) throws -> IndexReport {
         let started = Date()
         var report = IndexReport(workspace: store.workspaceRoot.path)
         let files = discoverFiles()
@@ -229,14 +232,25 @@ public final class Indexer {
         // Resolve edges: dst_name -> symbols
         report.edgesResolved = try resolveEdges()
 
-        // Embedding pass (bounded; use `swctx embed` to fill the remainder)
-        if embedder.isAvailable {
+        // Embedding pass: keep embedding in bounded batches until no
+        // pending chunks remain (capped at embedMaxBatches); `swctx embed`
+        // fills whatever a mid-run failure or the cap leaves. Never fails
+        // the index — embed errors land in report.errors.
+        if autoEmbed, embedder.isAvailable {
             report.embeddingModel = embedder.modelName
-            var failed: Set<Int64> = []
-            report.embeddedChunks = try embedPending(
-                limit: Indexer.embedBatchLimit, failed: &failed).1
+            do {
+                report.embeddedChunks = try embedAll(
+                    maxBatches: Indexer.embedMaxBatches
+                ) { done in progress("embedded \(done)") }
+            } catch {
+                report.errors.append("embed: \(error.localizedDescription)")
+            }
         }
         report.pendingEmbeddings = (try? pendingEmbeddings()) ?? 0
+        if autoEmbed, embedder.isAvailable, report.pendingEmbeddings > 0 {
+            report.errors.append(
+                "embed: \(report.pendingEmbeddings) chunks still pending — run `swctx embed`")
+        }
 
         report.durationMs = Int(Date().timeIntervalSince(started) * 1000)
         Store.register(root: store.workspaceRoot)
@@ -742,9 +756,11 @@ public final class Indexer {
 
     /// Embed all remaining chunks, looping in bounded batches.
     /// `reindex: true` drops every stored vector first (text format changed).
+    /// `maxBatches > 0` caps the batch loop (index runs pass
+    /// `embedMaxBatches`); `swctx embed` leaves it uncapped.
     /// Returns total embedded this call.
     @discardableResult
-    public func embedAll(reindex: Bool = false,
+    public func embedAll(reindex: Bool = false, maxBatches: Int = 0,
                        progress: @escaping @Sendable (Int) -> Void = { _ in }) throws -> Int {
         if reindex {
             try store.pool.write { db in try db.execute(sql: "DELETE FROM embeddings") }
@@ -764,6 +780,7 @@ public final class Indexer {
         var total = 0
         var skip: Set<Int64> = []
         var retries = 0
+        var batches = 0
         while true {
             // Terminate on attempted==0, not embedded==0: a batch whose rows all
             // fail to embed must not stop the run while other rows remain.
@@ -772,6 +789,8 @@ public final class Indexer {
             if attempted == 0 { break }
             total += embedded
             progress(total)
+            batches += 1
+            if maxBatches > 0 && batches >= maxBatches { break }
             // CoreML predictions can start failing transiently after many
             // inferences in one process; recreate the embedder once and give
             // the skipped rows a second pass instead of abandoning them.

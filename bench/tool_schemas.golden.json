@@ -1,0 +1,666 @@
+{
+ "protocol_version": "2024-11-05",
+ "server": "swctx",
+ "tool_count": 20,
+ "tools": [
+  {
+   "inputSchema": {
+    "properties": {
+     "budget": {
+      "description": "Max evidence items, default 12",
+      "type": "integer"
+     },
+     "expand": {
+      "description": "Include 1-hop call/called_by neighbors (default true)",
+      "type": "boolean"
+     },
+     "max_tokens": {
+      "description": "Optional response budget (~4 chars/token); arrays trim tail-first, meta.omitted reports drops. Hard cap ~64KB always applies",
+      "type": "integer"
+     },
+     "path": {
+      "description": "Optional relative path prefix filter",
+      "type": "string"
+     },
+     "query": {
+      "description": "Natural-language or keyword query",
+      "type": "string"
+     },
+     "workspace": {
+      "description": "Absolute project path; omit or \"auto\" to resolve the nearest indexed ancestor of the server process cwd",
+      "type": "string"
+     }
+    },
+    "required": [
+     "query"
+    ],
+    "type": "object"
+   },
+   "name": "context_pack"
+  },
+  {
+   "inputSchema": {
+    "properties": {
+     "max_tokens": {
+      "description": "Optional response budget (~4 chars/token); arrays trim tail-first, meta.omitted reports drops. Hard cap ~64KB always applies",
+      "type": "integer"
+     },
+     "query": {
+      "description": "Optional query to also surface top-5 relevant chunks",
+      "type": "string"
+     },
+     "workspace": {
+      "description": "Absolute project path; omit or \"auto\" to resolve the nearest indexed ancestor of the server process cwd",
+      "type": "string"
+     }
+    },
+    "type": "object"
+   },
+   "name": "fast_understand"
+  },
+  {
+   "inputSchema": {
+    "properties": {
+     "chunk_ids": {
+      "description": "Integer chunk IDs",
+      "type": "array"
+     },
+     "include_content": {
+      "description": "Default true",
+      "type": "boolean"
+     },
+     "max_tokens": {
+      "description": "Optional response budget (~4 chars/token); arrays trim tail-first, meta.omitted reports drops. Hard cap ~64KB always applies",
+      "type": "integer"
+     },
+     "workspace": {
+      "description": "Absolute project path; omit or \"auto\" to resolve the nearest indexed ancestor of the server process cwd",
+      "type": "string"
+     }
+    },
+    "required": [
+     "chunk_ids"
+    ],
+    "type": "object"
+   },
+   "name": "fetch_chunks"
+  },
+  {
+   "inputSchema": {
+    "properties": {
+     "include_content": {
+      "description": "Include chunk source (default false)",
+      "type": "boolean"
+     },
+     "max_tokens": {
+      "description": "Optional response budget (~4 chars/token); arrays trim tail-first, meta.omitted reports drops. Hard cap ~64KB always applies",
+      "type": "integer"
+     },
+     "symbols": {
+      "description": "1-20 symbol names",
+      "type": "array"
+     },
+     "workspace": {
+      "description": "Absolute project path; omit or \"auto\" to resolve the nearest indexed ancestor of the server process cwd",
+      "type": "string"
+     }
+    },
+    "required": [
+     "symbols"
+    ],
+    "type": "object"
+   },
+   "name": "find_definitions"
+  },
+  {
+   "inputSchema": {
+    "properties": {
+     "definition_symbol_id": {
+      "description": "Pin an exact definition (symbols.id); resolved edges only",
+      "type": "integer"
+     },
+     "edge_kinds": {
+      "description": "calls | imports | implements; default calls",
+      "type": "array"
+     },
+     "include_content": {
+      "description": "Default false",
+      "type": "boolean"
+     },
+     "limit": {
+      "description": "Default 50, max 1000",
+      "type": "integer"
+     },
+     "max_tokens": {
+      "description": "Optional response budget (~4 chars/token); arrays trim tail-first, meta.omitted reports drops. Hard cap ~64KB always applies",
+      "type": "integer"
+     },
+     "symbol_name": {
+      "description": "Symbol to locate usages for",
+      "type": "string"
+     },
+     "workspace": {
+      "description": "Absolute project path; omit or \"auto\" to resolve the nearest indexed ancestor of the server process cwd",
+      "type": "string"
+     }
+    },
+    "type": "object"
+   },
+   "name": "find_usages"
+  },
+  {
+   "inputSchema": {
+    "properties": {
+     "chunk_id": {
+      "description": "",
+      "type": "integer"
+     },
+     "include_content": {
+      "description": "Default false",
+      "type": "boolean"
+     },
+     "max_hops": {
+      "description": "Default 2, max 4",
+      "type": "integer"
+     },
+     "max_tokens": {
+      "description": "Optional response budget (~4 chars/token); arrays trim tail-first, meta.omitted reports drops. Hard cap ~64KB always applies",
+      "type": "integer"
+     },
+     "workspace": {
+      "description": "Absolute project path; omit or \"auto\" to resolve the nearest indexed ancestor of the server process cwd",
+      "type": "string"
+     }
+    },
+    "required": [
+     "chunk_id"
+    ],
+    "type": "object"
+   },
+   "name": "get_impact"
+  },
+  {
+   "inputSchema": {
+    "properties": {
+     "id": {
+      "description": "Workspace-local record ID",
+      "type": "integer"
+     },
+     "include_payload": {
+      "description": "Include full payload (default true)",
+      "type": "boolean"
+     },
+     "max_tokens": {
+      "description": "Optional response budget (~4 chars/token); arrays trim tail-first, meta.omitted reports drops. Hard cap ~64KB always applies",
+      "type": "integer"
+     },
+     "workspace": {
+      "description": "Absolute project path; omit or \"auto\" to resolve the nearest indexed ancestor of the server process cwd",
+      "type": "string"
+     }
+    },
+    "required": [
+     "id"
+    ],
+    "type": "object"
+   },
+   "name": "get_record"
+  },
+  {
+   "inputSchema": {
+    "properties": {
+     "freshness": {
+      "description": "\"deep\" = full directory scan incl. new files (slower; default stats indexed files only)",
+      "type": "string"
+     },
+     "max_tokens": {
+      "description": "Optional response budget (~4 chars/token); arrays trim tail-first, meta.omitted reports drops. Hard cap ~64KB always applies",
+      "type": "integer"
+     },
+     "workspace": {
+      "description": "Absolute project path; omit or \"auto\" to resolve the nearest indexed ancestor of the server process cwd",
+      "type": "string"
+     }
+    },
+    "type": "object"
+   },
+   "name": "get_status"
+  },
+  {
+   "inputSchema": {
+    "properties": {
+     "cursor": {
+      "description": "File offset",
+      "type": "integer"
+     },
+     "limit": {
+      "description": "Files per page, default 200",
+      "type": "integer"
+     },
+     "max_depth": {
+      "description": "Max path components below root",
+      "type": "integer"
+     },
+     "max_tokens": {
+      "description": "Optional response budget (~4 chars/token); arrays trim tail-first, meta.omitted reports drops. Hard cap ~64KB always applies",
+      "type": "integer"
+     },
+     "query": {
+      "description": "Substring filter on file path",
+      "type": "string"
+     },
+     "root": {
+      "description": "Optional relative subtree root",
+      "type": "string"
+     },
+     "status": {
+      "description": "stale | fresh \u2014 disk-vs-index comparison",
+      "type": "string"
+     },
+     "workspace": {
+      "description": "Absolute project path; omit or \"auto\" to resolve the nearest indexed ancestor of the server process cwd",
+      "type": "string"
+     }
+    },
+    "type": "object"
+   },
+   "name": "get_workspace_tree"
+  },
+  {
+   "inputSchema": {
+    "properties": {
+     "include_content": {
+      "description": "Default false",
+      "type": "boolean"
+     },
+     "max_tokens": {
+      "description": "Optional response budget (~4 chars/token); arrays trim tail-first, meta.omitted reports drops. Hard cap ~64KB always applies",
+      "type": "integer"
+     },
+     "mode": {
+      "description": "related (default) | calls | imports",
+      "type": "string"
+     },
+     "seeds": {
+      "description": "Non-empty array of {chunk_id, score?}",
+      "type": "array"
+     },
+     "workspace": {
+      "description": "Absolute project path; omit or \"auto\" to resolve the nearest indexed ancestor of the server process cwd",
+      "type": "string"
+     }
+    },
+    "required": [
+     "seeds"
+    ],
+    "type": "object"
+   },
+   "name": "graph_expand"
+  },
+  {
+   "inputSchema": {
+    "properties": {
+     "chunk_id": {
+      "description": "Seed chunk ID",
+      "type": "integer"
+     },
+     "depth": {
+      "description": "BFS hops, 1-3, default 1",
+      "type": "integer"
+     },
+     "direction": {
+      "description": "incoming | outgoing | both",
+      "type": "string"
+     },
+     "edge_kinds": {
+      "description": "Edge type filter",
+      "type": "array"
+     },
+     "include_content": {
+      "description": "Include neighbor chunk source (default false)",
+      "type": "boolean"
+     },
+     "limit": {
+      "description": "Default 20",
+      "type": "integer"
+     },
+     "max_tokens": {
+      "description": "Optional response budget (~4 chars/token); arrays trim tail-first, meta.omitted reports drops. Hard cap ~64KB always applies",
+      "type": "integer"
+     },
+     "workspace": {
+      "description": "Absolute project path; omit or \"auto\" to resolve the nearest indexed ancestor of the server process cwd",
+      "type": "string"
+     }
+    },
+    "required": [
+     "chunk_id"
+    ],
+    "type": "object"
+   },
+   "name": "graph_neighbors"
+  },
+  {
+   "inputSchema": {
+    "properties": {
+     "edge_kinds": {
+      "description": "",
+      "type": "array"
+     },
+     "from_chunk_id": {
+      "description": "",
+      "type": "integer"
+     },
+     "include_content": {
+      "description": "Default false",
+      "type": "boolean"
+     },
+     "max_hops": {
+      "description": "Default 5",
+      "type": "integer"
+     },
+     "max_paths": {
+      "description": "Default 3, max 10",
+      "type": "integer"
+     },
+     "max_tokens": {
+      "description": "Optional response budget (~4 chars/token); arrays trim tail-first, meta.omitted reports drops. Hard cap ~64KB always applies",
+      "type": "integer"
+     },
+     "strategy": {
+      "description": "shortest | all | all_simple",
+      "type": "string"
+     },
+     "to_chunk_id": {
+      "description": "",
+      "type": "integer"
+     },
+     "workspace": {
+      "description": "Absolute project path; omit or \"auto\" to resolve the nearest indexed ancestor of the server process cwd",
+      "type": "string"
+     }
+    },
+    "required": [
+     "from_chunk_id",
+     "to_chunk_id"
+    ],
+    "type": "object"
+   },
+   "name": "graph_paths"
+  },
+  {
+   "inputSchema": {
+    "properties": {
+     "dry_run": {
+      "description": "Report what would change without writing",
+      "type": "boolean"
+     },
+     "force": {
+      "description": "Full re-index, ignoring cached hashes",
+      "type": "boolean"
+     },
+     "max_tokens": {
+      "description": "Optional response budget (~4 chars/token); arrays trim tail-first, meta.omitted reports drops. Hard cap ~64KB always applies",
+      "type": "integer"
+     },
+     "skip_embed": {
+      "description": "Skip the auto-embed tail; fill later with swctx embed",
+      "type": "boolean"
+     },
+     "use_workspace_root": {
+      "description": "Resolve a nested path up to its indexed workspace root",
+      "type": "boolean"
+     },
+     "workspace": {
+      "description": "Absolute project path; omit or \"auto\" to resolve the nearest indexed ancestor of the server process cwd",
+      "type": "string"
+     }
+    },
+    "type": "object"
+   },
+   "name": "index_workspace"
+  },
+  {
+   "inputSchema": {
+    "properties": {
+     "include_content": {
+      "description": "Default false",
+      "type": "boolean"
+     },
+     "limit": {
+      "description": "Default 50, max 200",
+      "type": "integer"
+     },
+     "max_tokens": {
+      "description": "Optional response budget (~4 chars/token); arrays trim tail-first, meta.omitted reports drops. Hard cap ~64KB always applies",
+      "type": "integer"
+     },
+     "offset": {
+      "description": "Pagination offset",
+      "type": "integer"
+     },
+     "path": {
+      "description": "Relative file or directory path",
+      "type": "string"
+     },
+     "query": {
+      "description": "Optional semantic rerank query",
+      "type": "string"
+     },
+     "rerank_pool_size": {
+      "description": "Query-mode candidate pool, default 150, max 500",
+      "type": "integer"
+     },
+     "workspace": {
+      "description": "Absolute project path; omit or \"auto\" to resolve the nearest indexed ancestor of the server process cwd",
+      "type": "string"
+     }
+    },
+    "required": [
+     "path"
+    ],
+    "type": "object"
+   },
+   "name": "inspect_path"
+  },
+  {
+   "inputSchema": {
+    "properties": {
+     "kind": {
+      "description": "Record kind filter",
+      "type": "string"
+     },
+     "limit": {
+      "description": "1-100, default 50",
+      "type": "integer"
+     },
+     "max_tokens": {
+      "description": "Optional response budget (~4 chars/token); arrays trim tail-first, meta.omitted reports drops. Hard cap ~64KB always applies",
+      "type": "integer"
+     },
+     "offset": {
+      "description": "Pagination offset",
+      "type": "integer"
+     },
+     "scope": {
+      "description": "workspace (default) | global (repo-wide ledger, shared across worktrees) | all (union)",
+      "type": "string"
+     },
+     "source": {
+      "description": "cli | mcp | http",
+      "type": "string"
+     },
+     "status": {
+      "description": "running | completed | failed",
+      "type": "string"
+     },
+     "workspace": {
+      "description": "Absolute project path; omit or \"auto\" to resolve the nearest indexed ancestor of the server process cwd",
+      "type": "string"
+     }
+    },
+    "type": "object"
+   },
+   "name": "list_records"
+  },
+  {
+   "inputSchema": {
+    "properties": {
+     "cursor": {
+      "description": "Offset",
+      "type": "integer"
+     },
+     "limit": {
+      "description": "1-100, default 100",
+      "type": "integer"
+     },
+     "max_tokens": {
+      "description": "Optional response budget (~4 chars/token); arrays trim tail-first, meta.omitted reports drops. Hard cap ~64KB always applies",
+      "type": "integer"
+     }
+    },
+    "type": "object"
+   },
+   "name": "list_workspaces"
+  },
+  {
+   "inputSchema": {
+    "properties": {
+     "format": {
+      "description": "markdown (default) | json",
+      "type": "string"
+     },
+     "max_tokens": {
+      "description": "Optional response budget (~4 chars/token); arrays trim tail-first, meta.omitted reports drops. Hard cap ~64KB always applies",
+      "type": "integer"
+     },
+     "workspace": {
+      "description": "Absolute project path; omit or \"auto\" to resolve the nearest indexed ancestor of the server process cwd",
+      "type": "string"
+     }
+    },
+    "type": "object"
+   },
+   "name": "prime"
+  },
+  {
+   "inputSchema": {
+    "properties": {
+     "kind": {
+      "description": "note | finding | decision | todo | context_pack | ask",
+      "type": "string"
+     },
+     "max_tokens": {
+      "description": "Optional response budget (~4 chars/token); arrays trim tail-first, meta.omitted reports drops. Hard cap ~64KB always applies",
+      "type": "integer"
+     },
+     "payload": {
+      "description": "Record body (plain text or JSON)",
+      "type": "string"
+     },
+     "status": {
+      "description": "running | completed | failed \u2014 default completed",
+      "type": "string"
+     },
+     "title": {
+      "description": "Short record title",
+      "type": "string"
+     },
+     "workspace": {
+      "description": "Absolute project path; omit or \"auto\" to resolve the nearest indexed ancestor of the server process cwd",
+      "type": "string"
+     }
+    },
+    "required": [
+     "kind",
+     "title",
+     "payload"
+    ],
+    "type": "object"
+   },
+   "name": "put_record"
+  },
+  {
+   "inputSchema": {
+    "properties": {
+     "limit": {
+      "description": "Max hits, default 20",
+      "type": "integer"
+     },
+     "max_tokens": {
+      "description": "Optional response budget (~4 chars/token); arrays trim tail-first, meta.omitted reports drops. Hard cap ~64KB always applies",
+      "type": "integer"
+     },
+     "mode": {
+      "description": "auto (default) | hybrid | fts | semantic | identifier",
+      "type": "string"
+     },
+     "path": {
+      "description": "Optional relative path prefix to scope results",
+      "type": "string"
+     },
+     "query": {
+      "description": "Natural-language or keyword query",
+      "type": "string"
+     },
+     "workspace": {
+      "description": "Absolute project path; omit or \"auto\" to resolve the nearest indexed ancestor of the server process cwd",
+      "type": "string"
+     }
+    },
+    "required": [
+     "query"
+    ],
+    "type": "object"
+   },
+   "name": "search"
+  },
+  {
+   "inputSchema": {
+    "properties": {
+     "kind": {
+      "description": "Record kind filter",
+      "type": "string"
+     },
+     "limit": {
+      "description": "1-100, default 50",
+      "type": "integer"
+     },
+     "max_tokens": {
+      "description": "Optional response budget (~4 chars/token); arrays trim tail-first, meta.omitted reports drops. Hard cap ~64KB always applies",
+      "type": "integer"
+     },
+     "offset": {
+      "description": "Pagination offset",
+      "type": "integer"
+     },
+     "query": {
+      "description": "Full-text search query",
+      "type": "string"
+     },
+     "scope": {
+      "description": "workspace (default) | global (repo-wide ledger, shared across worktrees) | all (union)",
+      "type": "string"
+     },
+     "source": {
+      "description": "cli | mcp | http",
+      "type": "string"
+     },
+     "status": {
+      "description": "running | completed | failed",
+      "type": "string"
+     },
+     "workspace": {
+      "description": "Absolute project path; omit or \"auto\" to resolve the nearest indexed ancestor of the server process cwd",
+      "type": "string"
+     }
+    },
+    "required": [
+     "query"
+    ],
+    "type": "object"
+   },
+   "name": "search_records"
+  }
+ ]
+}

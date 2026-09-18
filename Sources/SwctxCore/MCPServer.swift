@@ -51,10 +51,11 @@ public enum MCPServer {
                 annotations: .init(readOnlyHint: true)),
             Tool(
                 name: "index_workspace",
-                description: "Create or update the workspace index. Parses files, extracts symbols and call/import edges, embeds chunks on-device.",
+                description: "Create or update the workspace index. Parses files, extracts symbols and call/import edges, embeds chunks on-device. Embeds ALL pending chunks by default — pass skip_embed to defer to `swctx embed`.",
                 inputSchema: obj([wsProp, uwrProp,
                                   ("force", prop("boolean", "Full re-index, ignoring cached hashes")),
                                   ("dry_run", prop("boolean", "Report what would change without writing")),
+                                  ("skip_embed", prop("boolean", "Skip the auto-embed tail; fill later with swctx embed")),
                                   budgetProp, ("type", .string("object"))])),
             Tool(
                 name: "list_workspaces",

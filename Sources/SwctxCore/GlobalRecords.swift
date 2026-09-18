@@ -32,8 +32,19 @@ public final class GlobalRecords: @unchecked Sendable {
                     status TEXT NOT NULL DEFAULT 'completed',
                     title TEXT NOT NULL,
                     payload TEXT NOT NULL,
-                    created_at REAL NOT NULL);
+                    created_at REAL NOT NULL,
+                    head_sha TEXT,
+                    anchors TEXT);
                 """)
+            // In-place upgrade for ledgers created before the staleness
+            // columns existed — same columns as the workspace records
+            // table (Store schema v4).
+            let cols = try Row.fetchAll(db, sql: "PRAGMA table_info(records)")
+                .compactMap { $0["name"] as? String }
+            for col in ["head_sha", "anchors"] where !cols.contains(col) {
+                try db.execute(
+                    sql: "ALTER TABLE records ADD COLUMN \(col) TEXT")
+            }
             try db.execute(sql:
                 "CREATE INDEX IF NOT EXISTS idx_records_ws ON records(ws)")
             try db.create(virtualTable: "records_fts", ifNotExists: true,
@@ -46,15 +57,21 @@ public final class GlobalRecords: @unchecked Sendable {
     }
 
     /// Insert one shared record; the per-(ws, kind) quota mirrors Store's.
+    /// headSHA/anchors are the same staleness evidence put_record writes
+    /// to the workspace ledger.
     @discardableResult
     public func insert(ws: String, kind: String, source: String, status: String,
-                       title: String, payload: String) throws -> Int64 {
+                       title: String, payload: String,
+                       headSHA: String? = nil,
+                       anchors: [String]? = nil) throws -> Int64 {
         try pool.write { db in
             try db.execute(sql: """
-                INSERT INTO records(ws, kind, source, status, title, payload, created_at)
-                VALUES(?,?,?,?,?,?,?)
+                INSERT INTO records(ws, kind, source, status, title, payload,
+                                    created_at, head_sha, anchors)
+                VALUES(?,?,?,?,?,?,?,?,?)
                 """, arguments: [ws, kind, source, status, title, payload,
-                                 Date().timeIntervalSince1970])
+                                 Date().timeIntervalSince1970, headSHA,
+                                 Store.encodeAnchors(anchors ?? [])])
             let id = db.lastInsertedRowID
             try db.execute(sql: """
                 DELETE FROM records WHERE ws = ? AND kind = ? AND id NOT IN (

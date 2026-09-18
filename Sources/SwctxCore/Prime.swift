@@ -61,6 +61,9 @@ public enum Prime {
                               ["-C", root.path, "rev-parse", "--abbrev-ref", "HEAD"]) {
             out["branch"] = branch
         }
+        // Recent-record rows are fetched inside the read but judged by
+        // staleCheck after it — the check opens its own read + git probe.
+        var recent: [Row] = []
         try store.pool.read { db in
             out["schema"] = try String.fetchOne(db, sql:
                 "SELECT value FROM meta WHERE key = 'schema_version'") ?? "?"
@@ -89,13 +92,27 @@ public enum Prime {
                      "deg": (r["deg"] as? Int64) ?? 0]
                 }
             // Records table may be absent on pre-v2 DBs — degrade to [].
-            out["records"] = (try? Row.fetchAll(db, sql:
-                "SELECT kind, title FROM records ORDER BY id DESC LIMIT 5"
-                ).map { r -> [String: Any] in
-                    ["kind": (r["kind"] as? String) ?? "",
-                     "title": Understand.truncHead((r["title"] as? String) ?? "", 60)]
-                }) ?? []
+            recent = (try? Row.fetchAll(db, sql: """
+                SELECT kind, title, head_sha, anchors
+                FROM records ORDER BY id DESC LIMIT 5
+                """)) ?? []
         }
+        // Staleness marking: the card flags records whose captured anchors
+        // no longer verify, and the count feeds a warning below.
+        let checks = store.staleCheck(recent.map {
+            (headSHA: $0["head_sha"] as? String,
+             anchors: Store.decodeAnchors($0["anchors"] as? String))
+        })
+        var staleRecords = 0
+        out["records"] = recent.indices.map { i -> [String: Any] in
+            var d: [String: Any] = [
+                "kind": (recent[i]["kind"] as? String) ?? "",
+                "title": Understand.truncHead((recent[i]["title"] as? String) ?? "", 60),
+            ]
+            if checks[i].stale { d["stale"] = true; staleRecords += 1 }
+            return d
+        }
+        out["stale_records"] = staleRecords
         // Freshness: the same shallow stat probe get_status runs by default
         // (indexed rows only — no directory walk).
         let indexer = Indexer(store: store, embedder: Embedder.shared)
@@ -110,6 +127,10 @@ public enum Prime {
         var warnings: [String] = []
         if let stale = out["stale_files"] as? Int, stale > 0 {
             warnings.append("\(stale) stale files — run `swctx index`")
+        }
+        if let n = out["stale_records"] as? Int, n > 0 {
+            warnings.append(
+                "\(n) stale record\(n == 1 ? "" : "s") — verify against current code")
         }
         let chunks = (out["chunks"] as? Int) ?? 0
         let pending = (out["pending_embeddings"] as? Int) ?? 0
@@ -151,7 +172,11 @@ public enum Prime {
         }
         if let recs = s["records"] as? [[String: Any]], !recs.isEmpty {
             md += "Recent:\n"
-            for r in recs { md += "- \((r["kind"] as? String) ?? ""): \((r["title"] as? String) ?? "")\n" }
+            for r in recs {
+                md += "- \((r["kind"] as? String) ?? ""): \((r["title"] as? String) ?? "")"
+                if r["stale"] as? Bool == true { md += " ·stale" }
+                md += "\n"
+            }
         }
         let warnings = (s["warnings"] as? [String]) ?? []
         md += "Warnings:\n"

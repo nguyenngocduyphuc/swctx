@@ -277,9 +277,34 @@ extraction land nhưng index cũ giữ 0 implements edges cho tới khi force).
 - Bài học: bench/test phải đi **qua MCP**, không quanh nó — 0.972 đo qua
   CLI path, wire path chưa từng được test tới giờ này.
 
+### Staleness suite + auto-embed + ratchet (2026-09-18, 4 agent song song)
+
+- **Record invalidation** (schema v4): `records` + global ledger có
+  `head_sha` + `anchors` (JSON, ≤10 — symbol/path resolvable tại lúc ghi).
+  Record = stale khi HEAD đổi VÀ ≥1 anchor không còn resolve — head đổi
+  một mình không flag ("better NULL than wrong"). Batch-check ≤2 query
+  per response, áp dụng cả scope=all. `prime` đánh dấu `·stale` + count.
+- **`meta.stale` trên mọi tool response** khi index lệch filesystem —
+  `Indexer.freshness(deep:false)` + cache 30s/workspace, `index_workspace`
+  tự invalidate key sau run. Không bao giờ silent-stale kiểu ctxe.
+- **Auto-embed tail**: `index` giờ embed HẾT pending chunks (loop
+  embedAll, cap 50 batch ~100k) — hết bước `swctx embed` tay. Embed lỗi
+  → `report.errors`, không fail index. `--skip-embed` / `skip_embed` arg
+  opt-out. `embedMaxBatches` thay `embedBatchLimit` cũ.
+- **MCP-wire recall**: `bench/recall_mcp.py` — 36 gold qua persistent
+  `swctx mcp` stdio. Kết quả **0.9722 = CLI chính xác**, p95 53-58ms.
+  `--ratchet`: fail nếu recall<0.95, p95>150ms, hoặc schema lệch
+  `bench/tool_schemas.golden.json` (regen: `--write-golden`).
+- **`bench/vn-probe.md` — phát hiện quan trọng**: semantic leg 0/14 trên
+  query tiếng Việt (bge-base-**en**-v1.5 vocab English-only → VN text
+  thành [UNK] noise); FTS 36% nhờ unicode61 fold dấu. Model đa ngôn ngữ
+  (bge-m3-class) đáng đổi HƠN kỳ vọng — experiment tiếp: re-embed 1 ws
+  bằng multilingual model rồi chạy lại vn_probe.
+- Tests 49 → 57 (StalenessTests 5 + IndexOps +3 auto-embed).
+
 ## Quy ước vận hành
 
-- `swctx index <path>` incremental; `--force` full; `swctx embed` bù vectors;
+- `swctx index <path>` incremental; `--force` full; `swctx embed` bù vectors (index tự embed hết pending);
   `swctx watch` auto-reindex (FSEvents; `/tmp` không bắn event tin cậy).
 - stdout = protocol/JSON only; logs → stderr (MCP correctness).
 - Model weights KHÔNG commit vào repo (`.gitignore` → `~/.swctx/`).

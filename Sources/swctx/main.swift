@@ -21,6 +21,7 @@ struct IndexCmd: AsyncParsableCommand {
     @Argument(help: "Workspace path (default: current directory)") var path: String = "."
     @Flag(name: .long, help: "Full re-index, ignoring cached hashes") var force = false
     @Flag(name: .long, help: "Report what would change without writing") var dryRun = false
+    @Flag(name: .long, help: "Skip the post-index embedding pass (pending chunks stay for `swctx embed`)") var skipEmbed = false
     @Option(name: .long, help: "Output format: human | json") var format: String = "human"
 
     func run() async throws {
@@ -37,7 +38,7 @@ struct IndexCmd: AsyncParsableCommand {
             return
         }
         FileHandle.standardError.write("swctx: indexing \(root.path)\n".data(using: .utf8)!)
-        let report = try indexer.run(force: force) { msg in
+        let report = try indexer.run(force: force, autoEmbed: !skipEmbed) { msg in
             FileHandle.standardError.write("swctx: \(msg)\n".data(using: .utf8)!)
         }
         if format == "json" {
@@ -46,6 +47,9 @@ struct IndexCmd: AsyncParsableCommand {
         } else {
             print("Indexed \(report.filesIndexed) files (\(report.filesUnchanged) unchanged, \(report.filesDeleted) deleted)")
             print("  chunks=\(report.chunks) symbols=\(report.symbols) edges=\(report.edges) resolved=\(report.edgesResolved) vectors=\(report.embeddedChunks) preserved=\(report.vectorsPreserved)")
+            if report.pendingEmbeddings > 0 {
+                print("  pending embeddings: \(report.pendingEmbeddings) — run `swctx embed` to fill")
+            }
             print("  \(report.durationMs)ms")
             if !report.errors.isEmpty {
                 print("  errors: \(report.errors.count) (first: \(report.errors.first ?? ""))")
@@ -139,7 +143,7 @@ struct TreeCmd: AsyncParsableCommand {
 
 struct EmbedCmd: AsyncParsableCommand {
     static let configuration = CommandConfiguration(commandName: "embed",
-        abstract: "Fill pending on-device embeddings for an indexed workspace (index embeds a bounded batch only).")
+        abstract: "Fill pending on-device embeddings for an indexed workspace (index auto-embeds; this covers `index --skip-embed` and partial runs).")
     @Argument(help: "Workspace path") var path: String = "."
     @Flag(name: .long, help: "Drop all stored vectors and re-embed every chunk") var reindex = false
 

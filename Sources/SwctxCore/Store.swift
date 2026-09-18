@@ -8,7 +8,7 @@ public final class Store: @unchecked Sendable {
     public let workspaceRoot: URL
     public let workspaceKey: String
 
-    public static let schemaVersion = 3
+    public static let schemaVersion = 4
 
     public static func key(for root: URL) -> String {
         let digest = SHA256.hash(data: Data(root.standardizedFileURL.path.utf8))
@@ -130,6 +130,14 @@ public final class Store: @unchecked Sendable {
             // node type (`symbols.kind`); tool output reports norm + raw.
             try db.execute(sql: "ALTER TABLE symbols ADD COLUMN norm_kind TEXT")
         }
+        migrator.registerMigration("v4") { db in
+            // Record staleness evidence: git HEAD at capture + a compact
+            // JSON array of anchors (symbol names / file paths the record
+            // mentions). NULL = nothing verifiable — reads never flag on
+            // head movement alone.
+            try db.execute(sql: "ALTER TABLE records ADD COLUMN head_sha TEXT")
+            try db.execute(sql: "ALTER TABLE records ADD COLUMN anchors TEXT")
+        }
         try migrator.migrate(pool)
         try pool.write { db in
             try db.execute(
@@ -185,17 +193,41 @@ public final class Store: @unchecked Sendable {
                                 payloadJSON: String(decoding: data, as: UTF8.self))
     }
 
+    /// Compact anchors column: JSON array of strings, nil when empty so
+    /// anchor-free records stay NULL (nothing verifiable → never stale).
+    public static func encodeAnchors(_ anchors: [String]) -> String? {
+        guard !anchors.isEmpty,
+              let data = try? JSONSerialization.data(withJSONObject: anchors)
+        else { return nil }
+        return String(decoding: data, as: UTF8.self)
+    }
+
+    /// Decode the anchors column; missing/malformed JSON decodes empty.
+    public static func decodeAnchors(_ json: String?) -> [String] {
+        guard let json,
+              let arr = try? JSONSerialization.jsonObject(with: Data(json.utf8))
+                    as? [String]
+        else { return [] }
+        return arr
+    }
+
     /// Insert one record with a pre-encoded payload (raw text or JSON) and
-    /// explicit status, then apply the per-kind eviction bound.
+    /// explicit status, then apply the per-kind eviction bound. headSHA and
+    /// anchors are the staleness evidence captured by put_record; both stay
+    /// NULL for telemetry rows and non-git workspaces.
     @discardableResult
     public func insertRecord(kind: String, source: String, status: String,
-                             title: String, payloadJSON: String) throws -> Int64 {
+                             title: String, payloadJSON: String,
+                             headSHA: String? = nil,
+                             anchors: [String]? = nil) throws -> Int64 {
         try pool.write { db in
             try db.execute(sql: """
-                INSERT INTO records(kind, source, status, title, payload, created_at)
-                VALUES(?,?,?,?,?,?)
+                INSERT INTO records(kind, source, status, title, payload,
+                                    created_at, head_sha, anchors)
+                VALUES(?,?,?,?,?,?,?,?)
                 """, arguments: [kind, source, status, title, payloadJSON,
-                                 Date().timeIntervalSince1970])
+                                 Date().timeIntervalSince1970, headSHA,
+                                 Store.encodeAnchors(anchors ?? [])])
             let id = db.lastInsertedRowID
             try db.execute(sql: """
                 DELETE FROM records WHERE kind = ? AND id NOT IN (
@@ -203,6 +235,68 @@ public final class Store: @unchecked Sendable {
                     ORDER BY id DESC LIMIT ?)
                 """, arguments: [kind, kind, Store.recordQuota(for: kind)])
             return id
+        }
+    }
+
+    // MARK: - Record staleness
+
+    /// Batch staleness verdicts for one page of records. A record flags
+    /// only when BOTH hold: the workspace git HEAD moved since capture
+    /// AND ≥1 anchor stopped resolving in the current index (symbol gone
+    /// from `symbols`, path gone from `files`). Head alone never flags —
+    /// it moves on every commit — and anchor-free rows have nothing to
+    /// verify against. One git probe per call, then at most two batched
+    /// IN() lookups for the whole page (not per record).
+    public func staleCheck(_ rows: [(headSHA: String?, anchors: [String])])
+        -> [(stale: Bool, reasons: [String])] {
+        let fresh: (stale: Bool, reasons: [String]) = (false, [])
+        // Cheap gate: no row carries both evidence fields → nothing to do.
+        guard rows.contains(where: { !($0.headSHA ?? "").isEmpty && !$0.anchors.isEmpty }),
+              let head = GlobalRecords.git(["rev-parse", "HEAD"], cwd: workspaceRoot),
+              !head.isEmpty
+        else { return rows.map { _ in fresh } }
+        var moved = Set<Int>()
+        var symNeed = Set<String>(), pathNeed = Set<String>()
+        for (i, r) in rows.enumerated() {
+            guard let h = r.headSHA, !h.isEmpty, h != head, !r.anchors.isEmpty
+            else { continue }
+            moved.insert(i)
+            for a in r.anchors {
+                if a.contains("/") { pathNeed.insert(a) } else { symNeed.insert(a) }
+            }
+        }
+        guard !moved.isEmpty else { return rows.map { _ in fresh } }
+        // A failed lookup must not flag — unresolved-on-error reads as
+        // "no evidence", not "everything broke".
+        guard let resolved = try? pool.read({ db -> (Set<String>, Set<String>) in
+            var syms = Set<String>(), paths = Set<String>()
+            if !symNeed.isEmpty {
+                let ph = symNeed.map { _ in "?" }.joined(separator: ",")
+                syms = Set(try String.fetchAll(db, sql:
+                    "SELECT name FROM symbols WHERE name IN (\(ph))",
+                    arguments: StatementArguments(
+                        symNeed.map { $0 as DatabaseValueConvertible })))
+            }
+            if !pathNeed.isEmpty {
+                let ph = pathNeed.map { _ in "?" }.joined(separator: ",")
+                paths = Set(try String.fetchAll(db, sql:
+                    "SELECT path FROM files WHERE path IN (\(ph))",
+                    arguments: StatementArguments(
+                        pathNeed.map { $0 as DatabaseValueConvertible })))
+            }
+            return (syms, paths)
+        }) else { return rows.map { _ in fresh } }
+        let (liveSyms, livePaths) = resolved
+        return rows.indices.map { i in
+            guard moved.contains(i) else { return fresh }
+            let missing = rows[i].anchors.filter {
+                $0.contains("/") ? !livePaths.contains($0) : !liveSyms.contains($0)
+            }
+            guard !missing.isEmpty else { return fresh }
+            let old = rows[i].headSHA ?? ""
+            return (true,
+                    ["head moved \(old.prefix(7))→\(head.prefix(7))"]
+                        + missing.map { "anchor '\($0)' no longer resolves" })
         }
     }
 

@@ -14,3 +14,12 @@ timestamp,engine,workspace,kind,recall_at_5,n_queries,notes
 2026-09-18T09:07:57+00:00,swctx:search,22.site-M,search,1.0,6,cli `swctx search --mode auto`; first gold run
 2026-09-18T09:07:57+00:00,swctx:search,25.event-qr-checkin,definition,1.0,6,cli `swctx search --mode auto`; first gold run
 2026-09-18T09:07:57+00:00,swctx:search,25.event-qr-checkin,search,0.8333,6,cli `swctx search --mode auto`; first gold run
+2026-09-18T10:34:46+00:00,swctx:find-defs-mcp,21.linkeldn,definition,1.0,6,mcp `tools/call find_definitions` (persistent stdio session); first mcp-wire run
+2026-09-18T10:34:46+00:00,swctx:find-defs-mcp,22.site-M,definition,1.0,6,mcp `tools/call find_definitions` (persistent stdio session); first mcp-wire run
+2026-09-18T10:34:46+00:00,swctx:find-defs-mcp,25.event-qr-checkin,definition,1.0,6,mcp `tools/call find_definitions` (persistent stdio session); first mcp-wire run
+2026-09-18T10:34:46+00:00,swctx:search-mcp,21.linkeldn,definition,1.0,6,mcp `tools/call search` mode=auto (persistent stdio session); first mcp-wire run
+2026-09-18T10:34:46+00:00,swctx:search-mcp,21.linkeldn,search,1.0,6,mcp `tools/call search` mode=auto (persistent stdio session); first mcp-wire run
+2026-09-18T10:34:46+00:00,swctx:search-mcp,22.site-M,definition,1.0,6,mcp `tools/call search` mode=auto (persistent stdio session); first mcp-wire run
+2026-09-18T10:34:46+00:00,swctx:search-mcp,22.site-M,search,1.0,6,mcp `tools/call search` mode=auto (persistent stdio session); first mcp-wire run
+2026-09-18T10:34:46+00:00,swctx:search-mcp,25.event-qr-checkin,definition,1.0,6,mcp `tools/call search` mode=auto (persistent stdio session); first mcp-wire run
+2026-09-18T10:34:46+00:00,swctx:search-mcp,25.event-qr-checkin,search,0.8333,6,mcp `tools/call search` mode=auto (persistent stdio session); first mcp-wire run

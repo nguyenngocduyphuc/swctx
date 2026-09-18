@@ -34,11 +34,11 @@ swift build -c release # release
 ## CLI
 
 ```sh
-swctx index <path> [--force] [--format json]
+swctx index <path> [--force] [--skip-embed] [--format json]
 swctx status <path>
 swctx search <path> "query" [--mode auto|identifier|hybrid|fts|semantic] [--limit N]
 swctx tree <path> [--root subdir]
-swctx embed <path> [--reindex]   # fill on-device vectors (index only embeds a bounded batch)
+swctx embed <path> [--reindex]   # fill on-device vectors (index auto-embeds all pending; --skip-embed opts out)
 swctx watch <path> [--once]      # FSEvents watcher: auto reindex on change (foreground)
 swctx discover <path>            # debug: which files discovery would index
 swctx model            # install/status the bge-base embedding model (~210MB)
@@ -91,10 +91,19 @@ Any MCP client: point it at the built binary, or run
 | graph_paths | frontier-batched BFS paths between chunks (≤500-id queries, no full-table load); `max_hops`, `max_paths`, `include_content` |
 | get_impact | transitive dependents ("what breaks if I change this"); `include_content` |
 | context_pack | deterministic multi-round retrieval: hybrid hits + 1-hop call-graph expansion; persists a `records` row |
-| get_record | one workspace record by id |
-| list_records | records ledger, filters: kind/source/status + pagination + `scope` (workspace/global/all) |
-| search_records | FTS5 over record titles/payloads, same filters + `scope` |
-| put_record | agent-writable memory: kind (note/finding/decision/todo/context_pack/ask) + title + payload; dual-writes the workspace ledger and the cross-worktree global ledger (`~/.swctx/records.db`, keyed by main checkout) |
+| get_record | one record by id; `stale` flag when anchors no longer resolve post-HEAD-move |
+| list_records | records ledger, filters + pagination + `scope` (workspace/global/all); per-record `stale`/`stale_reasons` |
+| search_records | FTS5 over record titles/payloads, same filters + `scope` + `stale` flags |
+| put_record | agent-writable memory: kind + title + payload; dual-writes workspace + cross-worktree global ledger; captures git head_sha + resolvable anchors (symbols/paths) so later reads can flag stale |
+
+### Staleness signaling
+
+- Every tool response carries `meta.stale={stale_files,hint}` when the
+  index is behind the filesystem (cheap cached check, ~30s TTL) — no
+  silent stale reads.
+- `put_record` captures `head_sha` + resolvable anchors; reads flag a
+  record stale when HEAD moved AND an anchor stopped resolving
+  (never on head alone). `prime` marks stale records and counts them.
 
 ### Response budget
 
