@@ -331,3 +331,27 @@ offline harness, same >=2-misses gate.
 - in_body_only 4/11 — semantic-bound
 - vn_to_en 0/5 — the wall: needs a working multilingual vector space
 - symbol_lookup 2/4
+
+### ITER-8 (~06:40): e5-base eval — NO-GO, đóng khung hình semantic-model đêm nay
+
+`intfloat/multilingual-e5-base` (278M, query:/passage: prefixes,
+mean-pool): rescued chỉ **1/9 misses** (crm-10 r10) + **5 regressions**
+(seo-01/03/07/11, crm-02 rơi khỏi top-30). Cosine nén 0.78-0.89 —
+phân biệt yếu trên code corpus, bleed nặng nhất đúng lớp vn_to_en
+(5/6 fail). Latency đẹp: MPS 10ms, CPU 49-52ms (→ CoreML sẽ còn
+nhanh hơn) — nhưng recall không qua gate ≥2.
+
+**Khung hình khép lại**: hai cực model đều thiếu một nửa —
+- bge-m3 568M: recall GO (4/5 misses rescued) · latency NO (410ms)
+- e5-base 278M: latency GO (≤52ms) · recall NO (1/9 + 5 regressions)
+
+vn_to_en 0/5 đứng vững như bức tường đo được của đêm nay. Levers còn
+lại (đã ghi): e5-large-instruct (có thể cùng bệnh latency với bge-m3),
+CodeRankEmbed (code-specialized, EN-oriented — chưa chắc giúp VN),
+hoặc distill/quantize bge-m3. Nghiêng về: giữ distiluse cho live leg,
+cân nhắc bge-m3 cho re-embed offline/nightly nếu một query-side path
+nhanh xuất hiện (ví dụ distill bge-m3 → 12L/768H).
+
+Verdict chain đêm nay: adopt 6 (folded col, phrase leg, parallel legs,
+sidecar, LegBag, engine_eval) — reject 8 (3 rerankers, bge-m3, e5-base,
+3 folded variants + weight tuning) — đúng tinh thần đo-trước-quyết-sau.
