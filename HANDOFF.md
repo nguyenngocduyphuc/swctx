@@ -439,3 +439,55 @@ below is measured on the live indexes, not simulated.
 - **85/85 tests.** New: `Reranker.swift`, `RankingSignalTests` (7),
   `bench/convert_reranker.py`, `bench/rerank_eval.py`,
   `bench/rerank_spike.md`.
+
+## 2026-09-19 — Overnight loop ITER-1..5 (autonomous, measured)
+
+Full experiment log: `bench/overnight/JOURNAL.md`. Only adopted changes
+are listed here; every rejected variant (and why) is in the journal.
+
+**Scoreboard: vn-probe auto 8/16 → 11/16 (69%), VN 7/14 → 10/14.**
+
+- **Folded column + tail-fill (adopted, +2/16):** `chunks_fts` v6 adds a
+  4th column `folded` (app-level foldText — đ U+0111 never folds via
+  unicode61/remove_diacritics). `Search.fts()` runs primary first; when
+  under-filled, `folded : "term"*` tops up — folded matches can never
+  displace real hits (same contract as the opt-in trigram leg).
+- **Folded path-phrase leg (adopted, +1/16):** `foldedPhraseQuery` emits
+  adjacent-token `path_tokens : "cham cong"` phrases for
+  diacritic-changing pairs only, fed as a 4th RRF leg (cap 5, weight
+  0.8, file-deduped). Rescues filename-intent VN queries (crm-01)
+  without the term-OR flooding that killed 5 cheaper variants. Phrase
+  precision + the 2.5-weighted path column is the working combination.
+- **Parallel legs (adopted):** `hybridCandidates` runs fts/semantic/
+  symbol/phrase concurrently on a DispatchGroup — DatabasePool serves
+  concurrent reads, embed inference overlaps FTS IO. VN hybrid
+  ~150ms → ~95-125ms warm. Latency-only; hits identical.
+- **Vector sidecar (adopted):** `vectors.v1.bin` beside index.db — flat
+  epoch-validated matrix dump written after the first blob-path load.
+  Cold semantic CLI call 3.2s → 0.92s. +100MB disk per index.
+- **Process-level vector cache (adopted, ITER-3):** row-major matrix
+  cached per workspace (LRU×4, 512MB cap), validated by
+  `meta.embeddings_epoch` nonce, one `cblas_sgemv` per query, metadata
+  fetched for top-k only. Semantic warm ~130ms → ~50ms.
+- **engine_eval records:** divergence between baseline top-5 and rerank
+  top-5 writes `put_record kind=engine_eval` (dual scope) — paired-data
+  flywheel is live.
+- **nightly += vn_probe --gate:** VN regression net wired.
+
+**Rejected on measurement (see journal for the full table):**
+- Weighted/score-normalized RRF — global sem weight hurt every combo.
+- amberoad mBERT reranker: after folded tail-fill, pinned mode is
+  NEUTRAL (pool-semantics fix exposed the earlier +1 as an artifact).
+- bge-reranker-v2-m3 (W3 spike): 7/16 vs 10/16 baseline, 0 gains,
+  2817ms/pair CPU-bound — prose-biased cross-encoder, domain mismatch.
+  Kept as opt-in `rerank2` reference impl only.
+
+**Semantic leg is the real ceiling:** sem=1/16 on the probe. The 5
+remaining misses (seo-04/05/06, crm-04, crm-08) are cross-language
+vocabulary gaps, not lexical — `in_path` queries now 7/9 while
+`in_body_only` is 4/7. Lever: a better multilingual embedder (bge-m3
+offline eval in flight) — not more FTS surgery.
+
+**Tokenizer asset:** `SPTokenizer.swift` — SentencePiece unigram port
+verified byte-exact vs the real BGE-M3 vocab (250K pieces). Unlocks
+bge-m3/XLM-R-class models when the embedder spike lands.
