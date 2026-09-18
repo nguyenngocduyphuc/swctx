@@ -30,15 +30,19 @@ final class MultilingualEmbedderTests: XCTestCase {
     // MARK: - Registry
 
     func testModelRegistryCoversBothModels() {
-        XCTAssertEqual(Embedder.models.count, 2)
+        XCTAssertEqual(Embedder.models.count, 3)
         let bge = Embedder.spec(for: "bge-base-en-v1.5")
         let ml = Embedder.spec(for: "distiluse-base-multilingual-cased-v2")
+        let m3 = Embedder.spec(for: "bge-m3")
         XCTAssertEqual(bge?.dim, 768)
         XCTAssertEqual(bge?.cased, false)
         XCTAssertEqual(bge?.pooling, .cls)
         XCTAssertEqual(ml?.dim, 768)
         XCTAssertEqual(ml?.cased, true)
         XCTAssertEqual(ml?.pooling, .mean)
+        XCTAssertEqual(m3?.dim, 1024)
+        XCTAssertEqual(m3?.pooling, .cls)
+        XCTAssertEqual(m3?.tokenizer, .sentencepiece)
         XCTAssertNil(Embedder.spec(for: "no-such-model"))
         XCTAssertEqual(Embedder.defaultModelID, "bge-base-en-v1.5")
     }

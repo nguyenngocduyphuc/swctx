@@ -12,7 +12,7 @@ struct Swctx: AsyncParsableCommand {
         commandName: "swctx",
         abstract: "Local semantic code index + MCP server (Swift reimplementation of the ctxe model).",
         version: "0.1.0",
-        subcommands: [IndexCmd.self, StatusCmd.self, PrimeCmd.self, SearchCmd.self, RerankCmd.self, Rerank2Cmd.self, TreeCmd.self, EmbedCmd.self, DiscoverCmd.self, WatchCmd.self, AskCmd.self, ModelCmd.self, McpCmd.self, McpConfigCmd.self, InstallAgentCmd.self, GcCmd.self],
+        subcommands: [IndexCmd.self, StatusCmd.self, PrimeCmd.self, SearchCmd.self, RerankCmd.self, Rerank2Cmd.self, Rerank3Cmd.self, TreeCmd.self, EmbedCmd.self, DiscoverCmd.self, WatchCmd.self, AskCmd.self, ModelCmd.self, McpCmd.self, McpConfigCmd.self, InstallAgentCmd.self, GcCmd.self],
         defaultSubcommand: nil)
 }
 
@@ -340,6 +340,103 @@ struct Rerank2Cmd: AsyncParsableCommand {
                                   content: contents[$0.chunkID] ?? "")
         }
         let reranker = try RerankerV2()
+        reranker.warm()
+        let t0 = Date()
+        let scores = reranker.scoreAllMax(query: query, windows: docs, batchSize: batch)
+        let rerankMs = Date().timeIntervalSince(t0) * 1000
+        let ranked = zip(hits.indices, scores)
+            .map { (i: $0.0, score: $0.1 ?? -.infinity) }
+            .sorted { $0.score > $1.score }
+        var items: [[String: Any]] = []
+        for (rank, r) in ranked.enumerated() {
+            let h = hits[r.i]
+            var d: [String: Any] = [
+                "rank": rank + 1, "hybrid_rank": r.i + 1,
+                "chunk_id": h.chunkID, "path": h.path,
+                "start_line": h.startLine, "end_line": h.endLine,
+            ]
+            if let s = scores[r.i] { d["score"] = Double(s) }
+            if let s = h.symbol { d["symbol"] = s }
+            if let k = h.kind { d["kind"] = k }
+            items.append(d)
+        }
+        let payload: [String: Any] = [
+            "query": query, "mode": identifier ? "identifier" : "hybrid",
+            "pool": hits.count, "rerank_ms": rerankMs,
+            "ms_per_pair": rerankMs / Double(max(1, hits.count)),
+            "hits": items,
+        ]
+        let data = try JSONSerialization.data(
+            withJSONObject: payload, options: [.sortedKeys])
+        print(String(decoding: data, as: UTF8.self))
+    }
+
+    private func jsonStr(_ s: String) -> String {
+        guard let d = try? JSONSerialization.data(withJSONObject: s) else {
+            return "\"\""
+        }
+        return String(decoding: d, as: UTF8.self)
+    }
+}
+
+/// `swctx rerank3` — reranker-v3 spike CLI: same candidate pool and
+/// output shape as `rerank`/`rerank2`, rescored by
+/// jina-reranker-v2-base-multilingual (XLM-R base cross-encoder)
+/// instead of the amberoad mBERT / bge-reranker-v2-m3 models.
+struct Rerank3Cmd: AsyncParsableCommand {
+    static let configuration = CommandConfiguration(commandName: "rerank3",
+        abstract: "Hybrid search, then jina-reranker-v2-base-multilingual rerank of the candidate pool (spike).")
+    @Argument(help: "Workspace path") var path: String
+    @Argument(help: "Query") var query: String
+    @Option(name: .long, help: "Candidate pool size to rerank (default 30)") var limit: Int = 30
+    @Option(name: .long, help: "Rerank batch size") var batch: Int = 16
+
+    func run() async throws {
+        let root = URL(fileURLWithPath: path).resolvingSymlinksInPath()
+        guard FileManager.default.fileExists(
+            atPath: Store.indexURL(forKey: Store.key(for: root)).path) else {
+            FileHandle.standardError.write(
+                "swctx: workspace not indexed: \(root.path) — run `swctx index` first\n"
+                    .data(using: .utf8)!)
+            throw ExitCode(2)
+        }
+        guard RerankerV3.isInstalled else {
+            throw ValidationError(
+                "reranker-v3 model not installed at \(RerankerV3.modelDir.path) "
+                    + "(convert via bench/convert_reranker_v3.py)")
+        }
+        let store = try Store(workspaceRoot: root)
+        let identifier = Search.identifierLike(query)
+        var hits = try Search.hybridCandidates(
+            store: store, embedder: Embedder.shared, query: query,
+            limit: 5, poolLimit: limit,
+            pathFilter: nil, includeVector: !identifier)
+        if identifier && hits.isEmpty {
+            hits = try Search.hybridCandidates(
+                store: store, embedder: Embedder.shared, query: query,
+                limit: 5, poolLimit: limit)
+        }
+        guard !hits.isEmpty else {
+            print("{\"query\":\(jsonStr(query)),\"pool\":0,\"hits\":[]}")
+            return
+        }
+        let chunkIDs = hits.map { $0.chunkID }
+        let contents = try await store.pool.read { db -> [Int64: String] in
+            let ph = chunkIDs.map { _ in "?" }.joined(separator: ",")
+            let rows = try Row.fetchAll(db, sql:
+                "SELECT id, content FROM chunks WHERE id IN (\(ph))",
+                arguments: StatementArguments(chunkIDs))
+            var out: [Int64: String] = [:]
+            for r in rows {
+                if let id = r["id"] as? Int64 { out[id] = (r["content"] as? String) ?? "" }
+            }
+            return out
+        }
+        let docs = hits.map {
+            RerankerV3.docWindows(path: $0.path, symbol: $0.symbol,
+                                  content: contents[$0.chunkID] ?? "")
+        }
+        let reranker = try RerankerV3()
         reranker.warm()
         let t0 = Date()
         let scores = reranker.scoreAllMax(query: query, windows: docs, batchSize: batch)
