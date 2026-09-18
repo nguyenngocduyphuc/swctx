@@ -1,0 +1,892 @@
+{
+  "generated_at": "2026-09-17T03:10:34.851175+00:00",
+  "workspace": "/Users/phuongnam/02.AI/NP_AI_macos/8.P8_SEO_Clean",
+  "servers": {
+    "swctx": {
+      "argv": [
+        "/Users/phuongnam/02.AI/NP_AI_macos/tools/swctx/bench/../.build/release/swctx",
+        "mcp"
+      ],
+      "server_info": {
+        "name": "swctx",
+        "version": "0.1.0"
+      },
+      "tools": [
+        "context_pack",
+        "fast_understand",
+        "fetch_chunks",
+        "find_definitions",
+        "find_usages",
+        "get_impact",
+        "get_record",
+        "get_status",
+        "get_workspace_tree",
+        "graph_expand",
+        "graph_neighbors",
+        "graph_paths",
+        "index_workspace",
+        "inspect_path",
+        "list_records",
+        "list_workspaces",
+        "search",
+        "search_records"
+      ]
+    },
+    "ctxe": {
+      "argv": [
+        "ctxe",
+        "mcp"
+      ],
+      "server_info": {
+        "name": "ctxe",
+        "version": "0.4.4"
+      },
+      "tools": [
+        "ask_context",
+        "compose_answer",
+        "fast_understand",
+        "fetch_chunks",
+        "find_definitions",
+        "find_usages",
+        "get_impact",
+        "get_record",
+        "get_status",
+        "get_workspace_tree",
+        "graph_expand",
+        "graph_neighbors",
+        "graph_paths",
+        "index_workspace",
+        "inspect_path",
+        "list_records",
+        "list_workspaces",
+        "search_records"
+      ]
+    }
+  },
+  "blockers": {},
+  "seeds": {
+    "swctx_seed": 274376,
+    "ctxe_seed": 16500,
+    "swctx_usage_seed": 304272,
+    "ctxe_usage_seed": 15151
+  },
+  "notes": {
+    "ctxe_search": "ctxe has no bare `search`; inspect_path used as closest local equivalent. ask_context skipped (server-backed, consumes credits).",
+    "swctx_ask": "swctx has no ask_context (context_pack is its local analogue; not benchmarked)."
+  },
+  "results": [
+    {
+      "case": "find_definitions",
+      "server": "swctx",
+      "tool": "find_definitions",
+      "ok": true,
+      "latency_ms": 47.5,
+      "relevance": "exact",
+      "hits": [
+        {
+          "loc": "scripts/p8_opportunity_scorer.py:162",
+          "symbol": "detect_keyword_cannibalization",
+          "chunk_id": 304773
+        },
+        {
+          "loc": "scripts/p8_analytics_pull.py:402",
+          "symbol": "pull_gsc",
+          "chunk_id": 304271
+        }
+      ],
+      "hit_count": 2
+    },
+    {
+      "case": "find_definitions",
+      "server": "ctxe",
+      "tool": "find_definitions",
+      "ok": true,
+      "latency_ms": 2044.1,
+      "relevance": "exact",
+      "hits": [
+        {
+          "loc": "scripts/p8_opportunity_scorer.py:162",
+          "symbol": "detect_keyword_cannibalization",
+          "chunk_id": 15631
+        },
+        {
+          "loc": "scripts/p8_analytics_pull.py:402",
+          "symbol": "pull_gsc",
+          "chunk_id": 16500
+        }
+      ],
+      "hit_count": 2
+    },
+    {
+      "case": "find_usages",
+      "server": "swctx",
+      "tool": "find_usages",
+      "ok": true,
+      "latency_ms": 11.3,
+      "relevance": "exact",
+      "hits": [
+        {
+          "loc": "scripts/p8_analytics_pull.py:509",
+          "symbol": "pull_fleet",
+          "chunk_id": 304272
+        },
+        {
+          "loc": "scripts/p8_analytics_pull.py:731",
+          "symbol": "main",
+          "chunk_id": 304279
+        },
+        {
+          "loc": "tests/test_google_first_e2e.py:307",
+          "symbol": "test_gsc_coverage_is_top_rows_only_per_dataset",
+          "chunk_id": 305533
+        },
+        {
+          "loc": "scripts/p8_analytics_pull.py:402",
+          "symbol": "pull_gsc",
+          "chunk_id": 304271
+        }
+      ],
+      "hit_count": 4
+    },
+    {
+      "case": "find_usages",
+      "server": "ctxe",
+      "tool": "find_usages",
+      "ok": true,
+      "latency_ms": 11.1,
+      "relevance": "exact",
+      "hits": [
+        {
+          "loc": "scripts/p8_analytics_pull.py",
+          "symbol": "pull_fleet",
+          "chunk_id": 15151
+        },
+        {
+          "loc": "scripts/p8_analytics_pull.py",
+          "symbol": "main",
+          "chunk_id": 16501
+        },
+        {
+          "loc": "tests/test_google_first_e2e.py",
+          "symbol": "test_gsc_coverage_is_top_rows_only_per_dataset",
+          "chunk_id": 16514
+        }
+      ],
+      "hit_count": 3
+    },
+    {
+      "case": "inspect_path",
+      "server": "swctx",
+      "tool": "inspect_path",
+      "ok": true,
+      "latency_ms": 570.4,
+      "relevance": "exact",
+      "hits": [
+        {
+          "loc": "scripts/p8_daily_report.py:630",
+          "symbol": "_gsc_totals",
+          "chunk_id": 304487,
+          "score": 0.04903837539196655
+        },
+        {
+          "loc": "scripts/p8_analytics_pull.py:402",
+          "symbol": "pull_gsc",
+          "chunk_id": 304271,
+          "score": 0.04587301587301587
+        },
+        {
+          "loc": "scripts/p8_analytics_pull.py:620",
+          "symbol": "_gsc_rows_to_dicts",
+          "chunk_id": 304274,
+          "score": 0.04298701298701299
+        },
+        {
+          "loc": "scripts/p8_analytics_pull.py:633",
+          "symbol": "_gsc_totals",
+          "chunk_id": 304275,
+          "score": 0.042820512820512815
+        },
+        {
+          "loc": "scripts/p8_daily_report.py:899",
+          "symbol": "_gsc_prev_period",
+          "chunk_id": 304493,
+          "score": 0.04188567445102823
+        }
+      ],
+      "hit_count": 10
+    },
+    {
+      "case": "inspect_path",
+      "server": "ctxe",
+      "tool": "inspect_path",
+      "ok": true,
+      "latency_ms": 1351.3,
+      "relevance": "related",
+      "hits": [
+        {
+          "loc": "scripts/_legacy/2026-05-08/google_seo_audit.py:215",
+          "symbol": null,
+          "chunk_id": 13146,
+          "score": 0.10194717347621918
+        },
+        {
+          "loc": "scripts/_legacy/2026-05-08/google_seo_audit.py:127",
+          "symbol": "run_check",
+          "chunk_id": 13145,
+          "score": 0.09311690181493759
+        },
+        {
+          "loc": "scripts/_legacy/2026-05-08/google_seo_audit.py:68",
+          "symbol": "audit_article",
+          "chunk_id": 13144,
+          "score": 0.0843062475323677
+        },
+        {
+          "loc": "scripts/_legacy/2026-05-08/google_seo_audit.py:422",
+          "symbol": null,
+          "chunk_id": 13151,
+          "score": 0.06766702234745026
+        },
+        {
+          "loc": "scripts/_legacy/2026-05-08/google_seo_audit.py:304",
+          "symbol": "main",
+          "chunk_id": 13148,
+          "score": 0.06743071973323822
+        }
+      ],
+      "hit_count": 10
+    },
+    {
+      "case": "search_equiv",
+      "server": "swctx",
+      "tool": "search",
+      "ok": true,
+      "latency_ms": 252.9,
+      "relevance": "exact",
+      "hits": [
+        {
+          "loc": "scripts/p8_opportunity_scorer.py:162",
+          "symbol": "detect_keyword_cannibalization",
+          "chunk_id": 304773,
+          "score": 0.10639344262295082
+        },
+        {
+          "loc": "scripts/p8_opportunity_scorer.py:348",
+          "symbol": "format_cannibalization_report",
+          "chunk_id": 304774,
+          "score": 0.04587301587301587
+        },
+        {
+          "loc": "docs/archive/census-2026-07-10/plans/asana_payloads/2026-06-24-gsc-ga4-phase1/D03-cannibalization-audit.md:55",
+          "symbol": null,
+          "chunk_id": 286790,
+          "score": 0.045384615384615384
+        },
+        {
+          "loc": "docs/archive/census-2026-07-10/plans/asana_payloads/2026-06-24-gsc-ga4-phase1/D03-cannibalization-audit.md:45",
+          "symbol": null,
+          "chunk_id": 286789,
+          "score": 0.04515151515151515
+        },
+        {
+          "loc": "docs/archive/census-2026-07-10/plans/asana_payloads/2026-06-24-gsc-ga4-phase1/D03-cannibalization-audit.md:12",
+          "symbol": null,
+          "chunk_id": 286787,
+          "score": 0.04470588235294118
+        }
+      ],
+      "hit_count": 10
+    },
+    {
+      "case": "search_equiv",
+      "server": "ctxe",
+      "tool": "inspect_path",
+      "ok": true,
+      "latency_ms": 871.9,
+      "relevance": "related",
+      "hits": [
+        {
+          "loc": "scripts/_legacy/2026-05-08/deep_content_audit.py:160",
+          "symbol": "analyze_article",
+          "chunk_id": 13096,
+          "score": 0.11106924712657928
+        },
+        {
+          "loc": "scripts/_legacy/2026-05-08/deep_audit_42.py:175",
+          "symbol": "detect_overlap",
+          "chunk_id": 13088,
+          "score": 0.10814734548330307
+        },
+        {
+          "loc": "scripts/_legacy/2026-05-08/fix_optional_items.py:19",
+          "symbol": "FAQ_DATA",
+          "chunk_id": 13126,
+          "score": 0.10111450403928757
+        },
+        {
+          "loc": "scripts/_legacy/2026-05-08/google_seo_audit.py:127",
+          "symbol": "run_check",
+          "chunk_id": 13145,
+          "score": 0.09415867179632187
+        },
+        {
+          "loc": "scripts/_legacy/2026-05-08/deep_content_audit.py:114",
+          "symbol": "load_knowledge_brain",
+          "chunk_id": 13094,
+          "score": 0.07611999660730362
+        }
+      ],
+      "hit_count": 10
+    },
+    {
+      "case": "graph_neighbors",
+      "server": "swctx",
+      "tool": "graph_neighbors",
+      "ok": true,
+      "latency_ms": 17.3,
+      "relevance": "exact",
+      "hits": [
+        {
+          "loc": "archive/legacy-audits/audits/audit-report/update_content_management_workbook.mjs:55",
+          "symbol": "loadJsonIfExists",
+          "chunk_id": 274375,
+          "edge": "calls"
+        }
+      ],
+      "hit_count": 1
+    },
+    {
+      "case": "graph_neighbors",
+      "server": "ctxe",
+      "tool": "graph_neighbors",
+      "ok": true,
+      "latency_ms": 7.3,
+      "relevance": "exact",
+      "hits": [
+        {
+          "loc": "scripts/p8_analytics_pull.py",
+          "symbol": "pull_fleet",
+          "chunk_id": 15151,
+          "edge": "called_by"
+        },
+        {
+          "loc": "scripts/p8_analytics_pull.py",
+          "symbol": "main",
+          "chunk_id": 16501,
+          "edge": "called_by"
+        },
+        {
+          "loc": "tests/test_google_first_e2e.py",
+          "symbol": "test_gsc_coverage_is_top_rows_only_per_dataset",
+          "chunk_id": 16514,
+          "edge": "called_by"
+        }
+      ],
+      "hit_count": 3
+    },
+    {
+      "case": "vn_docs_hybrid",
+      "server": "swctx",
+      "tool": "search",
+      "ok": true,
+      "latency_ms": 193.6,
+      "relevance": "exact",
+      "hits": [
+        {
+          "loc": "docs/references/technical/ENTERPRISE_WORDPRESS_AND_INFORMATION_GAIN_2026.md:115",
+          "symbol": null,
+          "chunk_id": 300126,
+          "score": 0.03139344262295082
+        },
+        {
+          "loc": "docs/references/technical/ENTERPRISE_WORDPRESS_AND_INFORMATION_GAIN_REPORT.html:316",
+          "symbol": null,
+          "chunk_id": 300134,
+          "score": 0.031129032258064515
+        },
+        {
+          "loc": "docs/plans/PLAN_P8_WORDPRESS_PIPELINE_3TIER_2026-08-19.md:130",
+          "symbol": null,
+          "chunk_id": 299628,
+          "score": 0.030625
+        },
+        {
+          "loc": "docs/references/technical/ENTERPRISE_WORDPRESS_AND_INFORMATION_GAIN_2026.md:81",
+          "symbol": null,
+          "chunk_id": 300124,
+          "score": 0.02992537313432836
+        },
+        {
+          "loc": "docs/references/technical/ENTERPRISE_WORDPRESS_AND_INFORMATION_GAIN_2026.md:47",
+          "symbol": null,
+          "chunk_id": 300122,
+          "score": 0.029084507042253523
+        }
+      ],
+      "hit_count": 10
+    },
+    {
+      "case": "vn_docs_hybrid",
+      "server": "ctxe",
+      "tool": "inspect_path",
+      "ok": true,
+      "latency_ms": 928.1,
+      "relevance": "related",
+      "hits": [
+        {
+          "loc": "docs/00_governance/DRIFT_LOG.md:256",
+          "symbol": "DRIFT-011 \u2014 T\u1ea7ng staging c\u1ee7a lu\u1eadt 3 t\u1ea7ng CH\u1ebeT \u00e2m th\u1ea7m 24 ng\u00e0y: WP c\u00f3 app-password, `.env` th\u00ec kh\u00f4ng",
+          "chunk_id": 6862,
+          "score": 0.14601194858551025
+        },
+        {
+          "loc": "docs/00_governance/PENDING_ACTIONS_REGISTRY.md:192",
+          "symbol": "PA-007 \u2014 content_publish: PC thay 4 gated docx b\u1eb1ng b\u1ea3n n\u00e2ng c\u1ea5p v2026.07 (same-path SSH)",
+          "chunk_id": 6894,
+          "score": 0.13508422672748566
+        },
+        {
+          "loc": "docs/00_governance/PENDING_ACTIONS_REGISTRY.md:159",
+          "symbol": "PA-004 \u2014 content_publish: batch W3 (17 b\u00e0i) \u2014 2 section m\u1edbi + 16 internal mesh links",
+          "chunk_id": 6891,
+          "score": 0.1279555708169937
+        },
+        {
+          "loc": "docs/00_governance/PENDING_ACTIONS_REGISTRY.md:390",
+          "symbol": "PA-024 \u2014 content_publish: wave-2 k\u1eb9t index fix (10 b\u00e0i)",
+          "chunk_id": 6906,
+          "score": 0.1086377426981926
+        },
+        {
+          "loc": "docs/00_governance/PENDING_ACTIONS_REGISTRY.md:379",
+          "symbol": "PA-023 \u2014 content_publish: P2, C1.3, C3.5 (wave-1 k\u1eb9t index fix)",
+          "chunk_id": 6905,
+          "score": 0.10522988438606262
+        }
+      ],
+      "hit_count": 10
+    },
+    {
+      "case": "vn_docs_semantic",
+      "server": "swctx",
+      "tool": "search",
+      "ok": true,
+      "latency_ms": 142.5,
+      "relevance": "related",
+      "hits": [
+        {
+          "loc": "docs/archive/legacy-2026/plans_archive/plan_19.05.2026/master_check_round3.md:9",
+          "symbol": null,
+          "chunk_id": 292067,
+          "score": 0.7621347308158875
+        },
+        {
+          "loc": "docs/seo/campaigns/P8_JULY_WAVE2_ISA95_EBR_EXECUTION_2026-06-30.md:1",
+          "symbol": null,
+          "chunk_id": 301154,
+          "score": 0.7584700584411621
+        },
+        {
+          "loc": "docs/archive/phamducphuongnam-seo/full_audit_v2026_summary_2026-05-22T03-11-44Z.md:6",
+          "symbol": null,
+          "chunk_id": 293461,
+          "score": 0.7548612952232361
+        },
+        {
+          "loc": "docs/archive/legacy-2026/claude_project_context/claude_project_context/2026-05-09/07_P8_MASTER_REFERENCE.md:126",
+          "symbol": null,
+          "chunk_id": 290349,
+          "score": 0.7542545199394226
+        },
+        {
+          "loc": "docs/archive/legacy-2026/genspark_hub_project/FINAL_MIGRATION_KIT/01_System_Framework/00-master-framework.md:95",
+          "symbol": null,
+          "chunk_id": 290590,
+          "score": 0.7524750232696533
+        }
+      ],
+      "hit_count": 10
+    },
+    {
+      "case": "vn_docs_semantic",
+      "server": "ctxe",
+      "tool": "inspect_path",
+      "ok": true,
+      "latency_ms": 887.3,
+      "relevance": "related",
+      "hits": [
+        {
+          "loc": "docs/00_governance/DRIFT_LOG.md:256",
+          "symbol": "DRIFT-011 \u2014 T\u1ea7ng staging c\u1ee7a lu\u1eadt 3 t\u1ea7ng CH\u1ebeT \u00e2m th\u1ea7m 24 ng\u00e0y: WP c\u00f3 app-password, `.env` th\u00ec kh\u00f4ng",
+          "chunk_id": 6862,
+          "score": 0.14601194858551025
+        },
+        {
+          "loc": "docs/00_governance/PENDING_ACTIONS_REGISTRY.md:192",
+          "symbol": "PA-007 \u2014 content_publish: PC thay 4 gated docx b\u1eb1ng b\u1ea3n n\u00e2ng c\u1ea5p v2026.07 (same-path SSH)",
+          "chunk_id": 6894,
+          "score": 0.13508422672748566
+        },
+        {
+          "loc": "docs/00_governance/PENDING_ACTIONS_REGISTRY.md:159",
+          "symbol": "PA-004 \u2014 content_publish: batch W3 (17 b\u00e0i) \u2014 2 section m\u1edbi + 16 internal mesh links",
+          "chunk_id": 6891,
+          "score": 0.1279555708169937
+        },
+        {
+          "loc": "docs/00_governance/PENDING_ACTIONS_REGISTRY.md:390",
+          "symbol": "PA-024 \u2014 content_publish: wave-2 k\u1eb9t index fix (10 b\u00e0i)",
+          "chunk_id": 6906,
+          "score": 0.1086377426981926
+        },
+        {
+          "loc": "docs/00_governance/PENDING_ACTIONS_REGISTRY.md:379",
+          "symbol": "PA-023 \u2014 content_publish: P2, C1.3, C3.5 (wave-1 k\u1eb9t index fix)",
+          "chunk_id": 6905,
+          "score": 0.10522988438606262
+        }
+      ],
+      "hit_count": 10
+    },
+    {
+      "case": "exact_symbol_hybrid",
+      "server": "swctx",
+      "tool": "search",
+      "ok": true,
+      "latency_ms": 186.8,
+      "relevance": "exact",
+      "hits": [
+        {
+          "loc": "scripts/p8_opportunity_scorer.py:162",
+          "symbol": "detect_keyword_cannibalization",
+          "chunk_id": 304773,
+          "score": 0.10587301587301587
+        },
+        {
+          "loc": "scripts/p8_opportunity_scorer.py:348",
+          "symbol": "format_cannibalization_report",
+          "chunk_id": 304774,
+          "score": 0.04639344262295082
+        },
+        {
+          "loc": "scripts/_legacy/2026-05-08/p8_title_geo_optimizer.py:225",
+          "symbol": "_detect_language_preference",
+          "chunk_id": 302369,
+          "score": 0.04408450704225352
+        },
+        {
+          "loc": "docs/archive/census-2026-07-10/plans/asana_payloads/2026-06-24-gsc-ga4-phase1/D03-cannibalization-audit.md:45",
+          "symbol": null,
+          "chunk_id": 286789,
+          "score": 0.030625
+        },
+        {
+          "loc": "docs/archive/census-2026-07-10/plans/asana_payloads/2026-06-24-gsc-ga4-phase1/D03-cannibalization-audit.md:1",
+          "symbol": null,
+          "chunk_id": 286785,
+          "score": 0.029705882352941176
+        }
+      ],
+      "hit_count": 10
+    },
+    {
+      "case": "exact_symbol_hybrid",
+      "server": "ctxe",
+      "tool": "inspect_path",
+      "ok": true,
+      "latency_ms": 870.2,
+      "relevance": "miss",
+      "hits": [
+        {
+          "loc": "scripts/_legacy/2026-05-08/deep_audit_42.py:175",
+          "symbol": "detect_overlap",
+          "chunk_id": 13088,
+          "score": 0.11339665204286575
+        },
+        {
+          "loc": "scripts/_legacy/2026-05-08/deep_content_audit.py:160",
+          "symbol": "analyze_article",
+          "chunk_id": 13096,
+          "score": 0.10068326443433762
+        },
+        {
+          "loc": "scripts/_legacy/2026-05-08/google_seo_audit.py:127",
+          "symbol": "run_check",
+          "chunk_id": 13145,
+          "score": 0.08011831343173981
+        },
+        {
+          "loc": "scripts/_legacy/2026-05-08/fix_keyphrase_density.py:28",
+          "symbol": "boost_keyphrase",
+          "chunk_id": 13121,
+          "score": 0.07862735539674759
+        },
+        {
+          "loc": "scripts/_legacy/2026-05-08/deep_content_audit.py:249",
+          "symbol": null,
+          "chunk_id": 13097,
+          "score": 0.06535131484270096
+        }
+      ],
+      "hit_count": 10
+    },
+    {
+      "case": "get_impact",
+      "server": "swctx",
+      "tool": "get_impact",
+      "ok": true,
+      "latency_ms": 7.6,
+      "relevance": "exact",
+      "hits": [
+        {
+          "loc": "scripts/p8_analytics_pull.py:731",
+          "symbol": "main",
+          "chunk_id": 304279
+        }
+      ],
+      "hit_count": 1
+    },
+    {
+      "case": "get_impact",
+      "server": "ctxe",
+      "tool": "get_impact",
+      "ok": true,
+      "latency_ms": 10.5,
+      "relevance": "exact",
+      "hits": [
+        {
+          "loc": "scripts/p8_analytics_pull.py:731",
+          "chunk_id": 16501,
+          "symbol": "main",
+          "hop": 1,
+          "score": 0.4
+        }
+      ],
+      "hit_count": 1
+    },
+    {
+      "case": "graph_expand",
+      "server": "swctx",
+      "tool": "graph_expand",
+      "ok": true,
+      "latency_ms": 10.6,
+      "relevance": "exact",
+      "hits": [
+        {
+          "loc": "scripts/p8_analytics_pull.py:74",
+          "chunk_id": 304256,
+          "symbol": "_load_registry",
+          "edge": "calls",
+          "score": 0.7
+        },
+        {
+          "loc": "scripts/p8_analytics_pull.py:99",
+          "chunk_id": 304261,
+          "symbol": "_resolve_site_context",
+          "edge": "calls",
+          "score": 0.7
+        },
+        {
+          "loc": "scripts/p8_analytics_pull.py:143",
+          "chunk_id": 304262,
+          "symbol": "_get_cached_token",
+          "edge": "calls",
+          "score": 0.7
+        },
+        {
+          "loc": "scripts/p8_analytics_pull.py:241",
+          "chunk_id": 304269,
+          "symbol": "pull_ga4",
+          "edge": "calls",
+          "score": 0.7
+        },
+        {
+          "loc": "scripts/p8_analytics_pull.py:402",
+          "chunk_id": 304271,
+          "symbol": "pull_gsc",
+          "edge": "calls",
+          "score": 0.7
+        }
+      ],
+      "hit_count": 24
+    },
+    {
+      "case": "graph_expand",
+      "server": "ctxe",
+      "tool": "graph_expand",
+      "ok": true,
+      "latency_ms": 23.6,
+      "relevance": "exact",
+      "hits": [
+        {
+          "loc": "scripts/p8_analytics_pull.py:65",
+          "chunk_id": 15143,
+          "symbol": "_service_account_info",
+          "edge": "calls",
+          "score": 0.4
+        },
+        {
+          "loc": "scripts/p8_analytics_pull.py:99",
+          "chunk_id": 15144,
+          "symbol": "_resolve_site_context",
+          "edge": "calls",
+          "score": 0.4
+        },
+        {
+          "loc": "scripts/p8_analytics_pull.py:143",
+          "chunk_id": 15145,
+          "symbol": "_get_cached_token",
+          "edge": "calls",
+          "score": 0.4
+        },
+        {
+          "loc": "scripts/p8_analytics_pull.py:241",
+          "chunk_id": 15147,
+          "symbol": "pull_ga4",
+          "edge": "calls",
+          "score": 0.4
+        },
+        {
+          "loc": "scripts/p8_analytics_pull.py:402",
+          "chunk_id": 16500,
+          "symbol": "pull_gsc",
+          "edge": "calls",
+          "score": 0.4
+        }
+      ],
+      "hit_count": 5
+    },
+    {
+      "case": "records_probe",
+      "server": "swctx",
+      "tool": "list_records",
+      "ok": true,
+      "latency_ms": 6.1,
+      "relevance": "exact",
+      "hits": [
+        {
+          "loc": "record:2",
+          "symbol": "internal link graph worker"
+        },
+        {
+          "loc": "record:1",
+          "symbol": "publish gate promotion eligibility check"
+        }
+      ],
+      "hit_count": 2
+    },
+    {
+      "case": "records_probe",
+      "server": "ctxe",
+      "tool": "list_records",
+      "ok": true,
+      "latency_ms": 9.4,
+      "relevance": "exact",
+      "hits": [
+        {
+          "loc": "record:9",
+          "symbol": "Review \u0111\u1ed9c l\u1eadp k\u1ebft qu\u1ea3 audit SEO h\u00f4m nay cho c\u00e1c b\u00e0i C2.4, C"
+        },
+        {
+          "loc": "record:8",
+          "symbol": "Review then execute merge of glossary 'X l\u00e0 g\u00ec' articles int"
+        },
+        {
+          "loc": "record:7",
+          "symbol": "how does the GSC analytics pull pipeline work in scripts/p8_"
+        },
+        {
+          "loc": "record:6",
+          "symbol": "how does the GSC analytics pull pipeline work in scripts/p8_"
+        },
+        {
+          "loc": "record:5",
+          "symbol": "Audit and fix Google Search Console indexing issues on phamd"
+        }
+      ],
+      "hit_count": 5
+    },
+    {
+      "case": "fast_understand",
+      "server": "swctx",
+      "tool": "fast_understand",
+      "ok": true,
+      "latency_ms": 381.2,
+      "relevance": "exact",
+      "hits": [
+        {
+          "loc": "scripts/p8_analytics_pull.py",
+          "symbol": "main",
+          "chunk_id": 304279,
+          "score": 0.074
+        },
+        {
+          "loc": "\u2026ytics/GSC_GA4_MASTER_PLAN_2026-06-24.md",
+          "symbol": null,
+          "chunk_id": 286879,
+          "score": 0.046
+        },
+        {
+          "loc": "\u2026_pipeline_audit_credential_hardening.md",
+          "symbol": null,
+          "chunk_id": 299136,
+          "score": 0.046
+        },
+        {
+          "loc": "\u2026ytics/GSC_GA4_MASTER_PLAN_2026-06-24.md",
+          "symbol": null,
+          "chunk_id": 286880,
+          "score": 0.046
+        },
+        {
+          "loc": "\u2026ytics/GSC_GA4_MASTER_PLAN_2026-06-24.md",
+          "symbol": null,
+          "chunk_id": 286850,
+          "score": 0.045
+        }
+      ],
+      "hit_count": 5
+    },
+    {
+      "case": "fast_understand",
+      "server": "ctxe",
+      "tool": "fast_understand",
+      "ok": true,
+      "latency_ms": 56733.0,
+      "relevance": "exact",
+      "hits": [
+        {
+          "loc": "scripts/p8_analytics_pull.py",
+          "symbol": "End-to-end single-site GA4 + GSC analytics snapshot pipeline",
+          "chunk_id": 16501,
+          "confidence": "high"
+        },
+        {
+          "loc": "scripts/p8_analytics_pull.py",
+          "symbol": "GSC Search Analytics collection and opportunity derivation",
+          "chunk_id": 16500,
+          "confidence": "high"
+        },
+        {
+          "loc": "scripts/p8_analytics_pull.py",
+          "symbol": "GA4 metric and traffic-quality reporting",
+          "chunk_id": 15147,
+          "confidence": "high"
+        },
+        {
+          "loc": "scripts/p8_analytics_pull.py",
+          "symbol": "Registry-aware fleet KPI collection",
+          "chunk_id": 15151,
+          "confidence": "high"
+        },
+        {
+          "loc": "scripts/p8_analytics_pull.py",
+          "symbol": "Analytics snapshot persistence and downstream consumption bo",
+          "chunk_id": 15153,
+          "confidence": "high"
+        }
+      ],
+      "hit_count": 5
+    }
+  ]
+}

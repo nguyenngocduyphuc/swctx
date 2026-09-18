@@ -1,0 +1,239 @@
+import Foundation
+import MCP
+
+/// stdio MCP server exposing the index/retrieval tools. Any MCP-capable agent
+/// CLI (Claude Code, Codex, Devin, Cursor...) connects by spawning `swctx mcp`.
+public enum MCPServer {
+    static func obj(_ pairs: [(String, Value)]) -> Value {
+        .object(Dictionary(pairs, uniquingKeysWith: { a, _ in a }))
+    }
+    static func str(_ s: String) -> Value { .string(s) }
+    static func prop(_ type: String, _ desc: String) -> Value {
+        .object(["type": .string(type), "description": .string(desc)])
+    }
+
+    static var wsProp: (String, Value) {
+        ("workspace", prop("string", "Absolute project path; omit or \"auto\" to resolve the nearest indexed ancestor of the server process cwd"))
+    }
+    static var uwrProp: (String, Value) {
+        ("use_workspace_root", prop("boolean", "Resolve a nested path up to its indexed workspace root"))
+    }
+
+    public static var toolList: [Tool] {
+        [
+            Tool(
+                name: "get_status",
+                description: "Read workspace index state: counts, capability health, freshness (stale/changed/deleted files vs index), pending embeddings. Call first; if freshness.stale_files > 0 run index_workspace before trusting results. freshness=\"deep\" additionally scans the disk for new files.",
+                inputSchema: obj([wsProp,
+                                  ("freshness", prop("string", "\"deep\" = full directory scan incl. new files (slower; default stats indexed files only)")),
+                                  ("type", .string("object"))]),
+                annotations: .init(readOnlyHint: true)),
+            Tool(
+                name: "fast_understand",
+                description: "Deterministic workspace digest — counts, language mix, hub symbols, hot files, call-graph communities, recent files; optional query adds top-5 relevant chunks. No LLM.",
+                inputSchema: obj([wsProp,
+                                  ("query", prop("string", "Optional query to also surface top-5 relevant chunks")),
+                                  ("type", .string("object"))]),
+                annotations: .init(readOnlyHint: true)),
+            Tool(
+                name: "index_workspace",
+                description: "Create or update the workspace index. Parses files, extracts symbols and call/import edges, embeds chunks on-device.",
+                inputSchema: obj([wsProp, uwrProp,
+                                  ("force", prop("boolean", "Full re-index, ignoring cached hashes")),
+                                  ("dry_run", prop("boolean", "Report what would change without writing")),
+                                  ("type", .string("object"))])),
+            Tool(
+                name: "list_workspaces",
+                description: "List workspaces that have been indexed on this machine.",
+                inputSchema: obj([("limit", prop("integer", "1-100, default 100")),
+                                  ("cursor", prop("integer", "Offset")),
+                                  ("type", .string("object"))]),
+                annotations: .init(readOnlyHint: true)),
+            Tool(
+                name: "search",
+                description: "Hybrid full-text + semantic search over indexed code chunks. Modes: hybrid (default), fts, semantic. Returns metadata + snippet; use fetch_chunks for full source.",
+                inputSchema: obj([wsProp,
+                                  ("query", prop("string", "Natural-language or keyword query")),
+                                  ("mode", prop("string", "hybrid | fts | semantic")),
+                                  ("path", prop("string", "Optional relative path prefix to scope results")),
+                                  ("limit", prop("integer", "Max hits, default 20")),
+                                  ("type", .string("object")),
+                                  ("required", .array([.string("query")]))]),
+                annotations: .init(readOnlyHint: true)),
+            Tool(
+                name: "find_definitions",
+                description: "Resolve symbol names to definition locations (path, line, signature, symbol_id, chunk_id). Metadata-first; include_content or fetch_chunks for source.",
+                inputSchema: obj([wsProp,
+                                  ("symbols", prop("array", "1-20 symbol names")),
+                                  ("include_content", prop("boolean", "Include chunk source (default false)")),
+                                  ("type", .string("object")),
+                                  ("required", .array([.string("symbols")]))]),
+                annotations: .init(readOnlyHint: true)),
+            Tool(
+                name: "find_usages",
+                description: "Find chunks that call/import/implement a symbol via reverse graph edges. definition_symbol_id (from find_definitions) pins one exact definition; symbol_name matches by name.",
+                inputSchema: obj([wsProp,
+                                  ("symbol_name", prop("string", "Symbol to locate usages for")),
+                                  ("definition_symbol_id", prop("integer", "Pin an exact definition (symbols.id); resolved edges only")),
+                                  ("edge_kinds", prop("array", "calls | imports | implements; default calls")),
+                                  ("limit", prop("integer", "Default 50, max 1000")),
+                                  ("include_content", prop("boolean", "Default false")),
+                                  ("type", .string("object"))]),
+                annotations: .init(readOnlyHint: true)),
+            Tool(
+                name: "fetch_chunks",
+                description: "Read full source for chunk IDs returned by other tools.",
+                inputSchema: obj([wsProp,
+                                  ("chunk_ids", prop("array", "Integer chunk IDs")),
+                                  ("include_content", prop("boolean", "Default true")),
+                                  ("type", .string("object")),
+                                  ("required", .array([.string("chunk_ids")]))]),
+                annotations: .init(readOnlyHint: true)),
+            Tool(
+                name: "inspect_path",
+                description: "Browse indexed chunks under a relative file/directory path; optional query reranks them semantically.",
+                inputSchema: obj([wsProp,
+                                  ("path", prop("string", "Relative file or directory path")),
+                                  ("query", prop("string", "Optional semantic rerank query")),
+                                  ("limit", prop("integer", "Default 50, max 200")),
+                                  ("offset", prop("integer", "Pagination offset")),
+                                  ("rerank_pool_size", prop("integer", "Query-mode candidate pool, default 150, max 500")),
+                                  ("include_content", prop("boolean", "Default false")),
+                                  ("type", .string("object")),
+                                  ("required", .array([.string("path")]))]),
+                annotations: .init(readOnlyHint: true)),
+            Tool(
+                name: "get_workspace_tree",
+                description: "Paginated list of indexed files with chunk/symbol counts.",
+                inputSchema: obj([wsProp,
+                                  ("root", prop("string", "Optional relative subtree root")),
+                                  ("max_depth", prop("integer", "Max path components below root")),
+                                  ("query", prop("string", "Substring filter on file path")),
+                                  ("status", prop("string", "stale | fresh — disk-vs-index comparison")),
+                                  ("limit", prop("integer", "Files per page, default 200")),
+                                  ("cursor", prop("integer", "File offset")),
+                                  ("type", .string("object"))]),
+                annotations: .init(readOnlyHint: true)),
+            Tool(
+                name: "graph_neighbors",
+                description: "Call/import graph neighbors of a chunk; BFS expansion when depth > 1.",
+                inputSchema: obj([wsProp,
+                                  ("chunk_id", prop("integer", "Seed chunk ID")),
+                                  ("edge_kinds", prop("array", "Edge type filter")),
+                                  ("direction", prop("string", "incoming | outgoing | both")),
+                                  ("depth", prop("integer", "BFS hops, 1-3, default 1")),
+                                  ("limit", prop("integer", "Default 20")),
+                                  ("include_content", prop("boolean", "Include neighbor chunk source (default false)")),
+                                  ("type", .string("object")),
+                                  ("required", .array([.string("chunk_id")]))]),
+                annotations: .init(readOnlyHint: true)),
+            Tool(
+                name: "graph_expand",
+                description: "BFS-expand a scored seed set through the resolved call/import graph (depth ≤ 2, cap 60). Results carry depth, via and decayed score.",
+                inputSchema: obj([wsProp,
+                                  ("seeds", prop("array", "Non-empty array of {chunk_id, score?}")),
+                                  ("mode", prop("string", "related (default) | calls | imports")),
+                                  ("include_content", prop("boolean", "Default false")),
+                                  ("type", .string("object")),
+                                  ("required", .array([.string("seeds")]))]),
+                annotations: .init(readOnlyHint: true)),
+            Tool(
+                name: "graph_paths",
+                description: "Paths between two chunks through resolved call edges. strategy: shortest (BFS, default) | all_simple (DFS simple-path enumeration).",
+                inputSchema: obj([wsProp,
+                                  ("from_chunk_id", prop("integer", "")),
+                                  ("to_chunk_id", prop("integer", "")),
+                                  ("max_hops", prop("integer", "Default 5")),
+                                  ("max_paths", prop("integer", "Default 3, max 10")),
+                                  ("strategy", prop("string", "shortest | all | all_simple")),
+                                  ("edge_kinds", prop("array", "")),
+                                  ("include_content", prop("boolean", "Default false")),
+                                  ("type", .string("object")),
+                                  ("required", .array([.string("from_chunk_id"), .string("to_chunk_id")]))]),
+                annotations: .init(readOnlyHint: true)),
+            Tool(
+                name: "context_pack",
+                description: "Deterministic multi-round retrieval: hybrid hits plus one-hop call-graph expansion. Returns grouped evidence (direct hits carry source; neighbors are metadata — fetch_chunks for bodies). Local no-LLM equivalent of ctxe ask_context compose=false.",
+                inputSchema: obj([wsProp,
+                                  ("query", prop("string", "Natural-language or keyword query")),
+                                  ("budget", prop("integer", "Max evidence items, default 12")),
+                                  ("expand", prop("boolean", "Include 1-hop call/called_by neighbors (default true)")),
+                                  ("path", prop("string", "Optional relative path prefix filter")),
+                                  ("type", .string("object")),
+                                  ("required", .array([.string("query")]))]),
+                annotations: .init(readOnlyHint: true)),
+            Tool(
+                name: "get_impact",
+                description: "Transitive dependents of a chunk — 'if I change this, what breaks?'.",
+                inputSchema: obj([wsProp,
+                                  ("chunk_id", prop("integer", "")),
+                                  ("max_hops", prop("integer", "Default 2, max 4")),
+                                  ("include_content", prop("boolean", "Default false")),
+                                  ("type", .string("object")),
+                                  ("required", .array([.string("chunk_id")]))]),
+                annotations: .init(readOnlyHint: true)),
+            Tool(
+                name: "get_record",
+                description: "Retrieve one durable workspace record by its integer ID.",
+                inputSchema: obj([wsProp,
+                                  ("id", prop("integer", "Workspace-local record ID")),
+                                  ("include_payload", prop("boolean", "Include full payload (default true)")),
+                                  ("type", .string("object")),
+                                  ("required", .array([.string("id")]))]),
+                annotations: .init(readOnlyHint: true)),
+            Tool(
+                name: "list_records",
+                description: "List durable workspace records (context packs, ask runs) with optional kind/source/status filters and pagination.",
+                inputSchema: obj([wsProp,
+                                  ("kind", prop("string", "Record kind filter")),
+                                  ("source", prop("string", "cli | mcp | http")),
+                                  ("status", prop("string", "running | completed | failed")),
+                                  ("limit", prop("integer", "1-100, default 50")),
+                                  ("offset", prop("integer", "Pagination offset")),
+                                  ("type", .string("object"))]),
+                annotations: .init(readOnlyHint: true)),
+            Tool(
+                name: "search_records",
+                description: "Full-text search over record titles and payloads; same filters and pagination as list_records.",
+                inputSchema: obj([wsProp,
+                                  ("query", prop("string", "Full-text search query")),
+                                  ("kind", prop("string", "Record kind filter")),
+                                  ("source", prop("string", "cli | mcp | http")),
+                                  ("status", prop("string", "running | completed | failed")),
+                                  ("limit", prop("integer", "1-100, default 50")),
+                                  ("offset", prop("integer", "Pagination offset")),
+                                  ("type", .string("object")),
+                                  ("required", .array([.string("query")]))]),
+                annotations: .init(readOnlyHint: true)),
+        ]
+    }
+
+    public static func run() async throws {
+        let server = Server(
+            name: "swctx",
+            version: "0.1.0",
+            instructions: "Local semantic code index. Call get_status first (workspace optional — resolves to the nearest indexed ancestor of the server cwd); if freshness.stale_files > 0 run index_workspace before trusting results. Use search for exploration, find_definitions/find_usages/graph_* for structure, fetch_chunks to read source. List tools return metadata only — set include_content or call fetch_chunks for bodies.",
+            capabilities: .init(tools: .init(listChanged: false))
+        )
+        await server.withMethodHandler(ListTools.self) { _ in
+            ListTools.Result(tools: toolList)
+        }
+        await server.withMethodHandler(CallTool.self) { params in
+            do {
+                let out = try await SwctxTools.call(name: params.name,
+                                                    arguments: params.arguments ?? [:])
+                return CallTool.Result(content: [.text(text: out, annotations: nil, _meta: nil)])
+            } catch {
+                let errJson = (try? JSONSerialization.data(
+                    withJSONObject: ["error": error.localizedDescription]))
+                    .flatMap { String(data: $0, encoding: .utf8) }
+                    ?? "{\"error\":\"unknown\"}"
+                return CallTool.Result(
+                    content: [.text(text: errJson, annotations: nil, _meta: nil)],
+                    isError: true)
+            }
+        }
+        try await server.start(transport: StdioTransport())
+        await server.waitUntilCompleted()
+    }
+}

@@ -1,0 +1,6 @@
+---
+trigger: always_on
+---
+
+Before work, read /Users/phuongnam/02.AI/NP_AI_macos/AGENTS.md and /Users/phuongnam/02.AI/NP_AI_macos/OPERATING_PROTOCOL.md. Use their E2E workflow, scope, evidence and approval rules. Preserve project-specific safety constraints; do not claim runtime compliance from this file alone.
+<!-- AOF-LOADER:managed -->

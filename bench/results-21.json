@@ -1,0 +1,703 @@
+{
+  "generated_at": "2026-09-17T07:42:31.024145+00:00",
+  "workspace": "/Users/phuongnam/02.AI/NP_AI_macos/21.linkeldn",
+  "servers": {
+    "swctx": {
+      "argv": [
+        "/Users/phuongnam/02.AI/NP_AI_macos/tools/swctx/bench/../.build/release/swctx",
+        "mcp"
+      ],
+      "server_info": {
+        "name": "swctx",
+        "version": "0.1.0"
+      },
+      "tools": [
+        "context_pack",
+        "fast_understand",
+        "fetch_chunks",
+        "find_definitions",
+        "find_usages",
+        "get_impact",
+        "get_record",
+        "get_status",
+        "get_workspace_tree",
+        "graph_expand",
+        "graph_neighbors",
+        "graph_paths",
+        "index_workspace",
+        "inspect_path",
+        "list_records",
+        "list_workspaces",
+        "search",
+        "search_records"
+      ]
+    },
+    "ctxe": {
+      "argv": [
+        "ctxe",
+        "mcp"
+      ],
+      "server_info": {
+        "name": "ctxe",
+        "version": "0.4.4"
+      },
+      "tools": [
+        "ask_context",
+        "compose_answer",
+        "fast_understand",
+        "fetch_chunks",
+        "find_definitions",
+        "find_usages",
+        "get_impact",
+        "get_record",
+        "get_status",
+        "get_workspace_tree",
+        "graph_expand",
+        "graph_neighbors",
+        "graph_paths",
+        "index_workspace",
+        "inspect_path",
+        "list_records",
+        "list_workspaces",
+        "search_records"
+      ]
+    }
+  },
+  "blockers": {},
+  "seeds": {
+    "swctx_seed": 65,
+    "ctxe_seed": 1130,
+    "swctx_usage_seed": 568,
+    "ctxe_usage_seed": 644
+  },
+  "notes": {
+    "ctxe_search": "ctxe has no bare `search`; inspect_path used as closest local equivalent. ask_context skipped (server-backed, consumes credits).",
+    "swctx_ask": "swctx has no ask_context (context_pack is its local analogue; not benchmarked)."
+  },
+  "results": [
+    {
+      "case": "find_definitions",
+      "server": "swctx",
+      "tool": "find_definitions",
+      "ok": true,
+      "latency_ms": 10.4,
+      "relevance": "exact",
+      "hits": [
+        {
+          "loc": "Tests/LinkedInAdminAppTests/BoardOnboardingTests.swift:47",
+          "symbol": "workflow",
+          "chunk_id": 562
+        },
+        {
+          "loc": "Tests/LinkedInAdminAppTests/LibraryRetrievalTests.swift:48",
+          "symbol": "workflow",
+          "chunk_id": 568
+        },
+        {
+          "loc": "Tests/LinkedInAdminAppTests/R3ReviewFixTests.swift:946",
+          "symbol": "workflow",
+          "chunk_id": 570
+        },
+        {
+          "loc": "Tests/LinkedInAdminAppTests/R3ReviewFixTests.swift:1074",
+          "symbol": "workflow",
+          "chunk_id": 570
+        },
+        {
+          "loc": "Tests/LinkedInAdminAppTests/R3ReviewFixTests.swift:1263",
+          "symbol": "workflow",
+          "chunk_id": 570
+        }
+      ],
+      "hit_count": 50
+    },
+    {
+      "case": "find_definitions",
+      "server": "ctxe",
+      "tool": "find_definitions",
+      "ok": true,
+      "latency_ms": 157.0,
+      "relevance": "exact",
+      "hits": [
+        {
+          "loc": "Sources/LinkedInAdminApp/AppState.swift:286",
+          "symbol": "workflow",
+          "chunk_id": 1130
+        },
+        {
+          "loc": "Sources/LinkedInAdminCore/LocalP8SourceAdapter.swift:40",
+          "symbol": "snapshot",
+          "chunk_id": 396
+        },
+        {
+          "loc": "Sources/LinkedInAdminCore/LocalP8SourceAdapter.swift:72",
+          "symbol": "snapshot",
+          "chunk_id": 397
+        },
+        {
+          "loc": "Sources/LinkedInAdminCore/P8Catalog.swift:215",
+          "symbol": "snapshot",
+          "chunk_id": 493
+        },
+        {
+          "loc": "Sources/LinkedInAdminCore/SourceIntake.swift:29",
+          "symbol": "snapshot",
+          "chunk_id": 537
+        }
+      ],
+      "hit_count": 13
+    },
+    {
+      "case": "find_usages",
+      "server": "swctx",
+      "tool": "find_usages",
+      "ok": true,
+      "latency_ms": 8.0,
+      "relevance": "exact",
+      "hits": [
+        {
+          "loc": "Tests/LinkedInAdminAppTests/LibraryRetrievalTests.swift:9",
+          "symbol": "LibraryRetrievalTests",
+          "chunk_id": 568
+        },
+        {
+          "loc": "Tests/LinkedInAdminAppTests/R3ReviewFixTests.swift:10",
+          "symbol": "R3ReviewFixTests",
+          "chunk_id": 570
+        },
+        {
+          "loc": "Tests/LinkedInAdminAppTests/V1BoundaryOracleTests.swift:13",
+          "symbol": "V1BoundaryOracleTests",
+          "chunk_id": 572
+        },
+        {
+          "loc": "Tests/LinkedInAdminAppTests/V1EditorMediaTests.swift:13",
+          "symbol": "V1EditorMediaTests",
+          "chunk_id": 574
+        },
+        {
+          "loc": "Tests/LinkedInAdminAppTests/V1OperationCoordinatorTests.swift:10",
+          "symbol": "V1OperationCoordinatorTests",
+          "chunk_id": 576
+        }
+      ],
+      "hit_count": 10
+    },
+    {
+      "case": "find_usages",
+      "server": "ctxe",
+      "tool": "find_usages",
+      "ok": true,
+      "latency_ms": 9.4,
+      "relevance": "exact",
+      "hits": [
+        {
+          "loc": "Tests/LinkedInAdminAppTests/BoardWorkflowTests.swift",
+          "symbol": "testBoardCreateUsesTheDirtyDraftConfirmation",
+          "chunk_id": 644
+        },
+        {
+          "loc": "Tests/LinkedInAdminAppTests/BoardWorkflowTests.swift",
+          "symbol": "testRequestImportDraftRequestsConfirmationAndPreservesDraftTextWhenDraftIsDirty",
+          "chunk_id": 645
+        },
+        {
+          "loc": "Tests/LinkedInAdminAppTests/BoardWorkflowTests.swift",
+          "symbol": "testAttachMediaForOtherDraftDoesNotOverwriteCurrentlySelectedDraft",
+          "chunk_id": 646
+        },
+        {
+          "loc": "Tests/LinkedInAdminAppTests/BoardWorkflowTests.swift",
+          "symbol": "testImportDraftForOtherArticleDoesNotOverwriteCurrentlySelectedDraft",
+          "chunk_id": 653
+        },
+        {
+          "loc": "Tests/LinkedInAdminAppTests/BoardWorkflowTests.swift",
+          "symbol": "testSaveDraftTextForOtherDraftDoesNotOverwriteCurrentlySelectedDraft",
+          "chunk_id": 656
+        }
+      ],
+      "hit_count": 10
+    },
+    {
+      "case": "search_symbol",
+      "server": "swctx",
+      "tool": "search",
+      "ok": true,
+      "latency_ms": 1370.6,
+      "relevance": "related",
+      "hits": [
+        {
+          "loc": "Sources/LinkedInAdminApp/AppState.swift:723",
+          "symbol": "workflow",
+          "chunk_id": 2117,
+          "score": 0.045384615384615384
+        },
+        {
+          "loc": "Sources/LinkedInAdminApp/Views/SupportViews.swift:97",
+          "symbol": "WorkflowConnector",
+          "chunk_id": 390,
+          "score": 0.04351351351351351
+        },
+        {
+          "loc": "Sources/LinkedInAdminCore/Workflow.swift:1639",
+          "symbol": "LinkedInActionBoundary",
+          "chunk_id": 2355,
+          "score": 0.029492753623188407
+        },
+        {
+          "loc": "docs/audits/PHASE_0_ARCHITECTURE_AUDIT_2026-09-15.md:139",
+          "symbol": null,
+          "chunk_id": 768,
+          "score": 0.01639344262295082
+        },
+        {
+          "loc": "Sources/LinkedInAdminApp/AppState.swift:2492",
+          "symbol": "baseText",
+          "chunk_id": 2220,
+          "score": 0.01639344262295082
+        }
+      ],
+      "hit_count": 10
+    },
+    {
+      "case": "search_symbol",
+      "server": "ctxe",
+      "tool": "inspect_path",
+      "ok": true,
+      "latency_ms": 1443.7,
+      "relevance": "related",
+      "hits": [
+        {
+          "loc": "Tests/LinkedInAdminAppTests/BoardWorkflowTests.swift:783",
+          "symbol": null,
+          "chunk_id": 1873,
+          "score": 0.04695726931095123
+        },
+        {
+          "loc": "Tests/LinkedInAdminAppTests/BoardWorkflowTests.swift:230",
+          "symbol": "testMediaAttachmentKeepsTextTypedWhileImageWasGenerating",
+          "chunk_id": 647,
+          "score": 0.04500873014330864
+        },
+        {
+          "loc": "Tests/LinkedInAdminAppTests/BoardWorkflowTests.swift:787",
+          "symbol": "testPublishDeniedInV1StillAllowsLocalDraftEditing",
+          "chunk_id": 1874,
+          "score": 0.031214624643325806
+        },
+        {
+          "loc": "Tests/LinkedInAdminAppTests/BoardWorkflowTests.swift:7",
+          "symbol": "BoardWorkflowTests",
+          "chunk_id": 1867,
+          "score": 0.0298149473965168
+        },
+        {
+          "loc": "Tests/LinkedInAdminAppTests/BoardWorkflowTests.swift:458",
+          "symbol": "testPublishNowDeniedInV1DoesNotAffectCurrentDraft",
+          "chunk_id": 1872,
+          "score": 0.02710215374827385
+        }
+      ],
+      "hit_count": 10
+    },
+    {
+      "case": "inspect_path",
+      "server": "swctx",
+      "tool": "inspect_path",
+      "ok": true,
+      "latency_ms": 48.7,
+      "relevance": "related",
+      "hits": [
+        {
+          "loc": "Tests/LinkedInAdminAppTests/BoardWorkflowTests.swift:7",
+          "symbol": "BoardWorkflowTests",
+          "chunk_id": 563,
+          "score": 0.058333333333333334
+        },
+        {
+          "loc": "Tests/LinkedInAdminAppTests/BoardOnboardingTests.swift:6",
+          "symbol": "BoardOnboardingTests",
+          "chunk_id": 562,
+          "score": 0.03177805800756621
+        },
+        {
+          "loc": "Tests/LinkedInAdminCoreTests/R3GateRegressionTests.swift:8",
+          "symbol": "R3GateRegressionTests",
+          "chunk_id": 588,
+          "score": 0.031746031746031744
+        },
+        {
+          "loc": "Tests/LinkedInAdminCoreTests/SettingsMigrationTests.swift:6",
+          "symbol": "SettingsMigrationTests",
+          "chunk_id": 591,
+          "score": 0.030834914611005692
+        },
+        {
+          "loc": "Tests/LinkedInAdminAppTests/BoardWorkflowTests.swift:902",
+          "symbol": "MockLinkedInURLProtocol",
+          "chunk_id": 564,
+          "score": 0.030384615384615385
+        }
+      ],
+      "hit_count": 10
+    },
+    {
+      "case": "inspect_path",
+      "server": "ctxe",
+      "tool": "inspect_path",
+      "ok": true,
+      "latency_ms": 716.6,
+      "relevance": "related",
+      "hits": [
+        {
+          "loc": "Tests/LinkedInAdminAppTests/BoardWorkflowTests.swift:783",
+          "symbol": null,
+          "chunk_id": 1873,
+          "score": 0.04695726931095123
+        },
+        {
+          "loc": "Tests/LinkedInAdminAppTests/BoardWorkflowTests.swift:230",
+          "symbol": "testMediaAttachmentKeepsTextTypedWhileImageWasGenerating",
+          "chunk_id": 647,
+          "score": 0.04500873014330864
+        },
+        {
+          "loc": "Tests/LinkedInAdminAppTests/BoardWorkflowTests.swift:787",
+          "symbol": "testPublishDeniedInV1StillAllowsLocalDraftEditing",
+          "chunk_id": 1874,
+          "score": 0.031214624643325806
+        },
+        {
+          "loc": "Tests/LinkedInAdminAppTests/BoardWorkflowTests.swift:7",
+          "symbol": "BoardWorkflowTests",
+          "chunk_id": 1867,
+          "score": 0.0298149473965168
+        },
+        {
+          "loc": "Tests/LinkedInAdminAppTests/BoardWorkflowTests.swift:458",
+          "symbol": "testPublishNowDeniedInV1DoesNotAffectCurrentDraft",
+          "chunk_id": 1872,
+          "score": 0.02710215374827385
+        }
+      ],
+      "hit_count": 10
+    },
+    {
+      "case": "graph_neighbors",
+      "server": "swctx",
+      "tool": "graph_neighbors",
+      "ok": true,
+      "latency_ms": 9.8,
+      "relevance": "exact",
+      "hits": [
+        {
+          "loc": "unresolved:Equatable",
+          "symbol": "Equatable",
+          "chunk_id": null,
+          "edge": "implements"
+        },
+        {
+          "loc": "unresolved:Sendable",
+          "symbol": "Sendable",
+          "chunk_id": null,
+          "edge": "implements"
+        },
+        {
+          "loc": "Sources/LinkedInAdminApp/AppOperation.swift:108",
+          "symbol": "firstActive",
+          "chunk_id": 65,
+          "edge": "calls"
+        },
+        {
+          "loc": "Sources/LinkedInAdminApp/AppOperation.swift:17",
+          "symbol": "AppOperation",
+          "chunk_id": 63,
+          "edge": "calls"
+        },
+        {
+          "loc": "Sources/LinkedInAdminApp/AppOperation.swift:108",
+          "symbol": "isBusy",
+          "chunk_id": 65,
+          "edge": "calls"
+        }
+      ],
+      "hit_count": 10
+    },
+    {
+      "case": "graph_neighbors",
+      "server": "ctxe",
+      "tool": "graph_neighbors",
+      "ok": true,
+      "latency_ms": 37.4,
+      "relevance": "exact",
+      "hits": [
+        {
+          "loc": "Sources/LinkedInAdminApp/AppState.swift",
+          "symbol": "AppModel",
+          "chunk_id": 1130,
+          "edge": "called_by"
+        },
+        {
+          "loc": "Sources/LinkedInAdminApp/AppState.swift",
+          "symbol": "init",
+          "chunk_id": 1149,
+          "edge": "called_by"
+        },
+        {
+          "loc": "Tests/LinkedInAdminAppTests/BoardWorkflowTests.swift",
+          "symbol": "testBoardCreateUsesTheDirtyDraftConfirmation",
+          "chunk_id": 644,
+          "edge": "called_by"
+        },
+        {
+          "loc": "Tests/LinkedInAdminAppTests/BoardWorkflowTests.swift",
+          "symbol": "testRequestImportDraftRequestsConfirmationAndPreservesDraftTextWhenDraftIsDirty",
+          "chunk_id": 645,
+          "edge": "called_by"
+        },
+        {
+          "loc": "Tests/LinkedInAdminAppTests/BoardWorkflowTests.swift",
+          "symbol": "testAttachMediaForOtherDraftDoesNotOverwriteCurrentlySelectedDraft",
+          "chunk_id": 646,
+          "edge": "called_by"
+        }
+      ],
+      "hit_count": 10
+    },
+    {
+      "case": "get_impact",
+      "server": "swctx",
+      "tool": "get_impact",
+      "ok": true,
+      "latency_ms": 8.6,
+      "relevance": "related",
+      "hits": [
+        {
+          "loc": "(0 dependents)",
+          "symbol": "empty"
+        }
+      ],
+      "hit_count": 1
+    },
+    {
+      "case": "get_impact",
+      "server": "ctxe",
+      "tool": "get_impact",
+      "ok": true,
+      "latency_ms": 14.5,
+      "relevance": "related",
+      "hits": [
+        {
+          "loc": "(0 dependents)",
+          "symbol": "empty"
+        }
+      ],
+      "hit_count": 1
+    },
+    {
+      "case": "graph_expand",
+      "server": "swctx",
+      "tool": "graph_expand",
+      "ok": true,
+      "latency_ms": 22.8,
+      "relevance": "exact",
+      "hits": [
+        {
+          "loc": "Sources/LinkedInAdminCore/LocalStore.swift:27",
+          "chunk_id": 2309,
+          "symbol": "LocalStore",
+          "edge": "calls",
+          "score": 0.7
+        },
+        {
+          "loc": "Sources/LinkedInAdminCore/Models.swift:86",
+          "chunk_id": 2315,
+          "symbol": "SourceSnapshot",
+          "edge": "calls",
+          "score": 0.7
+        },
+        {
+          "loc": "Sources/LinkedInAdminCore/Workflow.swift:456",
+          "chunk_id": 2353,
+          "symbol": "LocalWorkflow",
+          "edge": "calls",
+          "score": 0.7
+        },
+        {
+          "loc": "Sources/LinkedInAdminCore/LocalP8SourceAdapter.swift:33",
+          "chunk_id": 479,
+          "symbol": "LocalP8SourceAdapter",
+          "edge": "calls",
+          "score": 0.49
+        },
+        {
+          "loc": "Sources/LinkedInAdminCore/SourceIntake.swift:96",
+          "chunk_id": 535,
+          "symbol": "SourceIntake",
+          "edge": "calls",
+          "score": 0.49
+        }
+      ],
+      "hit_count": 52
+    },
+    {
+      "case": "graph_expand",
+      "server": "ctxe",
+      "tool": "graph_expand",
+      "ok": true,
+      "latency_ms": 15.3,
+      "relevance": "exact",
+      "hits": [
+        {
+          "loc": "Sources/LinkedInAdminApp/AppState.swift:286",
+          "chunk_id": 1130,
+          "symbol": "AppModel",
+          "edge": "calls",
+          "score": 0.38
+        },
+        {
+          "loc": "Sources/LinkedInAdminApp/AppState.swift:909",
+          "chunk_id": 1149,
+          "symbol": "init",
+          "edge": "calls",
+          "score": 0.38
+        },
+        {
+          "loc": "Sources/LinkedInAdminCore/Models.swift:207",
+          "chunk_id": 1671,
+          "symbol": "LinkedInDraft",
+          "edge": "calls",
+          "score": 0.38
+        },
+        {
+          "loc": "Tests/LinkedInAdminAppTests/BoardWorkflowTests.swift:276",
+          "chunk_id": 650,
+          "symbol": "MediaAttachmentFixture",
+          "edge": "field_of",
+          "score": 0.25
+        },
+        {
+          "loc": "Tests/LinkedInAdminCoreTests/P8FolderIntakeTests.swift:423",
+          "chunk_id": 801,
+          "symbol": "temporaryDirectory",
+          "edge": "field_of",
+          "score": 0.2375
+        }
+      ],
+      "hit_count": 5
+    },
+    {
+      "case": "records_probe",
+      "server": "swctx",
+      "tool": "list_records",
+      "ok": true,
+      "latency_ms": 10.2,
+      "relevance": "related",
+      "hits": [
+        {
+          "loc": "(empty ledger)",
+          "symbol": "0 records"
+        }
+      ],
+      "hit_count": 1
+    },
+    {
+      "case": "records_probe",
+      "server": "ctxe",
+      "tool": "list_records",
+      "ok": true,
+      "latency_ms": 15.9,
+      "relevance": "related",
+      "hits": [
+        {
+          "loc": "(empty ledger)",
+          "symbol": "0 records"
+        }
+      ],
+      "hit_count": 1
+    },
+    {
+      "case": "fast_understand",
+      "server": "swctx",
+      "tool": "fast_understand",
+      "ok": true,
+      "latency_ms": 518.4,
+      "relevance": "exact",
+      "hits": [
+        {
+          "loc": "\u2026_linkeldn_2026-09-10_codex_lead_next.md",
+          "symbol": null,
+          "chunk_id": 828,
+          "score": 0.061
+        },
+        {
+          "loc": "\u2026linkeldn_2026-09-10_codex_lead_close.md",
+          "symbol": null,
+          "chunk_id": 817,
+          "score": 0.059
+        },
+        {
+          "loc": "\u2026andoffs/REVIEW_COMPLETION_2026-09-12.md",
+          "symbol": null,
+          "chunk_id": 867,
+          "score": 0.043
+        },
+        {
+          "loc": "docs/linkeldn/APP_PLAYBOOK.md",
+          "symbol": null,
+          "chunk_id": 877,
+          "score": 0.031
+        },
+        {
+          "loc": "scripts/package-app.sh",
+          "symbol": "exit",
+          "chunk_id": 1260,
+          "score": 0.016
+        }
+      ],
+      "hit_count": 5
+    },
+    {
+      "case": "fast_understand",
+      "server": "ctxe",
+      "tool": "fast_understand",
+      "ok": true,
+      "latency_ms": 111589.5,
+      "relevance": "exact",
+      "hits": [
+        {
+          "loc": "Sources/LinkedInAdminAppMain/LinkedInAdminApp.swift",
+          "symbol": "Main application entry point and UI shell",
+          "chunk_id": 1497,
+          "confidence": "high"
+        },
+        {
+          "loc": "Sources/LinkedInAdminApp/AppState.swift",
+          "symbol": "Application state and UI orchestration",
+          "chunk_id": 1130,
+          "confidence": "high"
+        },
+        {
+          "loc": "Sources/LinkedInAdminCore/Workflow.swift",
+          "symbol": "Core workflow and local persistence",
+          "chunk_id": 1814,
+          "confidence": "high"
+        },
+        {
+          "loc": "Sources/LinkedInAdminCore/P8Catalog.swift",
+          "symbol": "Source intake and P8 content catalog",
+          "chunk_id": 490,
+          "confidence": "high"
+        },
+        {
+          "loc": "Sources/LinkedInAdminCore/LinkedInIntegration.swift",
+          "symbol": "LinkedIn integration and guarded external actions",
+          "chunk_id": 306,
+          "confidence": "high"
+        }
+      ],
+      "hit_count": 8
+    }
+  ]
+}

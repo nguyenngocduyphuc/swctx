@@ -1,0 +1,666 @@
+{
+  "generated_at": "2026-09-17T08:24:34.261862+00:00",
+  "workspace": "/Users/phuongnam/02.AI/NP_AI_macos/22.site-M",
+  "servers": {
+    "swctx": {
+      "argv": [
+        "/Users/phuongnam/02.AI/NP_AI_macos/tools/swctx/bench/../.build/release/swctx",
+        "mcp"
+      ],
+      "server_info": {
+        "name": "swctx",
+        "version": "0.1.0"
+      },
+      "tools": [
+        "context_pack",
+        "fast_understand",
+        "fetch_chunks",
+        "find_definitions",
+        "find_usages",
+        "get_impact",
+        "get_record",
+        "get_status",
+        "get_workspace_tree",
+        "graph_expand",
+        "graph_neighbors",
+        "graph_paths",
+        "index_workspace",
+        "inspect_path",
+        "list_records",
+        "list_workspaces",
+        "search",
+        "search_records"
+      ]
+    },
+    "ctxe": {
+      "argv": [
+        "ctxe",
+        "mcp"
+      ],
+      "server_info": {
+        "name": "ctxe",
+        "version": "0.4.4"
+      },
+      "tools": [
+        "ask_context",
+        "compose_answer",
+        "fast_understand",
+        "fetch_chunks",
+        "find_definitions",
+        "find_usages",
+        "get_impact",
+        "get_record",
+        "get_status",
+        "get_workspace_tree",
+        "graph_expand",
+        "graph_neighbors",
+        "graph_paths",
+        "index_workspace",
+        "inspect_path",
+        "list_records",
+        "list_workspaces",
+        "search_records"
+      ]
+    }
+  },
+  "blockers": {},
+  "seeds": {
+    "swctx_seed": 177,
+    "ctxe_seed": 4873,
+    "swctx_usage_seed": 803,
+    "ctxe_usage_seed": 4929
+  },
+  "notes": {
+    "ctxe_search": "ctxe has no bare `search`; inspect_path used as closest local equivalent. ask_context skipped (server-backed, consumes credits).",
+    "swctx_ask": "swctx has no ask_context (context_pack is its local analogue; not benchmarked)."
+  },
+  "results": [
+    {
+      "case": "find_definitions",
+      "server": "swctx",
+      "tool": "find_definitions",
+      "ok": true,
+      "latency_ms": 2.8,
+      "relevance": "exact",
+      "hits": [
+        {
+          "loc": "Sources/SiteM/SiteCleanup+Stores.swift:5",
+          "symbol": "SiteCleanup",
+          "chunk_id": 803
+        },
+        {
+          "loc": "Sources/SiteM/SiteCleanup.swift:24",
+          "symbol": "SiteCleanup",
+          "chunk_id": 804
+        },
+        {
+          "loc": "Sources/SiteM/FleetBridge.swift:91",
+          "symbol": "register",
+          "chunk_id": 496
+        },
+        {
+          "loc": "Sources/SiteM/MCPDispatcher.swift:91",
+          "symbol": "register",
+          "chunk_id": 626
+        },
+        {
+          "loc": "Sources/SiteM/SiteStore.swift:473",
+          "symbol": "register",
+          "chunk_id": 825
+        }
+      ],
+      "hit_count": 5
+    },
+    {
+      "case": "find_definitions",
+      "server": "ctxe",
+      "tool": "find_definitions",
+      "ok": true,
+      "latency_ms": 322.8,
+      "relevance": "exact",
+      "hits": [
+        {
+          "loc": "Sources/SiteM/SiteCleanup+Stores.swift:5",
+          "symbol": "SiteCleanup",
+          "chunk_id": 4873
+        },
+        {
+          "loc": "Sources/SiteM/FleetBridge.swift:91",
+          "symbol": "register",
+          "chunk_id": 1059
+        },
+        {
+          "loc": "Sources/SiteM/SiteStore.swift:473",
+          "symbol": "register",
+          "chunk_id": 2176
+        },
+        {
+          "loc": "Sources/SiteM/MCPDispatcher.swift:91",
+          "symbol": "register",
+          "chunk_id": 6490
+        }
+      ],
+      "hit_count": 4
+    },
+    {
+      "case": "find_usages",
+      "server": "swctx",
+      "tool": "find_usages",
+      "ok": true,
+      "latency_ms": 16.3,
+      "relevance": "exact",
+      "hits": [
+        {
+          "loc": "Sources/SiteM/SiteCleanup+Stores.swift:5",
+          "symbol": "SiteCleanup",
+          "chunk_id": 803
+        },
+        {
+          "loc": "Sources/SiteM/SiteCleanup.swift:24",
+          "symbol": "SiteCleanup",
+          "chunk_id": 804
+        }
+      ],
+      "hit_count": 2
+    },
+    {
+      "case": "find_usages",
+      "server": "ctxe",
+      "tool": "find_usages",
+      "ok": true,
+      "latency_ms": 13.8,
+      "relevance": "exact",
+      "hits": [
+        {
+          "loc": "Sources/SiteM/SiteCleanup.swift",
+          "symbol": "apply",
+          "chunk_id": 4929
+        }
+      ],
+      "hit_count": 1
+    },
+    {
+      "case": "search_symbol",
+      "server": "swctx",
+      "tool": "search",
+      "ok": true,
+      "latency_ms": 1602.0,
+      "relevance": "exact",
+      "hits": [
+        {
+          "loc": "Sources/SiteM/SiteCleanup+Stores.swift:5",
+          "symbol": "SiteCleanup",
+          "chunk_id": 803,
+          "score": 0.04701844262295082
+        },
+        {
+          "loc": "Sources/SiteM/SiteCleanup.swift:24",
+          "symbol": "SiteCleanup",
+          "chunk_id": 804,
+          "score": 0.04562178588125292
+        },
+        {
+          "loc": "Sources/SiteM/SiteCleanup.swift:389",
+          "symbol": "SiteCleanupError",
+          "chunk_id": 805,
+          "score": 0.03139344262295082
+        },
+        {
+          "loc": "docs/handoffs/HANDOFF_20260911_site-M_full-1mkt-parity.md:7",
+          "symbol": null,
+          "chunk_id": 2120,
+          "score": 0.01639344262295082
+        },
+        {
+          "loc": "outputs/implementation/T03/receipt.md:9",
+          "symbol": null,
+          "chunk_id": 2343,
+          "score": 0.016129032258064516
+        }
+      ],
+      "hit_count": 10
+    },
+    {
+      "case": "search_symbol",
+      "server": "ctxe",
+      "tool": "inspect_path",
+      "ok": true,
+      "latency_ms": 1612.2,
+      "relevance": "related",
+      "hits": [
+        {
+          "loc": "Sources/SiteM/AgentService.swift:16",
+          "symbol": "respond",
+          "chunk_id": 5488,
+          "score": 0.08781474083662033
+        },
+        {
+          "loc": "Sources/SiteM/AgentService.swift:155",
+          "symbol": null,
+          "chunk_id": 5490,
+          "score": 0.048077307641506195
+        },
+        {
+          "loc": "Sources/SiteM/AIVisibilityStore.swift:432",
+          "symbol": "deletePrompt",
+          "chunk_id": 138,
+          "score": 0.027480199933052063
+        },
+        {
+          "loc": "Sources/SiteM/AgentService.swift:270",
+          "symbol": null,
+          "chunk_id": 5492,
+          "score": 0.019969752058386803
+        },
+        {
+          "loc": "Sources/SiteM/AgentService.swift:91",
+          "symbol": null,
+          "chunk_id": 5489,
+          "score": 0.015713468194007874
+        }
+      ],
+      "hit_count": 10
+    },
+    {
+      "case": "inspect_path",
+      "server": "swctx",
+      "tool": "inspect_path",
+      "ok": true,
+      "latency_ms": 70.1,
+      "relevance": "exact",
+      "hits": [
+        {
+          "loc": "Sources/SiteM/SiteCleanup+Stores.swift:5",
+          "symbol": "SiteCleanup",
+          "chunk_id": 803,
+          "score": 0.05011546134496954
+        },
+        {
+          "loc": "Sources/SiteM/SiteCleanup.swift:24",
+          "symbol": "SiteCleanup",
+          "chunk_id": 804,
+          "score": 0.046754032258064515
+        },
+        {
+          "loc": "Sources/SiteM/SiteCleanup.swift:389",
+          "symbol": "SiteCleanupError",
+          "chunk_id": 805,
+          "score": 0.03869271269594352
+        },
+        {
+          "loc": "Sources/SiteM/InfraTest+Cleanup.swift:4",
+          "symbol": "InfraTest",
+          "chunk_id": 577,
+          "score": 0.022751548814355906
+        },
+        {
+          "loc": "Sources/SiteM/MetricsCache.swift:8",
+          "symbol": "PageDailyMetric",
+          "chunk_id": 651,
+          "score": 0.01639344262295082
+        }
+      ],
+      "hit_count": 10
+    },
+    {
+      "case": "inspect_path",
+      "server": "ctxe",
+      "tool": "inspect_path",
+      "ok": true,
+      "latency_ms": 673.0,
+      "relevance": "related",
+      "hits": [
+        {
+          "loc": "Sources/SiteM/AgentService.swift:16",
+          "symbol": "respond",
+          "chunk_id": 5488,
+          "score": 0.08781474083662033
+        },
+        {
+          "loc": "Sources/SiteM/AgentService.swift:155",
+          "symbol": null,
+          "chunk_id": 5490,
+          "score": 0.048077307641506195
+        },
+        {
+          "loc": "Sources/SiteM/AIVisibilityStore.swift:432",
+          "symbol": "deletePrompt",
+          "chunk_id": 138,
+          "score": 0.027480199933052063
+        },
+        {
+          "loc": "Sources/SiteM/AgentService.swift:270",
+          "symbol": null,
+          "chunk_id": 5492,
+          "score": 0.019969752058386803
+        },
+        {
+          "loc": "Sources/SiteM/AgentService.swift:91",
+          "symbol": null,
+          "chunk_id": 5489,
+          "score": 0.015713468194007874
+        }
+      ],
+      "hit_count": 10
+    },
+    {
+      "case": "graph_neighbors",
+      "server": "swctx",
+      "tool": "graph_neighbors",
+      "ok": true,
+      "latency_ms": 9.6,
+      "relevance": "exact",
+      "hits": [
+        {
+          "loc": "unresolved:Foundation",
+          "symbol": "Foundation",
+          "chunk_id": null,
+          "edge": "imports"
+        },
+        {
+          "loc": "unresolved:Sendable",
+          "symbol": "Sendable",
+          "chunk_id": null,
+          "edge": "implements"
+        },
+        {
+          "loc": "Sources/SiteM/AILocalStore.swift:5",
+          "symbol": "AILocalStore",
+          "chunk_id": 177,
+          "edge": "calls"
+        },
+        {
+          "loc": "unresolved:DispatchQueue",
+          "symbol": "DispatchQueue",
+          "chunk_id": null,
+          "edge": "calls"
+        },
+        {
+          "loc": "unresolved:goc",
+          "symbol": "goc",
+          "chunk_id": null,
+          "edge": "calls"
+        }
+      ],
+      "hit_count": 10
+    },
+    {
+      "case": "graph_neighbors",
+      "server": "ctxe",
+      "tool": "graph_neighbors",
+      "ok": true,
+      "latency_ms": 11.1,
+      "relevance": "exact",
+      "hits": [
+        {
+          "loc": "Sources/SiteM/SiteCleanup.swift",
+          "symbol": "apply",
+          "chunk_id": 4929,
+          "edge": "called_by"
+        }
+      ],
+      "hit_count": 1
+    },
+    {
+      "case": "get_impact",
+      "server": "swctx",
+      "tool": "get_impact",
+      "ok": true,
+      "latency_ms": 16.8,
+      "relevance": "exact",
+      "hits": [
+        {
+          "loc": "Sources/SiteM/SiteCleanup.swift:24",
+          "symbol": "SiteCleanup",
+          "chunk_id": 804
+        }
+      ],
+      "hit_count": 1
+    },
+    {
+      "case": "get_impact",
+      "server": "ctxe",
+      "tool": "get_impact",
+      "ok": true,
+      "latency_ms": 7.3,
+      "relevance": "exact",
+      "hits": [
+        {
+          "loc": "Sources/SiteM/InfraTest+Cleanup.swift:12",
+          "chunk_id": 4392,
+          "symbol": "runCleanup",
+          "hop": 1,
+          "score": 0.38
+        },
+        {
+          "loc": "Sources/SiteM/InfraTest.swift:26",
+          "chunk_id": 6442,
+          "symbol": "run",
+          "hop": 2,
+          "score": 0.07220000000000001
+        }
+      ],
+      "hit_count": 2
+    },
+    {
+      "case": "graph_expand",
+      "server": "swctx",
+      "tool": "graph_expand",
+      "ok": true,
+      "latency_ms": 12.9,
+      "relevance": "exact",
+      "hits": [
+        {
+          "loc": "Sources/SiteM/CMSLiveTransport.swift:340",
+          "chunk_id": 326,
+          "symbol": "Data",
+          "edge": "calls",
+          "score": 0.7
+        },
+        {
+          "loc": "Sources/SiteM/DuongDanDuLieu.swift:32",
+          "chunk_id": 488,
+          "symbol": "String",
+          "edge": "calls",
+          "score": 0.7
+        },
+        {
+          "loc": "Sources/SiteM/MetricsCache.swift:24",
+          "chunk_id": 653,
+          "symbol": "MetricsCache",
+          "edge": "calls",
+          "score": 0.7
+        },
+        {
+          "loc": "Sources/SiteM/SEORulesStore.swift:196",
+          "chunk_id": 783,
+          "symbol": "JSONEncoder",
+          "edge": "calls",
+          "score": 0.7
+        },
+        {
+          "loc": "Sources/SiteM/SiteCleanup.swift:24",
+          "chunk_id": 804,
+          "symbol": "SiteCleanup",
+          "edge": "calls",
+          "score": 0.7
+        }
+      ],
+      "hit_count": 60
+    },
+    {
+      "case": "graph_expand",
+      "server": "ctxe",
+      "tool": "graph_expand",
+      "ok": true,
+      "latency_ms": 12.4,
+      "relevance": "exact",
+      "hits": [
+        {
+          "loc": "Sources/SiteM/SiteCleanup.swift:232",
+          "chunk_id": 4930,
+          "symbol": "preflight",
+          "edge": "calls",
+          "score": 0.4
+        },
+        {
+          "loc": "Sources/SiteM/SiteCleanup.swift:259",
+          "chunk_id": 4931,
+          "symbol": "verify",
+          "edge": "calls",
+          "score": 0.4
+        },
+        {
+          "loc": "Sources/SiteM/SiteCleanup.swift:389",
+          "chunk_id": 4937,
+          "symbol": "SiteCleanupError",
+          "edge": "calls",
+          "score": 0.4
+        },
+        {
+          "loc": "Sources/SiteM/InfraTest+Cleanup.swift:12",
+          "chunk_id": 4392,
+          "symbol": "runCleanup",
+          "edge": "calls",
+          "score": 0.38
+        },
+        {
+          "loc": "Sources/SiteM/SiteCleanup+Stores.swift:5",
+          "chunk_id": 4873,
+          "symbol": "SiteCleanup",
+          "edge": "calls",
+          "score": 0.38
+        }
+      ],
+      "hit_count": 5
+    },
+    {
+      "case": "records_probe",
+      "server": "swctx",
+      "tool": "list_records",
+      "ok": true,
+      "latency_ms": 4.2,
+      "relevance": "related",
+      "hits": [
+        {
+          "loc": "(empty ledger)",
+          "symbol": "0 records"
+        }
+      ],
+      "hit_count": 1
+    },
+    {
+      "case": "records_probe",
+      "server": "ctxe",
+      "tool": "list_records",
+      "ok": true,
+      "latency_ms": 10.7,
+      "relevance": "exact",
+      "hits": [
+        {
+          "loc": "record:6",
+          "symbol": "main modules and entry points of 22.site-M"
+        },
+        {
+          "loc": "record:5",
+          "symbol": "Subject: leftover vendor/1MKT runtime paths in RankStore, Ra"
+        },
+        {
+          "loc": "record:4",
+          "symbol": "Re-review honesty/IA slice of site-M SwiftUI app: ContactTri"
+        },
+        {
+          "loc": "record:3",
+          "symbol": "Independent UI/UX audit of site-M after the 2026-09-17 overh"
+        },
+        {
+          "loc": "record:2",
+          "symbol": "Build blocker ngo\u00e0i T10 trong shared checkout: AssetStore.sw"
+        }
+      ],
+      "hit_count": 5
+    },
+    {
+      "case": "fast_understand",
+      "server": "swctx",
+      "tool": "fast_understand",
+      "ok": true,
+      "latency_ms": 124.9,
+      "relevance": "exact",
+      "hits": [
+        {
+          "loc": "Sources/SiteM/SiteStore.swift",
+          "symbol": "Site",
+          "chunk_id": 823,
+          "score": 0.061
+        },
+        {
+          "loc": "\u2026OFF_20260917_site-M_grok-uiux-review.md",
+          "symbol": null,
+          "chunk_id": 113,
+          "score": 0.061
+        },
+        {
+          "loc": "\u2026ifacts/dod/mutant_S2_host_sitemap.swift",
+          "symbol": "Site",
+          "chunk_id": 1888,
+          "score": 0.061
+        },
+        {
+          "loc": "\u2026nes/p8-core/scripts/p8_ai_visibility.py",
+          "symbol": "main",
+          "chunk_id": 3148,
+          "score": 0.059
+        },
+        {
+          "loc": "\u2026es/p8-core/scripts/p8_analytics_pull.py",
+          "symbol": "main",
+          "chunk_id": 3173,
+          "score": 0.059
+        }
+      ],
+      "hit_count": 5
+    },
+    {
+      "case": "fast_understand",
+      "server": "ctxe",
+      "tool": "fast_understand",
+      "ok": true,
+      "latency_ms": 44305.1,
+      "relevance": "exact",
+      "hits": [
+        {
+          "loc": "Sources/SiteMApp/main.swift",
+          "symbol": "Site-M application entry point and startup routing",
+          "chunk_id": 2603,
+          "confidence": "high"
+        },
+        {
+          "loc": "Sources/SiteM/App.swift",
+          "symbol": "Main navigation surface and user-facing modules",
+          "chunk_id": 5543,
+          "confidence": "high"
+        },
+        {
+          "loc": "Sources/SiteM/SiteStore.swift",
+          "symbol": "Site registry and app-owned data initialization",
+          "chunk_id": 2153,
+          "confidence": "high"
+        },
+        {
+          "loc": "Sources/SiteM/PerformanceView.swift",
+          "symbol": "Performance and analytics module",
+          "chunk_id": 7255,
+          "confidence": "high"
+        },
+        {
+          "loc": "Sources/SiteM/ContentStore.swift",
+          "symbol": "Content and Web Admin module",
+          "chunk_id": 5945,
+          "confidence": "high"
+        }
+      ],
+      "hit_count": 8
+    }
+  ]
+}
