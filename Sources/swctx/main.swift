@@ -11,7 +11,7 @@ struct Swctx: AsyncParsableCommand {
         commandName: "swctx",
         abstract: "Local semantic code index + MCP server (Swift reimplementation of the ctxe model).",
         version: "0.1.0",
-        subcommands: [IndexCmd.self, StatusCmd.self, PrimeCmd.self, SearchCmd.self, TreeCmd.self, EmbedCmd.self, DiscoverCmd.self, WatchCmd.self, AskCmd.self, ModelCmd.self, McpCmd.self, McpConfigCmd.self, InstallAgentCmd.self],
+        subcommands: [IndexCmd.self, StatusCmd.self, PrimeCmd.self, SearchCmd.self, TreeCmd.self, EmbedCmd.self, DiscoverCmd.self, WatchCmd.self, AskCmd.self, ModelCmd.self, McpCmd.self, McpConfigCmd.self, InstallAgentCmd.self, GcCmd.self],
         defaultSubcommand: nil)
 }
 
@@ -55,6 +55,35 @@ struct IndexCmd: AsyncParsableCommand {
                 print("  errors: \(report.errors.count) (first: \(report.errors.first ?? ""))")
             }
         }
+    }
+}
+
+struct GcCmd: ParsableCommand {
+    static let configuration = CommandConfiguration(commandName: "gc",
+        abstract: "Collect orphaned indexes under ~/.swctx/indexes (dry-run unless --yes).")
+    @Flag(name: .long, help: "Actually delete (default: dry-run report)") var yes = false
+    @Option(name: .long, help: "Safety window in hours — skip entries touched more recently") var minAgeHours: Double = 1
+    @Option(name: .long, help: "Output format: human | json") var format: String = "human"
+
+    func run() throws {
+        let report = Gc.run(yes: yes, minAgeSeconds: minAgeHours * 3600)
+        if format == "json" {
+            let data = try JSONSerialization.data(
+                withJSONObject: report, options: [.prettyPrinted, .sortedKeys])
+            print(String(data: data, encoding: .utf8)!)
+            return
+        }
+        let orphans = report["orphans"] as? [[String: Any]] ?? []
+        for o in orphans.prefix(15) {
+            print("  \(o["key"] ?? "")  \(o["chunks"] ?? 0) chunks  \(o["bytes"] ?? 0)B  \(o["workspace"] ?? "")")
+        }
+        if orphans.count > 15 { print("  … and \(orphans.count - 15) more") }
+        let mb = (report["collectable_bytes"] as? Int ?? 0) / 1_000_000
+        print("\(report["orphaned"] ?? 0) orphaned of \(report["total_indexes"] ?? 0) indexes "
+            + "(\(report["recent_skipped"] ?? 0) skipped: recent), "
+            + "registry dead: \(report["registry_dead"] ?? 0), "
+            + (yes ? "deleted \(report["deleted"] ?? 0), freed \(mb)MB"
+                   : "collectable \(mb)MB — re-run with --yes to delete"))
     }
 }
 

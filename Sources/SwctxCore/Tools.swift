@@ -55,13 +55,17 @@ public enum SwctxTools {
     /// index, or nil when none is found up to the filesystem root.
     static func indexedAncestor(of dir: URL) -> URL? {
         var d = dir
-        while true {
+        // Bounded: Foundation can return "/.." for the parent of "/" on
+        // some OS versions, so "parent == self" alone never terminates —
+        // stop when the parent stops shrinking (or after a hard bound).
+        for _ in 0..<64 {
             if FileManager.default.fileExists(
                 atPath: Store.indexURL(forKey: Store.key(for: d)).path) { return d }
             let p = d.deletingLastPathComponent()
-            if p.path == d.path { return nil }
+            if p.path.count >= d.path.count { return nil }
             d = p
         }
+        return nil
     }
 
     /// `workspace` may be omitted, "auto" or ".": then the nearest indexed
@@ -988,8 +992,8 @@ public enum SwctxTools {
     /// Attach `stale` + `stale_reasons` to each record dict in a response
     /// page — Store.staleCheck batches the git probe + anchor resolution.
     static func withStaleness(_ recs: [[String: Any]],
-                              store: Store) -> [[String: Any]] {
-        guard !recs.isEmpty else { return recs }
+                              store: Store?) -> [[String: Any]] {
+        guard let store, !recs.isEmpty else { return recs }
         let checks = store.staleCheck(recs.map {
             (headSHA: $0["head_sha"] as? String,
              anchors: ($0["anchors"] as? [String]) ?? [])
@@ -1078,39 +1082,51 @@ public enum SwctxTools {
     }
 
     static func listRecords(_ args: [String: Value]) throws -> String {
-        let store = try store(args)
-        let limit = min(max(args["limit"]?.int ?? 50, 1), 100)
-        let offset = max(args["offset"]?.int ?? 0, 0)
         let scope = args["scope"]?.str ?? "workspace"
         guard scope == "workspace" || scope == "global" || scope == "all" else {
             throw ToolError.invalidArg("scope must be workspace | global | all")
         }
+        // scope=workspace needs the workspace ledger. global/all only need
+        // the global one — when auto-resolution can't find an index (server
+        // cwd outside any indexed tree) they still serve global rows
+        // unfiltered by repo instead of erroring as not-indexed.
+        let store: Store?
+        if scope == "workspace" {
+            store = try self.store(args)
+        } else {
+            do { store = try self.store(args) }
+            catch ToolError.notIndexed { store = nil }
+        }
+        let wsKey = store.map { GlobalRecords.repoKey(for: $0.workspaceRoot) }
+        let wsParams: [DatabaseValueConvertible] = wsKey.map { [$0] } ?? []
+        let limit = min(max(args["limit"]?.int ?? 50, 1), 100)
+        let offset = max(args["offset"]?.int ?? 0, 0)
         let (whereSQL, params) = recordFilters(args, alias: "")
         let whereClause = whereSQL.isEmpty ? "" : " WHERE \(whereSQL)"
-        let wsClause = whereClause.isEmpty ? " WHERE ws = ?" : "\(whereClause) AND ws = ?"
+        let wsClause = wsKey == nil ? whereClause
+            : (whereClause.isEmpty ? " WHERE ws = ?" : "\(whereClause) AND ws = ?")
         do {
             if scope == "all" {
                 // Union, workspace rows first. put_record dual-writes both
                 // ledgers, so repo rows dedupe on (kind, title, payload).
                 // Ledgers are quota-bounded — merge the full filtered set
                 // and paginate in memory for an exact total.
-                let wsRows = try store.pool.read { db in
+                let wsRows = try store?.pool.read { db in
                     try Row.fetchAll(db, sql: """
                         SELECT id, kind, source, status, title, payload, created_at,
                                head_sha, anchors
                         FROM records\(whereClause) ORDER BY id DESC
                         """, arguments: StatementArguments(params))
-                }
+                } ?? []
                 var merged = wsRows.map { recordDict($0) }
                 var seen = Set(wsRows.map { recordContentKey($0) })
                 if let global = GlobalRecords.shared {
-                    let ws = GlobalRecords.repoKey(for: store.workspaceRoot)
                     let gRows = try global.pool.read { db in
                         try Row.fetchAll(db, sql: """
                             SELECT id, ws, kind, source, status, title, payload, created_at,
                                    head_sha, anchors
                             FROM records\(wsClause) ORDER BY id DESC
-                            """, arguments: StatementArguments(params + [ws]))
+                            """, arguments: StatementArguments(params + wsParams))
                     }
                     for r in gRows {
                         let key = recordContentKey(r)
@@ -1127,8 +1143,7 @@ public enum SwctxTools {
                 guard let global = GlobalRecords.shared else {
                     return json(["records": [Any](), "total": 0])
                 }
-                let ws = GlobalRecords.repoKey(for: store.workspaceRoot)
-                let gParams = params + [ws]
+                let gParams = params + wsParams
                 let (rows, total) = try global.pool.read { db in
                     let t = try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM records\(wsClause)",
                                              arguments: StatementArguments(gParams)) ?? 0
@@ -1142,6 +1157,9 @@ public enum SwctxTools {
                 return json(["records": withStaleness(rows.map { recordDict($0) },
                                                       store: store),
                              "total": total])
+            }
+            guard let store else {
+                return json(["error": "workspace scope requires a resolvable indexed workspace"])
             }
             let (rows, total) = try store.pool.read { db in
                 let t = try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM records\(whereClause)",
@@ -1162,25 +1180,35 @@ public enum SwctxTools {
     }
 
     static func searchRecords(_ args: [String: Value]) throws -> String {
-        let store = try store(args)
-        guard let q = args["query"]?.str else { throw ToolError.missingArg("query") }
-        let limit = min(max(args["limit"]?.int ?? 50, 1), 100)
-        let offset = max(args["offset"]?.int ?? 0, 0)
         let scope = args["scope"]?.str ?? "workspace"
         guard scope == "workspace" || scope == "global" || scope == "all" else {
             throw ToolError.invalidArg("scope must be workspace | global | all")
         }
+        // Same leniency as list_records: global/all only need the global
+        // ledger, so a missing index under auto-resolution doesn't error.
+        let store: Store?
+        if scope == "workspace" {
+            store = try self.store(args)
+        } else {
+            do { store = try self.store(args) }
+            catch ToolError.notIndexed { store = nil }
+        }
+        let wsKey = store.map { GlobalRecords.repoKey(for: $0.workspaceRoot) }
+        let wsParams: [DatabaseValueConvertible] = wsKey.map { [$0] } ?? []
+        guard let q = args["query"]?.str else { throw ToolError.missingArg("query") }
+        let limit = min(max(args["limit"]?.int ?? 50, 1), 100)
+        let offset = max(args["offset"]?.int ?? 0, 0)
         guard let match = Search.ftsQuery(q) else {
             return json(["records": [Any](), "total": 0])
         }
         let (filterSQL, filterParams) = recordFilters(args, alias: "r.")
         let whereClause = filterSQL.isEmpty ? "" : " AND \(filterSQL)"
-        let wsClause = " AND r.ws = ?"
+        let wsClause = wsKey == nil ? "" : " AND r.ws = ?"
         do {
             if scope == "all" {
                 // Ranked union, workspace hits first; same dedup as
                 // list_records scope=all (put_record dual-writes).
-                let wsRows = try store.pool.read { db in
+                let wsRows = try store?.pool.read { db in
                     try Row.fetchAll(db, sql: """
                         SELECT r.id, r.kind, r.source, r.status, r.title, r.payload, r.created_at,
                                r.head_sha, r.anchors, bm25(records_fts) AS rank
@@ -1188,11 +1216,10 @@ public enum SwctxTools {
                         WHERE records_fts MATCH ?\(whereClause)
                         ORDER BY rank
                         """, arguments: StatementArguments([match] + filterParams))
-                }
+                } ?? []
                 var merged = wsRows.map { recordDict($0) }
                 var seen = Set(wsRows.map { recordContentKey($0) })
                 if let global = GlobalRecords.shared {
-                    let ws = GlobalRecords.repoKey(for: store.workspaceRoot)
                     let gRows = try global.pool.read { db in
                         try Row.fetchAll(db, sql: """
                             SELECT r.id, r.ws, r.kind, r.source, r.status, r.title, r.payload, r.created_at,
@@ -1200,7 +1227,7 @@ public enum SwctxTools {
                             FROM records_fts JOIN records r ON r.id = records_fts.rowid
                             WHERE records_fts MATCH ?\(whereClause)\(wsClause)
                             ORDER BY rank
-                            """, arguments: StatementArguments([match] + filterParams + [ws]))
+                            """, arguments: StatementArguments([match] + filterParams + wsParams))
                     }
                     for r in gRows {
                         let key = recordContentKey(r)
@@ -1217,24 +1244,26 @@ public enum SwctxTools {
                 guard let global = GlobalRecords.shared else {
                     return json(["records": [Any](), "total": 0])
                 }
-                let ws = GlobalRecords.repoKey(for: store.workspaceRoot)
                 let (rows, total) = try global.pool.read { db in
                     let t = try Int.fetchOne(db, sql: """
                         SELECT COUNT(*) FROM records_fts JOIN records r ON r.id = records_fts.rowid
                         WHERE records_fts MATCH ?\(whereClause)\(wsClause)
-                        """, arguments: StatementArguments([match] + filterParams + [ws])) ?? 0
+                        """, arguments: StatementArguments([match] + filterParams + wsParams)) ?? 0
                     let r = try Row.fetchAll(db, sql: """
                         SELECT r.id, r.ws, r.kind, r.source, r.status, r.title, r.payload, r.created_at,
                                r.head_sha, r.anchors, bm25(records_fts) AS rank
                         FROM records_fts JOIN records r ON r.id = records_fts.rowid
                         WHERE records_fts MATCH ?\(whereClause)\(wsClause)
                         ORDER BY rank LIMIT ? OFFSET ?
-                        """, arguments: StatementArguments([match] + filterParams + [ws, limit, offset]))
+                        """, arguments: StatementArguments([match] + filterParams + wsParams + [limit, offset]))
                     return (r, t)
                 }
                 return json(["records": withStaleness(rows.map { recordDict($0) },
                                                       store: store),
                              "total": total])
+            }
+            guard let store else {
+                return json(["error": "workspace scope requires a resolvable indexed workspace"])
             }
             let (rows, total) = try store.pool.read { db in
                 let t = try Int.fetchOne(db, sql: """

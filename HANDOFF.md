@@ -309,3 +309,27 @@ extraction land nhưng index cũ giữ 0 implements edges cho tới khi force).
 - stdout = protocol/JSON only; logs → stderr (MCP correctness).
 - Model weights KHÔNG commit vào repo (`.gitignore` → `~/.swctx/`).
 - Không index `.env`/secrets (denylist trong discovery).
+
+### Audit follow-up fixes (2026-09-18, post-d5685f1)
+
+- **P0 ancestor-walk infinite loop (pre-existing):** `indexedAncestor` walked
+  parents via `deletingLastPathComponent` with a `parent == self` stop — but
+  Foundation returns `/..` for the parent of `/` on this macOS, so any
+  `tools/call` without `workspace` from a cwd with no indexed ancestor spun
+  forever (each iteration paying a `checkResourceIsReachable` syscall).
+  Verified by process sample + standalone repro (`/` → `/..` → `/../..` …).
+  Fix: terminate when the parent stops shrinking + 64-deep bound. Any agent
+  terminal opened outside an indexed tree wedged its swctx server on the
+  first no-workspace call — the same class of silent wedge that hurt ctxe.
+- **`scope=global`/`all` no longer needs a workspace:** when auto-resolution
+  finds no index, the global ledger still answers (all repos, `ws` field on
+  each row) instead of erroring not-indexed; explicit workspace keeps the
+  per-repo filter. Verified live: `list_records`/`search_records`/`get_status`
+  from an unindexed cwd all respond.
+- **`swctx gc`:** collects orphaned indexes under `~/.swctx/indexes/` —
+  orphan = `meta.workspace_root` no longer on disk; dry-run by default,
+  `--yes` deletes, 1h mtime safety window, dead registry entries pruned.
+  Read-only GRDB can't open hot-WAL DBs (SQLITE_CANTOPEN on recovery) —
+  probe falls back to a normal open; that fallback is what kept two live
+  384MB worktree indexes out of the orphan list. First real run: 678
+  collected, ~112MB freed, 22 live kept.

@@ -47,6 +47,7 @@ swctx mcp              # stdio MCP server
 swctx mcp-config       # print client config snippet
 swctx install-agent [--dry-run]  # register swctx MCP in claude/codex/gemini/cursor/windsurf/devin configs
 swctx prime <path> [--format md|json]  # compact context card: counts, freshness, watcher, hub symbols, recent records (alias: brief)
+swctx gc [--yes] [--min-age-hours N]   # collect orphaned indexes under ~/.swctx/indexes (dry-run first)
 ```
 
 Index data lives in `~/.swctx/indexes/<workspace-key>/index.db`; workspace
