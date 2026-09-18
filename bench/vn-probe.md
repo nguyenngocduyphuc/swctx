@@ -1,6 +1,6 @@
 # vn-probe — Vietnamese retrieval probe for swctx
 
-Generated: 2026-09-18T19:52:28+00:00 · swctx bin: `/Users/phuongnam/02.AI/NP_AI_macos/tools/swctx/bench/../.build/release/swctx` · limit: recall@5
+Generated: 2026-09-18T20:03:27+00:00 · swctx bin: `/Users/phuongnam/02.AI/NP_AI_macos/tools/swctx/bench/../.build/release/swctx` · limit: recall@5
 
 ## Question
 
@@ -8,9 +8,9 @@ Should swctx swap/extend its embedding model for Vietnamese? The hypothesis unde
 
 ## Method
 
-- 16 queries (14 Vietnamese, 2 English controls) across 2 indexed workspaces:
-  - `seo` = `/Users/phuongnam/02.AI/NP_AI_macos/8.P8_SEO_Clean` (8 queries)
-  - `crm` = `/Users/phuongnam/02.AI/NP_AI_macos/18.CRM-Nam-Pham` (8 queries)
+- 22 queries (19 Vietnamese, 3 English controls) across 2 indexed workspaces:
+  - `seo` = `/Users/phuongnam/02.AI/NP_AI_macos/8.P8_SEO_Clean` (11 queries)
+  - `crm` = `/Users/phuongnam/02.AI/NP_AI_macos/18.CRM-Nam-Pham` (11 queries)
 - Every query ran through all three modes — `fts`, `semantic`, `auto` —
   via `swctx search <ws> "<query>" --mode <m> --limit 5`, one CLI process per call.
 - Metric: recall@5 — 1 if the verified expected file appears in the top hits (rank recorded, first occurrence).
@@ -37,25 +37,31 @@ Should swctx swap/extend its embedding model for Vietnamese? The hypothesis unde
 | crm-06 | vi | vn_to_vn | tài liệu giải thích CEO đăng nhập bằng google qua cloudflare access | `crm-nam-pham/07-docs/DANG_NHAP.md` | 3 | 1 | 1 |
 | crm-07 | vi | vn_to_vn | script nạp file csv export từ serpupdate vào lịch sử từ khóa | `crm-nam-pham/09-build/nap_serp.py` | 1 | — | 1 |
 | crm-08 | en | en_control | shared helper writing one decision row into the operations ledger | `crm-nam-pham/09-build/ghi_so.py` | — | — | — |
+| seo-09 | vi | vn_to_en | bộ não phân tích SEO đọc dữ liệu GSC GA4 thật rồi gọi DeepSeek sinh hành động kèm bằng chứng | `scripts/p8_brain.py` | — | — | — |
+| seo-10 | vi | vn_to_en | script áp dụng các gợi ý link nội bộ vào bài viết trên site | `scripts/ghost_link_builder_apply.py` | — | — | — |
+| seo-11 | vi | vn_to_vn | tài liệu kế hoạch công việc của đội trong docs-fleet | `docs-fleet/ke-hoach.md` | — | — | 1 |
+| crm-09 | vi | vn_to_vn | script kiểm tra hệ thiết kế, bắt lỗi ai viết mã màu thẳng vào trang | `crm-nam-pham/09-build/kiem_he_thiet_ke.py` | 1 | — | 1 |
+| crm-10 | en | en_control | realign local issue ids with the D1 database when fingerprints match but ids differ | `crm-nam-pham/09-build/vaid_issues.py` | 4 | — | — |
+| crm-11 | vi | vn_to_en | script ghi nhật ký hoạt động của người dùng theo thời gian thực | `crm-nam-pham/09-build/log_activity_live.py` | — | — | — |
 
 ## Aggregate recall@5
 
 | scope | fts | semantic | auto |
 |---|---|---|---|
-| 8.P8_SEO_Clean (n=8) | 3/8 (38%) | 0/8 (0%) | 5/8 (62%) |
-| 18.CRM-Nam-Pham (n=8) | 5/8 (62%) | 1/8 (12%) | 6/8 (75%) |
-| ALL (n=16) | 8/16 (50%) | 1/16 (6%) | 11/16 (69%) |
-| lang=vi (n=14) | 7/14 (50%) | 1/14 (7%) | 10/14 (71%) |
-| lang=en (n=2) | 1/2 (50%) | 0/2 (0%) | 1/2 (50%) |
-| tag=vn_to_vn (n=12) | 7/12 (58%) | 1/12 (8%) | 10/12 (83%) |
-| tag=vn_to_en (n=2) | 0/2 (0%) | 0/2 (0%) | 0/2 (0%) |
-| tag=en_control (n=2) | 1/2 (50%) | 0/2 (0%) | 1/2 (50%) |
-| query_intent=concept_flow (n=13) | 6/13 (46%) | 1/13 (8%) | 9/13 (69%) |
-| query_intent=symbol_lookup (n=3) | 2/3 (67%) | 0/3 (0%) | 2/3 (67%) |
-| path_signal=in_body_only (n=7) | 4/7 (57%) | 0/7 (0%) | 4/7 (57%) |
-| path_signal=in_path (n=9) | 4/9 (44%) | 1/9 (11%) | 7/9 (78%) |
+| 8.P8_SEO_Clean (n=11) | 3/11 (27%) | 0/11 (0%) | 6/11 (55%) |
+| 18.CRM-Nam-Pham (n=11) | 7/11 (64%) | 1/11 (9%) | 7/11 (64%) |
+| ALL (n=22) | 10/22 (45%) | 1/22 (5%) | 13/22 (59%) |
+| lang=vi (n=19) | 8/19 (42%) | 1/19 (5%) | 12/19 (63%) |
+| lang=en (n=3) | 2/3 (67%) | 0/3 (0%) | 1/3 (33%) |
+| tag=vn_to_vn (n=14) | 8/14 (57%) | 1/14 (7%) | 12/14 (86%) |
+| tag=vn_to_en (n=5) | 0/5 (0%) | 0/5 (0%) | 0/5 (0%) |
+| tag=en_control (n=3) | 2/3 (67%) | 0/3 (0%) | 1/3 (33%) |
+| query_intent=concept_flow (n=18) | 7/18 (39%) | 1/18 (6%) | 11/18 (61%) |
+| query_intent=symbol_lookup (n=4) | 3/4 (75%) | 0/4 (0%) | 2/4 (50%) |
+| path_signal=in_body_only (n=11) | 5/11 (45%) | 0/11 (0%) | 4/11 (36%) |
+| path_signal=in_path (n=11) | 5/11 (45%) | 1/11 (9%) | 9/11 (82%) |
 
-Median CLI latency per call: fts 295 ms · semantic 751 ms · auto 780 ms.
+Median CLI latency per call: fts 288 ms · semantic 745 ms · auto 759 ms.
 
 ## FTS-miss → semantic-hit (the interesting cases)
 
@@ -70,6 +76,8 @@ Median CLI latency per call: fts 295 ms · semantic 751 ms · auto 780 ms.
 - **crm-03** (vi) "hàm tạo mảnh tin telegram báo có lead mới hôm qua" → `crm-nam-pham/09-build/tin_lead.py` — fts rank 1, semantic rank —, auto rank 2
 - **crm-05** (vi) "middleware gác cửa kiểm tra đăng nhập bằng vân tay passkey" → `crm-nam-pham/functions/_middleware.js` — fts rank 1, semantic rank —, auto rank 1
 - **crm-07** (vi) "script nạp file csv export từ serpupdate vào lịch sử từ khóa" → `crm-nam-pham/09-build/nap_serp.py` — fts rank 1, semantic rank —, auto rank 1
+- **crm-09** (vi) "script kiểm tra hệ thiết kế, bắt lỗi ai viết mã màu thẳng vào trang" → `crm-nam-pham/09-build/kiem_he_thiet_ke.py` — fts rank 1, semantic rank —, auto rank 1
+- **crm-10** (en) "realign local issue ids with the D1 database when fingerprints match but ids differ" → `crm-nam-pham/09-build/vaid_issues.py` — fts rank 4, semantic rank —, auto rank —
 
 ## Misses in every mode
 
@@ -78,24 +86,27 @@ Median CLI latency per call: fts 295 ms · semantic 751 ms · auto 780 ms.
 - **seo-06** (vi) "trang liệt kê tình trạng các worker trong đội hạm con nào đang bị block" → `docs-fleet/doi-ngu.md`
 - **crm-04** (vi) "script đối soát quyết định của CEO với trạng thái việc thật để đóng vòng" → `crm-nam-pham/09-build/dong_vong.py`
 - **crm-08** (en) "shared helper writing one decision row into the operations ledger" → `crm-nam-pham/09-build/ghi_so.py`
+- **seo-09** (vi) "bộ não phân tích SEO đọc dữ liệu GSC GA4 thật rồi gọi DeepSeek sinh hành động kèm bằng chứng" → `scripts/p8_brain.py`
+- **seo-10** (vi) "script áp dụng các gợi ý link nội bộ vào bài viết trên site" → `scripts/ghost_link_builder_apply.py`
+- **crm-11** (vi) "script ghi nhật ký hoạt động của người dùng theo thời gian thực" → `crm-nam-pham/09-build/log_activity_live.py`
 
 ## Failure-pattern analysis
 
-Vietnamese queries (n=14): FTS recall 50%, semantic 7%, auto 71%. English controls (n=2): FTS 50%, semantic 0%, auto 50%.
+Vietnamese queries (n=19): FTS recall 42%, semantic 5%, auto 63%. English controls (n=3): FTS 67%, semantic 0%, auto 33%.
 
-Split by target language — VN query onto Vietnamese-heavy content (vn_to_vn, n=12): FTS 58% / semantic 8%. VN query onto English-only code (vn_to_en, n=2): FTS 0% / semantic 0%. The vn_to_en rows are the purest test of whether the embedding model bridges languages, since no Vietnamese token in the index can match them.
+Split by target language — VN query onto Vietnamese-heavy content (vn_to_vn, n=14): FTS 57% / semantic 7%. VN query onto English-only code (vn_to_en, n=5): FTS 0% / semantic 0%. The vn_to_en rows are the purest test of whether the embedding model bridges languages, since no Vietnamese token in the index can match them.
 
-Leg divergence: 0 queries were rescued by the semantic leg (FTS miss → semantic hit) vs 7 going the other way (FTS hit → semantic miss). 5 queries missed in every mode.
+Leg divergence: 0 queries were rescued by the semantic leg (FTS miss → semantic hit) vs 9 going the other way (FTS hit → semantic miss). 8 queries missed in every mode.
 
-Mechanism check (verified in `Sources/SwctxCore/Embedder.swift` + `BGEEmbedder.swift`): embedding is per-index — these workspaces are bound to **distiluse-base-multilingual-cased-v2** (CoreML, cased WordPiece, mean pooling, real VN tokens), while the English default remains bge-base-en-v1.5. Vector ordering on VN improved ~10-50x after the binding, so a low semantic-leg VN recall (7%) now points at ranking/fusion, not vocab. The path boost itself is folded + token-boundary (`Search.foldText`): accented VN terms match ASCII path tokens, and substrings no longer produce phantom boosts.
+Mechanism check (verified in `Sources/SwctxCore/Embedder.swift` + `BGEEmbedder.swift`): embedding is per-index — these workspaces are bound to **distiluse-base-multilingual-cased-v2** (CoreML, cased WordPiece, mean pooling, real VN tokens), while the English default remains bge-base-en-v1.5. Vector ordering on VN improved ~10-50x after the binding, so a low semantic-leg VN recall (5%) now points at ranking/fusion, not vocab. The path boost itself is folded + token-boundary (`Search.foldText`): accented VN terms match ASCII path tokens, and substrings no longer produce phantom boosts.
 
 Two qualitative observations from the hit lists: (1) FTS noise is real — diacritic folding makes common VN morphemes collide (`chấm công nhân viên` matched `he-thiet-ke.css` on folded tokens `nhan`/`vien`), so FTS precision on VN is worse than its recall number suggests; (2) `auto` is a genuine RRF-style fusion, not a mode switch — it rescued `seo-02` (rank 2) that neither leg placed in the top 5, so the semantic leg does contribute ranking signal even when it can't win alone.
 
 ## Verdict
 
-**Vietnamese queries still lean on FTS** (50% recall vs semantic 7%): unicode61 folds diacritics (`chấm công` → `cham cong`), and Vietnamese file names/docstrings give FTS plenty to match. These indexes are bound to distiluse-multilingual, so the weak semantic leg is no longer a vocab problem — vector ordering improved ~10-50x — but deep vector hits rarely survive fusion.
+**Vietnamese queries still lean on FTS** (42% recall vs semantic 5%): unicode61 folds diacritics (`chấm công` → `cham cong`), and Vietnamese file names/docstrings give FTS plenty to match. These indexes are bound to distiluse-multilingual, so the weak semantic leg is no longer a vocab problem — vector ordering improved ~10-50x — but deep vector hits rarely survive fusion.
 
-Auto recall on natural VN queries is 71%. Measured fixes so far: folded token-boundary path boost (rescued crm-06 to rank 1, +1 VN hit, zero regressions). Measured reject: widening the per-leg candidate window to limit*12 — deep vector noise (ranks 15-60) diluted RRF and cost the English control (auto dropped). Remaining lever: weighted fusion or query rewriting, not bigger windows. Honest bound: en_control semantic recall is 0% on n=2.
+Auto recall on natural VN queries is 63%. Measured fixes so far: folded token-boundary path boost (rescued crm-06 to rank 1, +1 VN hit, zero regressions). Measured reject: widening the per-leg candidate window to limit*12 — deep vector noise (ranks 15-60) diluted RRF and cost the English control (auto dropped). Remaining lever: weighted fusion or query rewriting, not bigger windows. Honest bound: en_control semantic recall is 0% on n=3.
 
 Honesty check: this probe measures file-level recall@5 on two doc-heavy workspaces. It says nothing about chunk-level precision, and the corpus here is unusually VN-friendly (Vietnamese file names + docstrings), so treat the numbers as a directional answer to the product question, not a benchmark.
 

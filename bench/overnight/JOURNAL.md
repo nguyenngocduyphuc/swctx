@@ -246,3 +246,28 @@ consolidation). `swctx status` on P8: healthy, 1 stale file pending,
 pending_embeddings=0. Lesson for runbook: watchers must be restarted
 after any schema-migration release — worth a `--watchers-restart`
 hint in `index` output or install_agent docs.
+
+### ITER-6 (~04:00): vn_queries expansion 16→22 — eval instrument upgrade
+
+Added 6 verified queries (expected files confirmed indexed + read for
+purpose): seo-09/10 (vn_to_en hard), seo-11 (in_path doc), crm-09
+(in_path code), crm-10 (en→VN file), crm-11 (vn_to_en).
+
+**New baseline: 13/22 (59%), VN 12/19, in_path 9/11 vs in_body_only
+4/11, vn_to_en 0/5.**
+
+Immediate information yield:
+1. **Phrase leg generalizes** — seo-11 (ke-hoach.md) and crm-09
+   (kiem_he_thiet_ke.py) both hit rank 1 on files never seen during
+   tuning. The mechanism isn't overfit to cham_cong.
+2. **vn_to_en 0/5** — the semantic ceiling quantified: every VN→EN-file
+   query misses on all legs. This is THE number a multilingual
+   embedder must move (W4 measures exactly this).
+3. **New failure class found:** crm-10 fts=4 auto=- — a real fts-leg
+   hit displaced out of the fused top-5 by other legs' noise. The
+   opposite failure of rescue-miss: fusion DAMAGE, not absence.
+   Candidate lever if it recurs: single-leg hit protection (a chunk
+   ranked top-5 in ANY leg keeps a floor), but n=1 — watch first.
+
+n=22 makes zero-sum conclusions weaker — the instrument was the
+bottleneck for the last few iterations, now less so.
