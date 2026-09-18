@@ -24,14 +24,10 @@ public enum Search {
         return tokens.prefix(12).map { "\"\($0)\"*" }.joined(separator: " OR ")
     }
 
-    /// Folded-only variant query scoped to the `folded` column — one term
-    /// per query token whose diacritic fold differs (VN "đăng" → "dang").
-    /// unicode61 folds case but never folds đ (U+0111), so Vietnamese
-    /// needs this app-level rescue. Column-scoped on purpose: folded
-    /// matches score only through the cheap folded column and the leg is
-    /// used strictly as a tail-filler after real hits — extra candidates
-    /// in the shared window measurably displace borderline real hits.
-    static func ftsFoldedQuery(_ raw: String) -> String? {
+    /// Query tokens whose diacritic fold differs ("chấm" → "cham",
+    /// "công" → "cong"). unicode61 folds case but never folds đ (U+0111),
+    /// so Vietnamese needs these app-level variants.
+    static func foldedVariantTokens(_ raw: String) -> [String] {
         let tokens = raw
             .components(separatedBy: CharacterSet.alphanumerics.inverted)
             .map { $0.trimmingCharacters(in: .whitespaces) }
@@ -41,10 +37,43 @@ public enum Search {
         for t in tokens.prefix(12) {
             let f = foldText(t)
             if f != t.lowercased(), f.count >= 2, seen.insert(f).inserted {
-                out.append("folded : \"\(f)\"*")
+                out.append(f)
             }
         }
-        return out.isEmpty ? nil : out.joined(separator: " OR ")
+        return out
+    }
+
+    /// Folded-only variant query scoped to the `folded` column — one term
+    /// per diacritic-differing token. Column-scoped on purpose: folded
+    /// matches score only through the cheap folded column and the leg is
+    /// used strictly as a tail-filler after real hits — extra candidates
+    /// in the shared window measurably displace borderline real hits.
+    static func ftsFoldedQuery(_ raw: String) -> String? {
+        let terms = foldedVariantTokens(raw).map { "folded : \"\($0)\"*" }
+        return terms.isEmpty ? nil : terms.joined(separator: " OR ")
+    }
+
+    /// Folded adjacent-token PHRASES on the folded column: "chấm công"
+    /// probes folded : "cham cong" — which also matches folded
+    /// snake_case identifiers (tinh_cham_cong → "tinh cham cong") and
+    /// folded path tokens. Phrases are far more discriminating than
+    /// term-OR probes: term-level folded matches flooded windows with
+    /// common VN path/content tokens on every earlier attempt.
+    static func foldedPhraseQuery(_ raw: String) -> String? {
+        let toks = raw
+            .components(separatedBy: CharacterSet.alphanumerics.inverted)
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { $0.count >= 2 }
+        var terms: [String] = []
+        var seen: Set<String> = []
+        for pair in zip(toks.prefix(12), toks.prefix(12).dropFirst()) {
+            let f = foldText(pair.0 + " " + pair.1)
+            if f != (pair.0 + " " + pair.1).lowercased(),
+               f.count >= 3, seen.insert(f).inserted {
+                terms.append("path_tokens : \"\(f)\"")
+            }
+        }
+        return terms.isEmpty ? nil : terms.joined(separator: " OR ")
     }
 
     /// BM25F column weights for chunks_fts(content, path_tokens,
@@ -62,6 +91,9 @@ public enum Search {
     static let coverageCap = 0.03           // sub-cap on the coverage term
     static let pagerankWeight = 0.02        // × min-max normalized file rank
     static let depthPenaltyPerSegment = 0.005
+    /// Folded-phrase rescue leg weight — below the real legs; it exists
+    /// to surface diacritic phrase matches, not outrank them.
+    static let phraseLegWeight = 0.8
 
     /// Per-leg RRF weights (fts, semantic, symbol). Defaults are uniform;
     /// `SWCTX_RRF_W="f,s,y"` overrides for bench sweeps only — tuned
@@ -427,6 +459,25 @@ public enum Search {
             ? try semantic(store: store, embedder: embedder, query: query, limit: limit * 3, pathFilter: pathFilter)
             : []
         let symHits = try symbolHits(store: store, query: query, limit: limit * 3, pathFilter: pathFilter)
+        // Folded-phrase rescue leg (diacritic queries only — ASCII folds
+        // are identity so EN legs are unchanged). Adjacent-token phrases
+        // on the folded column are far more discriminating than term-OR
+        // folded probes: "chấm công" → folded : "cham cong" reaches
+        // tinh_cham_cong-style identifiers and cham_cong paths, while
+        // the single-token folded probes flooded windows on every
+        // earlier attempt (merged OR: 7/16, appended: 9/16, own leg: 10/16
+        // net-zero). Capped at 5, file-deduped — a phrase match is a
+        // file-level signal.
+        var phraseHits: [SearchHit] = []
+        if let pq = foldedPhraseQuery(query) {
+            let raw = try ftsRun(store: store, match: pq, limit: 15,
+                                 pathFilter: pathFilter)
+            var seenFiles: Set<String> = []
+            for h in raw where seenFiles.insert(h.path).inserted {
+                phraseHits.append(h)
+                if phraseHits.count == 5 { break }
+            }
+        }
         let w = fusionWeights()
         var rrf: [Int64: Double] = [:]
         for (i, h) in ftsHits.enumerated() { rrf[h.chunkID, default: 0] += w.fts / (60 + Double(i) + 1) }
@@ -434,8 +485,11 @@ public enum Search {
         // Exact-symbol leg gets full leg weight: an identifier token is a
         // strong intent signal, so its definitions deserve top placement.
         for (i, h) in symHits.enumerated() { rrf[h.chunkID, default: 0] += w.sym / (60 + Double(i) + 1) }
+        for (i, h) in phraseHits.enumerated() {
+            rrf[h.chunkID, default: 0] += Search.phraseLegWeight / (60 + Double(i) + 1)
+        }
         var byID: [Int64: SearchHit] = [:]
-        for h in ftsHits + vecHits + symHits { byID[h.chunkID] = h }
+        for h in ftsHits + vecHits + symHits + phraseHits { byID[h.chunkID] = h }
 
         let terms = Set(query.lowercased()
             .components(separatedBy: CharacterSet.alphanumerics.inverted)

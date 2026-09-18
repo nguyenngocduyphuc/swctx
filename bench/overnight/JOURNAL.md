@@ -127,3 +127,46 @@ calls skip the blob decode too.
 already gated (`hits.count < limit`), no wasted second query.
 
 Pending: W3 bge-reranker-v2-m3 CoreML spike (f8e96b7a) still running.
+
+## ITER-4 (~02:10–02:35): folded-path rescue variants → path_tokens PHRASE leg — ADOPTED (+1/16)
+
+**Target:** crm-01-style misses where the only signal is the folded
+FILENAME (`cham_cong.py` for query "chấm công"). Verified in SQLite:
+`path_tokens : "cham cong"` phrase matches all 22 cham_cong chunks.
+
+**Rejected variants (all zero-sum at n=16):**
+1. Folded term-OR merged into primary MATCH → 7/16 (path noise floods
+   window — same limit*12 mechanism)
+2. Folded-path hits appended to fts leg tail → 9/16 (weak leg-ranks
+   can't rescue but still displace seo-07 — asymmetric failure)
+3. Symbol-leg folded subtoken probe → dead end (cham_cong.py symbols
+   are merge_events/build_payload — filename tokens aren't IN symbols)
+4. Dedicated folded-path term-OR leg (w sweep 0.4-1.0, file-dedup,
+   no-double-dip boost) → every config 10/16: rescues crm-01 OR keeps
+   seo-07, never both — HANDOFF doc's filename match on "quy trinh
+   chuan" is equally strong; rescue & displacer sit at same fused
+   threshold. STRUCTURAL: crm-01 and seo-07 are mirror cases.
+5. Phrase leg on `folded` column (weight 0.6) → 10/16 identical to
+   baseline: phrase matches exist but bm25 score too weak, expected
+   file ranked 11 inside the leg, below the cap-5 dedup cut.
+
+**ADOPTED — adjacent folded PHRASE on path_tokens column:**
+`ftsFoldedPhraseQuery` emits `path_tokens : "cham cong"` per adjacent
+token pair whose fold differs (diacritic queries only), OR'd, fed as a
+4th RRF leg (cap 5, weight 0.8, file-deduped). Phrase precision kills
+the term-OR flood; path_tokens weight 2.5 gives filename intent real
+score; leg separation keeps it out of the fts window entirely.
+
+**Measured:** vn_probe auto **10/16 → 11/16 (69%)**, VN 9/14 →
+**10/14 (71%)** — crm-01 rescued miss→rank 2, seo-07 kept at rank 5
+(pushed but not displaced). All prior hits held. Ratchet PASS
+(0.9722, p95 125.7ms, schema 20). 102/102 tests.
+
+**Remaining misses (5):** seo-04/05/06 (cross-language vocab gap —
+"ảnh"↔"image" needs better multilingual semantic, W3 in flight),
+crm-04 (dong_vong.py — folded path term exists but phrase "dong vong"
+never adjacent in query), crm-08 (en_control symbol lookup gap).
+
+**Lesson:** at n=16 the folded-PATH space is zero-sum UNLESS precision
+is phrase-level AND scoring column is path_tokens (not folded 0.6).
+Term-OR on any column = flood; phrase on weak column = no rank.
