@@ -1,6 +1,55 @@
 # swctx — Handoff & Status
 
-Date: 2026-09-18 (3rd pass: dual-engine + Phase A-D) · Status: **working, verified end-to-end on 6 workspaces**
+Date: 2026-09-19 (overnight loop) · Status: **working, verified end-to-end on 6 workspaces**
+
+## 2026-09-19 — Overnight retrieval loop (ITER-1 → ITER-7)
+
+**Scoreboard**: vn probe 16→22 queries; auto recall **8/16 → 13/22**
+(baseline mới). Gates xanh: 106/106 tests · ratchet 0.9722 · p95 102.5ms ·
+schema golden 20 tools · cold_cwd PASS · vn gate `--gate 12`.
+
+**Adopted** (chi tiết `bench/overnight/JOURNAL.md`):
+- **Folded Vietnamese rescue** (schema v6): cột `folded` FTS riêng +
+  `foldText` app-level (unicode61 không fold đ/Đ). Tail-fill only khi
+  window thiếu — +2/16.
+- **Folded path-phrase leg**: adjacent folded-token phrases probe
+  `path_tokens` (precision > term-OR — 5 variants khác đều rejected).
+  +1/16, zero regression.
+- **Parallel hybrid legs** (DispatchGroup, DatabasePool concurrent
+  reads): VN hybrid 150→95-125ms; ratchet p95 →102.5ms.
+- **Vector sidecar** `vectors.v1.bin`: cold first-call 3.2→0.9s
+  (epoch-validated, self-healing).
+- **LegBag + SearchHit: Sendable** — zero-warning parallel section.
+- **Engine_eval records**: `put_record` allowlist + rerank-divergence
+  trigger ghi record so engine.
+- **`swctx embed --reindex --model`**: dim-mix guard + vec_snapshot
+  restore path.
+
+**Rejected (measured, artifacts kept)**:
+- `swctx rerank` amberoad mBERT: pinned +1 lúc n=16, absorb bởi folded
+  legs → neutral; opt-in.
+- `swctx rerank2` bge-reranker-v2-m3: 7/16, 2817ms/pair, prose-bias.
+- `swctx rerank3` jina-reranker-v2-base-multilingual: 13/22 neutral,
+  1567ms/pair. **3/3 rerankers rejected — losses domain-bound
+  (prose-vs-code), không phải capacity.**
+- `bge-m3` embedder: offline eval GO (rescue 4/5 dead-leg misses) NHƯNG
+  ~410ms/embed mọi compute unit → 3-7× quá gate p95. Spec registered
+  (opt-in); `--model bge-m3` works nhưng không phải live default.
+- 5 folded-rescue variants khác (merged OR, appended, dedicated leg,
+  dedup, no-double-dip) — zero-sum displacement ở n=16.
+
+**In flight**: `intfloat/multilingual-e5-base` offline eval (W6) —
+278M, prefixes+mean-pool; MPS ~10ms/query. Gate: ≥2 misses→top-30.
+Nếu GO → convert+adopt path giống bge-m3 nhưng latency-viable.
+
+**Miss map (13/22)**: in_path 9/11 (phrase leg owns) · in_body_only
+4/11 (semantic-bound) · vn_to_en 0/5 (needs real multilingual vectors)
+· symbol_lookup 2/4.
+
+**Ops notes**: watchers restart ~02:55 sau v6 migration (binary cũ
+đang chạy sẽ ghi folded rỗng). `embed --reindex` là all-or-nothing
+under SIGKILL — backup index.db trước khi đổi model (CRM đã restore
+thành công). `.worktrees/` ignored.
 
 ## 2026-09-18 — Dual-engine + Phase B/C/D
 
