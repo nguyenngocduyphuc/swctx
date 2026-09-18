@@ -196,3 +196,28 @@ seo-05 entity mesh, seo-06 đội hạm↔đội ngũ, crm-08 EN→VN symbol,
 crm-04 competition). Lexical iteration exhausted at 11/16 — next
 lever is embedding-side (CodeRankEmbed/bge-m3 via SPTokenizer, or a
 code-aware reranker), not more FTS surgery.
+
+## ITER-5 (~03:05): parallel search legs — ADOPTED (latency only)
+
+**Change:** `hybridCandidates` runs fts + semantic + symbol + phrase
+legs concurrently via DispatchGroup on a global queue (no signature
+change — stays sync throws). DatabasePool gives each read its own
+connection; query-embed inference (CoreML ~35ms CPU) overlaps FTS IO.
+Error behavior preserved: first error throws after group.wait().
+
+**Measured (persistent MCP, P8, warm):**
+- VN hybrid "quy trình chuẩn…": ~150-165ms → 105-125ms (~30%)
+- VN hybrid "chấm công…": ~143-165ms → 94-99ms (~35%)
+- EN hybrid "canonical check": ~80-90ms → 73-97ms (marginal — EN legs
+  already cheap; first-call slightly worse: concurrent cold cache load)
+- vn_probe: 11/16 — identical recall (same legs, same hits, only timing
+  changed). Ratchet PASS 0.9722 / schema 20. p95 135ms (vs 125.7 — the
+  ratchet p95 includes non-search + colder calls; under gate, logged).
+- 102/102 tests.
+
+**Honest note:** the remaining VN hybrid cost is now fts-bound (~60-80ms
+for 12-token OR × 4 bm25f columns) — semantic+phrase hide inside it.
+Next latency lever would be FTS-side (smaller window, co-term stats),
+not more parallelism.
+
+**W4 (bge-m3 offline eval, 2f35bd1f): in flight.**

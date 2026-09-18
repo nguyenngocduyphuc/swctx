@@ -456,30 +456,68 @@ public enum Search {
                                         limit: Int, poolLimit: Int,
                                         pathFilter: String? = nil,
                                         includeVector: Bool = true) throws -> [SearchHit] {
-        let ftsHits = try fts(store: store, query: query, limit: limit * 3, pathFilter: pathFilter)
-        let vecHits = includeVector
-            ? try semantic(store: store, embedder: embedder, query: query, limit: limit * 3, pathFilter: pathFilter)
-            : []
-        let symHits = try symbolHits(store: store, query: query, limit: limit * 3, pathFilter: pathFilter)
-        // Folded-phrase rescue leg (diacritic queries only — ASCII folds
-        // are identity so EN legs are unchanged). Adjacent-token phrases
-        // on the folded column are far more discriminating than term-OR
-        // folded probes: "chấm công" → folded : "cham cong" reaches
-        // tinh_cham_cong-style identifiers and cham_cong paths, while
-        // the single-token folded probes flooded windows on every
-        // earlier attempt (merged OR: 7/16, appended: 9/16, own leg: 10/16
-        // net-zero). Capped at 5, file-deduped — a phrase match is a
-        // file-level signal.
+        // Legs run concurrently: DatabasePool serves each read on its own
+        // connection and query-embed inference (CoreML, CPU-bound) overlaps
+        // the FTS IO. Sequential legs measured ~150ms warm on VN hybrid;
+        // parallel legs cost ~max(fts, embed+cache) instead of the sum.
+        var ftsHits: [SearchHit] = []
+        var vecHits: [SearchHit] = []
+        var symHits: [SearchHit] = []
         var phraseHits: [SearchHit] = []
-        if let pq = foldedPhraseQuery(query) {
-            let raw = try ftsRun(store: store, match: pq, limit: 15,
-                                 pathFilter: pathFilter)
-            var seenFiles: Set<String> = []
-            for h in raw where seenFiles.insert(h.path).inserted {
-                phraseHits.append(h)
-                if phraseHits.count == 5 { break }
+        var legErr: Error?
+        let errLock = NSLock()
+        let group = DispatchGroup()
+        let legQueue = DispatchQueue.global(qos: .userInitiated)
+        func note(_ e: Error) {
+            errLock.lock(); if legErr == nil { legErr = e }; errLock.unlock()
+        }
+        group.enter()
+        legQueue.async {
+            defer { group.leave() }
+            do { ftsHits = try fts(store: store, query: query, limit: limit * 3, pathFilter: pathFilter) }
+            catch { note(error) }
+        }
+        if includeVector {
+            group.enter()
+            legQueue.async {
+                defer { group.leave() }
+                do { vecHits = try semantic(store: store, embedder: embedder, query: query, limit: limit * 3, pathFilter: pathFilter) }
+                catch { note(error) }
             }
         }
+        group.enter()
+        legQueue.async {
+            defer { group.leave() }
+            do { symHits = try symbolHits(store: store, query: query, limit: limit * 3, pathFilter: pathFilter) }
+            catch { note(error) }
+        }
+        // Folded-phrase rescue leg (diacritic queries only — ASCII folds
+        // are identity so EN legs are unchanged). Adjacent-token phrases
+        // on path_tokens are far more discriminating than term-OR folded
+        // probes: "chấm công" → path_tokens : "cham cong" reaches
+        // cham_cong.py-style filenames, while single-token folded probes
+        // flooded windows on every earlier attempt (merged OR: 7/16,
+        // appended: 9/16, dedicated term leg: 10/16 net-zero). Capped at
+        // 5, file-deduped — a phrase match is a file-level signal.
+        if let pq = foldedPhraseQuery(query) {
+            group.enter()
+            legQueue.async {
+                defer { group.leave() }
+                do {
+                    let raw = try ftsRun(store: store, match: pq, limit: 15,
+                                         pathFilter: pathFilter)
+                    var seenFiles: Set<String> = []
+                    var out: [SearchHit] = []
+                    for h in raw where seenFiles.insert(h.path).inserted {
+                        out.append(h)
+                        if out.count == 5 { break }
+                    }
+                    phraseHits = out
+                } catch { note(error) }
+            }
+        }
+        group.wait()
+        if let e = legErr { throw e }
         let w = fusionWeights()
         var rrf: [Int64: Double] = [:]
         for (i, h) in ftsHits.enumerated() { rrf[h.chunkID, default: 0] += w.fts / (60 + Double(i) + 1) }
