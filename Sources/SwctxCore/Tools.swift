@@ -211,12 +211,29 @@ public enum SwctxTools {
         let store = try store(args)
         guard let q = args["query"]?.str else { throw ToolError.missingArg("query") }
         let limit = min(args["limit"]?.int ?? 20, 100)
-        let mode = args["mode"]?.str ?? "hybrid"
+        let requested = args["mode"]?.str ?? "auto"
         let pathFilter = args["path"]?.str
+        // auto: identifier-shaped queries take the deterministic FTS+symbol
+        // path (no vector leg — embedding can't help an exact name and can
+        // bury it under prose); everything else fuses all three legs.
+        let mode = requested == "auto"
+            ? (Search.identifierLike(q) ? "identifier" : "hybrid")
+            : requested
         let hits: [SearchHit]
         switch mode {
         case "fts": hits = try Search.fts(store: store, query: q, limit: limit, pathFilter: pathFilter)
         case "semantic": hits = try Search.semantic(store: store, embedder: Embedder.shared, query: q, limit: limit, pathFilter: pathFilter)
+        case "identifier":
+            var h = try Search.hybrid(store: store, embedder: Embedder.shared,
+                                      query: q, limit: limit, pathFilter: pathFilter,
+                                      includeVector: false)
+            // The name may live outside FTS/symbol reach (e.g. `authToken`
+            // vs `auth_token`) — fall back to the full fusion once.
+            if h.isEmpty {
+                h = try Search.hybrid(store: store, embedder: Embedder.shared,
+                                      query: q, limit: limit, pathFilter: pathFilter)
+            }
+            hits = h
         default: hits = try Search.hybrid(store: store, embedder: Embedder.shared, query: q, limit: limit, pathFilter: pathFilter)
         }
         let items = hits.map { h -> [String: Any] in
@@ -229,7 +246,7 @@ public enum SwctxTools {
             if !h.snippet.isEmpty { d["snippet"] = h.snippet }
             return d
         }
-        return json(["query": q, "mode": mode, "hits": items])
+        return json(["query": q, "mode": requested, "resolved_mode": mode, "hits": items])
     }
 
     static func findDefinitions(_ args: [String: Value]) throws -> String {
@@ -241,7 +258,8 @@ public enum SwctxTools {
         let result = try store.pool.read { db -> [[String: Any]] in
             try syms.prefix(20).map { name in
                 let rows = try Row.fetchAll(db, sql: """
-                    SELECT s.id AS symbol_id, s.name, s.kind, s.line, s.signature, f.path, c.id AS chunk_id
+                    SELECT s.id AS symbol_id, s.name, s.kind, s.norm_kind, s.line,
+                           s.signature, f.path, c.id AS chunk_id
                     FROM symbols s JOIN files f ON f.id = s.file_id
                     LEFT JOIN chunks c ON c.id = s.chunk_id
                     WHERE s.name = ? ORDER BY s.id LIMIT 25
@@ -250,7 +268,8 @@ public enum SwctxTools {
                 group["definitions"] = rows.map { r -> [String: Any] in
                     var d: [String: Any] = [
                         "path": (r["path"] as? String) ?? "", "line": (r["line"] as? Int64) ?? 0,
-                        "kind": (r["kind"] as? String) ?? "",
+                        "kind": (r["norm_kind"] as? String) ?? (r["kind"] as? String) ?? "",
+                        "raw_kind": (r["kind"] as? String) ?? "",
                         "symbol_id": (r["symbol_id"] as? Int64) ?? -1,
                     ]
                     if let sig = r["signature"] as? String { d["signature"] = sig }
@@ -917,7 +936,115 @@ public enum SwctxTools {
         }
     }
 
+    // MARK: - Response budget
+
+    /// Hard ceiling for any single tool response. Oversized payloads blow up
+    /// an agent's context; trim within budget or fail loudly instead.
+    static let hardResponseBytes = 64 * 1024
+    /// String fields under these keys get truncated when a response still
+    /// exceeds its budget after array trimming.
+    private static let truncatableKeys: Set<String> = ["content", "payload", "snippet"]
+
     public static func call(name: String, arguments: [String: Value]) async throws -> String {
+        let out = try await callRaw(name: name, arguments: arguments)
+        return applyBudget(args: arguments, json: out)
+    }
+
+    /// Budget contract: `max_tokens` (≈ chars/4) trims top-level arrays
+    /// tail-first, then truncates oversized content strings; the hard cap
+    /// returns E_OUTPUT_TOO_LARGE when even metadata cannot fit. `meta`
+    /// always reports `truncation_applied` + `content_status`, and `omitted`
+    /// with the dropped item count + reason when anything was cut.
+    static func applyBudget(args: [String: Value], json out: String) -> String {
+        guard var dict = (try? JSONSerialization.jsonObject(
+            with: Data(out.utf8))) as? [String: Any] else { return out }
+        let maxTok = args["max_tokens"]?.int
+        let budget = maxTok.map { $0 * 4 }
+        let limit = min(budget ?? hardResponseBytes, hardResponseBytes)
+
+        func encoded(_ d: [String: Any]) -> Int {
+            (try? JSONSerialization.data(withJSONObject: d))?.count ?? Int.max
+        }
+        var size = encoded(dict)
+        var omitted = 0
+        var truncated = false
+
+        if size > limit {
+            // Cut oversized content strings first, stepping down so a tight
+            // budget still keeps a small excerpt rather than dropping items.
+            for cap in [2048, 512, 128] where size > limit {
+                truncated = truncateStrings(&dict, cap: cap) || truncated
+                size = encoded(dict)
+            }
+            // Then shrink the largest top-level array by half each round —
+            // hits are ranked, so the tail is the least valuable part.
+            while size > limit {
+                guard let key = dict.keys.max(by: {
+                    ((dict[$0] as? [Any])?.count ?? -1) < ((dict[$1] as? [Any])?.count ?? -1)
+                }), var arr = dict[key] as? [Any], !arr.isEmpty else { break }
+                let drop = max(1, arr.count / 2)
+                arr.removeLast(drop)
+                omitted += drop
+                dict[key] = arr
+                let newSize = encoded(dict)
+                if newSize >= size { break }
+                size = newSize
+            }
+            truncated = truncated || omitted > 0
+        }
+        if size > limit {
+            let err: [String: Any] = [
+                "error": [
+                    "code": "E_OUTPUT_TOO_LARGE",
+                    "message": "response \(size)B exceeds limit \(limit)B even after trimming; narrow the query or raise max_tokens",
+                ] as [String: Any],
+                "meta": ["truncation_applied": true, "content_status": "error",
+                         "omitted": ["items": omitted,
+                                     "reason": budget != nil ? "max_tokens" : "response_cap",
+                                     "limit_bytes": limit] as [String: Any]],
+            ]
+            return json(err)
+        }
+        var meta = dict["meta"] as? [String: Any] ?? [:]
+        meta["truncation_applied"] = truncated
+        meta["content_status"] = truncated ? "truncated" : "full"
+        if omitted > 0 {
+            meta["omitted"] = [
+                "items": omitted,
+                "reason": budget != nil ? "max_tokens" : "response_cap",
+                "limit_bytes": limit,
+            ]
+        }
+        dict["meta"] = meta
+        return json(dict)
+    }
+
+    /// Truncate every `content`/`payload`/`snippet` string over `cap` chars
+    /// anywhere in the payload (recursive over dicts + arrays).
+    /// Returns true if anything was cut.
+    private static func truncateStrings(_ node: inout [String: Any], cap: Int) -> Bool {
+        var cut = false
+        for key in node.keys {
+            if var s = node[key] as? String, truncatableKeys.contains(key), s.count > cap {
+                s = String(s.prefix(cap)) + "\n…[truncated]"
+                node[key] = s
+                cut = true
+            } else if var d = node[key] as? [String: Any] {
+                if truncateStrings(&d, cap: cap) { node[key] = d; cut = true }
+            } else if var a = node[key] as? [Any] {
+                var changed = false
+                for i in a.indices {
+                    if var d = a[i] as? [String: Any], truncateStrings(&d, cap: cap) {
+                        a[i] = d; changed = true
+                    }
+                }
+                if changed { node[key] = a; cut = true }
+            }
+        }
+        return cut
+    }
+
+    private static func callRaw(name: String, arguments: [String: Value]) async throws -> String {
         switch name {
         case "context_pack": return try contextPack(arguments)
         case "get_status": return try getStatus(arguments)

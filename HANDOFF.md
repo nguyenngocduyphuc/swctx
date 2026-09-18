@@ -194,6 +194,32 @@ python3 bench/bench.py   # A/B suite → results.json
 một lần — incremental không re-parse file cũ (đã xảy ra: implements
 extraction land nhưng index cũ giữ 0 implements edges cho tới khi force).
 
+## Week 0/1 (2026-09-18) — schema v3 + auto + budget
+
+- **Repo có commit đầu tiên** (`main`, local identity `Devin`).
+- **schema v3**: `symbols.norm_kind` — kind ngữ nghĩa (`struct/enum/class/
+  protocol/extension/variable/function/method/...`), raw node type giữ trong
+  `kind`. Vendored swift grammar emit `class_declaration` cho cả struct/enum/
+  extension/actor → Analyzer tách bằng decl keyword trong `declText` (256B
+  đầu). `find_definitions` trả `kind`=norm + `raw_kind`. Migration tự backfill
+  từ `signature`; `--force` cho path `declText` đầy đủ.
+- **`extends` relabel** giờ chạy trên norm kinds (`concreteTypeKinds` /
+  `abstractTypeKinds` trong Languages). Hệ quả: site-M từng có ~144 `extends`
+  sai — target là `extension` decls (raw `class_declaration` cũ bị đếm nhầm
+  concrete); giờ giữ `implements` (conservative, đúng hơn).
+- **`search mode=auto`** (default, CLI + MCP): `Search.identifierLike` →
+  identifier (snake/CamelCase/`::`/dotted/path, 1 token) = hybrid không vector
+  leg (deterministic + nhanh hơn; miss trắng thì fallback full hybrid 1 lần);
+  prose → hybrid. Response có `resolved_mode`. `identifier` cũng là mode tường
+  minh. Nguồn gốc: audit Grok — `mode=semantic` đơn độc miss `SiteCleanup`.
+- **Output budget**: mọi tool nhận `max_tokens` (~4 chars/token), hard cap
+  64KB luôn áp. Truncate `content/payload/snippet` theo nấc 2048→512→128
+  trước, rồi trim array lớn nhất theo nửa đuôi; meta có `truncation_applied`,
+  `content_status` (full|truncated|error), `omitted{items,reason,limit_bytes}`;
+  không fit được → `E_OUTPUT_TOO_LARGE`. Tất cả qua `SwctxTools.call` wrapper
+  (`callRaw` giữ logic gốc).
+- Tests 26 → 31.
+
 ## Quy ước vận hành
 
 - `swctx index <path>` incremental; `--force` full; `swctx embed` bù vectors;

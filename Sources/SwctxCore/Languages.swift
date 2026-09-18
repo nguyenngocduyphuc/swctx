@@ -103,6 +103,72 @@ public enum Languages {
         profiles[id]
     }
 
+    // MARK: - Normalized symbol kinds
+
+    /// Semantic kinds emitted in tool output. Raw tree-sitter node types stay
+    /// in `symbols.kind`; `norm_kind` gives agents a cross-language taxonomy.
+    /// `declText` disambiguates grammars that emit one node type for several
+    /// declarations (the vendored swift grammar uses `class_declaration` for
+    /// struct/enum/actor/extension too).
+    public static func normKind(_ raw: String, declText: String? = nil) -> String {
+        if raw == "class_declaration" || raw == "extension_declaration",
+           let declText,
+           let m = declKeyword.firstMatch(
+               in: declText,
+               range: NSRange(declText.startIndex..., in: declText)),
+           let r = Range(m.range(at: 1), in: declText) {
+            return String(declText[r])
+        }
+        return normKindMap[raw] ?? raw
+    }
+
+    /// Kinds that make a resolved `implements` edge really `extends`.
+    static let concreteTypeKinds: Set<String> = [
+        "class", "struct", "enum", "union", "actor",
+    ]
+    /// Kinds that keep a resolved edge labeled `implements`.
+    static let abstractTypeKinds: Set<String> = [
+        "protocol", "interface", "trait",
+    ]
+
+    // swiftlint:disable:next force_try
+    private static let declKeyword = try! NSRegularExpression(
+        pattern: #"\b(struct|enum|actor|extension|protocol|interface|class)\b"#)
+
+    private static let normKindMap: [String: String] = [
+        "function_declaration": "function", "function_definition": "function",
+        "function_item": "function", "function_expression": "function",
+        "function_signature": "function",
+        "generator_function_declaration": "function",
+        "arrow_function": "function", "operator_declaration": "function",
+        "method_definition": "method", "method_declaration": "method",
+        "method_signature": "method", "protocol_function_declaration": "method",
+        "init_declaration": "initializer", "deinit_declaration": "initializer",
+        "subscript_declaration": "subscript",
+        "class_declaration": "class", "abstract_class_declaration": "class",
+        "class_definition": "class",
+        "struct_declaration": "struct", "struct_item": "struct",
+        "enum_declaration": "enum", "enum_item": "enum",
+        "union_item": "union",
+        "protocol_declaration": "protocol",
+        "interface_declaration": "interface", "trait_item": "trait",
+        "extension_declaration": "extension", "impl_item": "extension",
+        "typealias_declaration": "type", "type_alias_declaration": "type",
+        "type_declaration": "type", "type_item": "type",
+        "associatedtype_declaration": "type",
+        "property_declaration": "variable",
+        "public_field_definition": "variable", "field_declaration": "variable",
+        "lexical_declaration": "variable", "variable_declaration": "variable",
+        "var_declaration": "variable", "var_spec": "variable",
+        "assignment": "variable", "pair": "property",
+        "const_declaration": "constant", "const_spec": "constant",
+        "const_item": "constant", "static_item": "constant",
+        "mod_item": "module", "internal_module": "module", "module": "module",
+        "macro_definition": "macro", "macro_declaration": "macro",
+        "ambient_declaration": "type",
+        "heading": "heading",
+    ]
+
     private static let jsLikeDefs: Set<String> = [
         "function_declaration", "function_expression", "class_declaration",
         "method_definition", "lexical_declaration", "variable_declaration",

@@ -36,7 +36,7 @@ swift build -c release # release
 ```sh
 swctx index <path> [--force] [--format json]
 swctx status <path>
-swctx search <path> "query" [--mode hybrid|fts|semantic] [--limit N]
+swctx search <path> "query" [--mode auto|identifier|hybrid|fts|semantic] [--limit N]
 swctx tree <path> [--root subdir]
 swctx embed <path> [--reindex]   # fill on-device vectors (index only embeds a bounded batch)
 swctx watch <path> [--once]      # FSEvents watcher: auto reindex on change (foreground)
@@ -78,8 +78,8 @@ Any MCP client: point it at the built binary, or run
 | fast_understand | deterministic workspace digest: langs, hub symbols, hot files, communities, recent files, optional `query` → top hybrid hits |
 | index_workspace | create/update index (the only mutating tool) |
 | list_workspaces | indexed workspace registry |
-| search | hybrid / fts / semantic retrieval |
-| find_definitions | symbol name → definition locations |
+| search | `auto` (default): identifier-shaped queries take the deterministic FTS+symbol path, prose takes full hybrid fusion; explicit `identifier`/`hybrid`/`fts`/`semantic` also accepted; `resolved_mode` reports the pick |
+| find_definitions | symbol name → definition locations (`kind` = normalized kind like `struct`/`enum`, `raw_kind` = tree-sitter node type) |
 | find_usages | reverse edges: callers/importers/implementers of a symbol |
 | fetch_chunks | full source by chunk IDs |
 | inspect_path | browse chunks under a path; `query` rerank, `offset`, `rerank_pool_size` |
@@ -92,6 +92,17 @@ Any MCP client: point it at the built binary, or run
 | get_record | one workspace record by id |
 | list_records | records ledger, filters: kind/source/status + pagination |
 | search_records | FTS5 over record titles/payloads |
+
+### Response budget
+
+Every tool accepts `max_tokens` (≈4 chars/token). When a response exceeds the
+budget — or the always-on ~64KB hard cap — oversized `content`/`payload`/
+`snippet` strings are cut to a small excerpt first, then top-level arrays are
+trimmed tail-first (hits are ranked, so the tail is the least valuable part).
+Every response carries `meta.truncation_applied` + `meta.content_status`;
+when items were dropped, `meta.omitted` reports `{items, reason, limit_bytes}`.
+If even metadata can't fit, the tool returns `E_OUTPUT_TOO_LARGE` instead of
+a multi-megabyte payload.
 
 ## Differences vs ctxe
 

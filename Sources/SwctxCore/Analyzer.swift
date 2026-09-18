@@ -11,10 +11,21 @@ public struct ChunkDraft {
 
 public struct SymbolDraft {
     public var name: String
-    public var kind: String
+    public var kind: String      // raw tree-sitter node type
+    public var norm: String      // normalized semantic kind (Languages.normKind)
     public var line: Int
     public var signature: String
     public var chunkIndex: Int   // index into chunks, -1 if outside
+
+    public init(name: String, kind: String, line: Int, signature: String,
+                chunkIndex: Int, declText: String? = nil) {
+        self.name = name
+        self.kind = kind
+        self.norm = Languages.normKind(kind, declText: declText ?? signature)
+        self.line = line
+        self.signature = signature
+        self.chunkIndex = chunkIndex
+    }
 }
 
 public struct EdgeDraft {
@@ -93,10 +104,12 @@ public enum Analyzer {
                     let name = raw.count > 1 && raw.hasPrefix("\"") && raw.hasSuffix("\"")
                         ? String(raw.dropFirst().dropLast()) : raw
                     if !name.isEmpty {
+                        let text = node.text(in: bytes)
                         symbols.append(SymbolDraft(
                             name: name, kind: t, line: node.startRow + 1,
-                            signature: firstLine(node.text(in: bytes)),
-                            chunkIndex: chunkIndex(forLine: node.startRow + 1, in: chunks)))
+                            signature: firstLine(text),
+                            chunkIndex: chunkIndex(forLine: node.startRow + 1, in: chunks),
+                            declText: String(text.prefix(256))))
                     }
                 }
             }

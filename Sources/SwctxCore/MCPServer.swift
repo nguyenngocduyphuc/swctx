@@ -18,6 +18,9 @@ public enum MCPServer {
     static var uwrProp: (String, Value) {
         ("use_workspace_root", prop("boolean", "Resolve a nested path up to its indexed workspace root"))
     }
+    static var budgetProp: (String, Value) {
+        ("max_tokens", prop("integer", "Optional response budget (~4 chars/token); arrays trim tail-first, meta.omitted reports drops. Hard cap ~64KB always applies"))
+    }
 
     public static var toolList: [Tool] {
         [
@@ -26,14 +29,14 @@ public enum MCPServer {
                 description: "Read workspace index state: counts, capability health, freshness (stale/changed/deleted files vs index), pending embeddings. Call first; if freshness.stale_files > 0 run index_workspace before trusting results. freshness=\"deep\" additionally scans the disk for new files.",
                 inputSchema: obj([wsProp,
                                   ("freshness", prop("string", "\"deep\" = full directory scan incl. new files (slower; default stats indexed files only)")),
-                                  ("type", .string("object"))]),
+                                  budgetProp, ("type", .string("object"))]),
                 annotations: .init(readOnlyHint: true)),
             Tool(
                 name: "fast_understand",
                 description: "Deterministic workspace digest — counts, language mix, hub symbols, hot files, call-graph communities, recent files; optional query adds top-5 relevant chunks. No LLM.",
                 inputSchema: obj([wsProp,
                                   ("query", prop("string", "Optional query to also surface top-5 relevant chunks")),
-                                  ("type", .string("object"))]),
+                                  budgetProp, ("type", .string("object"))]),
                 annotations: .init(readOnlyHint: true)),
             Tool(
                 name: "index_workspace",
@@ -41,23 +44,23 @@ public enum MCPServer {
                 inputSchema: obj([wsProp, uwrProp,
                                   ("force", prop("boolean", "Full re-index, ignoring cached hashes")),
                                   ("dry_run", prop("boolean", "Report what would change without writing")),
-                                  ("type", .string("object"))])),
+                                  budgetProp, ("type", .string("object"))])),
             Tool(
                 name: "list_workspaces",
                 description: "List workspaces that have been indexed on this machine.",
                 inputSchema: obj([("limit", prop("integer", "1-100, default 100")),
                                   ("cursor", prop("integer", "Offset")),
-                                  ("type", .string("object"))]),
+                                  budgetProp, ("type", .string("object"))]),
                 annotations: .init(readOnlyHint: true)),
             Tool(
                 name: "search",
-                description: "Hybrid full-text + semantic search over indexed code chunks. Modes: hybrid (default), fts, semantic. Returns metadata + snippet; use fetch_chunks for full source.",
+                description: "Hybrid full-text + semantic search over indexed code chunks. Modes: auto (default — identifier-shaped queries take the deterministic FTS+symbol path, prose takes full fusion), hybrid, fts, semantic, identifier. Returns metadata + snippet; use fetch_chunks for full source.",
                 inputSchema: obj([wsProp,
                                   ("query", prop("string", "Natural-language or keyword query")),
-                                  ("mode", prop("string", "hybrid | fts | semantic")),
+                                  ("mode", prop("string", "auto (default) | hybrid | fts | semantic | identifier")),
                                   ("path", prop("string", "Optional relative path prefix to scope results")),
                                   ("limit", prop("integer", "Max hits, default 20")),
-                                  ("type", .string("object")),
+                                  budgetProp, ("type", .string("object")),
                                   ("required", .array([.string("query")]))]),
                 annotations: .init(readOnlyHint: true)),
             Tool(
@@ -66,7 +69,7 @@ public enum MCPServer {
                 inputSchema: obj([wsProp,
                                   ("symbols", prop("array", "1-20 symbol names")),
                                   ("include_content", prop("boolean", "Include chunk source (default false)")),
-                                  ("type", .string("object")),
+                                  budgetProp, ("type", .string("object")),
                                   ("required", .array([.string("symbols")]))]),
                 annotations: .init(readOnlyHint: true)),
             Tool(
@@ -78,7 +81,7 @@ public enum MCPServer {
                                   ("edge_kinds", prop("array", "calls | imports | implements; default calls")),
                                   ("limit", prop("integer", "Default 50, max 1000")),
                                   ("include_content", prop("boolean", "Default false")),
-                                  ("type", .string("object"))]),
+                                  budgetProp, ("type", .string("object"))]),
                 annotations: .init(readOnlyHint: true)),
             Tool(
                 name: "fetch_chunks",
@@ -86,7 +89,7 @@ public enum MCPServer {
                 inputSchema: obj([wsProp,
                                   ("chunk_ids", prop("array", "Integer chunk IDs")),
                                   ("include_content", prop("boolean", "Default true")),
-                                  ("type", .string("object")),
+                                  budgetProp, ("type", .string("object")),
                                   ("required", .array([.string("chunk_ids")]))]),
                 annotations: .init(readOnlyHint: true)),
             Tool(
@@ -99,7 +102,7 @@ public enum MCPServer {
                                   ("offset", prop("integer", "Pagination offset")),
                                   ("rerank_pool_size", prop("integer", "Query-mode candidate pool, default 150, max 500")),
                                   ("include_content", prop("boolean", "Default false")),
-                                  ("type", .string("object")),
+                                  budgetProp, ("type", .string("object")),
                                   ("required", .array([.string("path")]))]),
                 annotations: .init(readOnlyHint: true)),
             Tool(
@@ -112,7 +115,7 @@ public enum MCPServer {
                                   ("status", prop("string", "stale | fresh — disk-vs-index comparison")),
                                   ("limit", prop("integer", "Files per page, default 200")),
                                   ("cursor", prop("integer", "File offset")),
-                                  ("type", .string("object"))]),
+                                  budgetProp, ("type", .string("object"))]),
                 annotations: .init(readOnlyHint: true)),
             Tool(
                 name: "graph_neighbors",
@@ -124,7 +127,7 @@ public enum MCPServer {
                                   ("depth", prop("integer", "BFS hops, 1-3, default 1")),
                                   ("limit", prop("integer", "Default 20")),
                                   ("include_content", prop("boolean", "Include neighbor chunk source (default false)")),
-                                  ("type", .string("object")),
+                                  budgetProp, ("type", .string("object")),
                                   ("required", .array([.string("chunk_id")]))]),
                 annotations: .init(readOnlyHint: true)),
             Tool(
@@ -134,7 +137,7 @@ public enum MCPServer {
                                   ("seeds", prop("array", "Non-empty array of {chunk_id, score?}")),
                                   ("mode", prop("string", "related (default) | calls | imports")),
                                   ("include_content", prop("boolean", "Default false")),
-                                  ("type", .string("object")),
+                                  budgetProp, ("type", .string("object")),
                                   ("required", .array([.string("seeds")]))]),
                 annotations: .init(readOnlyHint: true)),
             Tool(
@@ -148,7 +151,7 @@ public enum MCPServer {
                                   ("strategy", prop("string", "shortest | all | all_simple")),
                                   ("edge_kinds", prop("array", "")),
                                   ("include_content", prop("boolean", "Default false")),
-                                  ("type", .string("object")),
+                                  budgetProp, ("type", .string("object")),
                                   ("required", .array([.string("from_chunk_id"), .string("to_chunk_id")]))]),
                 annotations: .init(readOnlyHint: true)),
             Tool(
@@ -159,7 +162,7 @@ public enum MCPServer {
                                   ("budget", prop("integer", "Max evidence items, default 12")),
                                   ("expand", prop("boolean", "Include 1-hop call/called_by neighbors (default true)")),
                                   ("path", prop("string", "Optional relative path prefix filter")),
-                                  ("type", .string("object")),
+                                  budgetProp, ("type", .string("object")),
                                   ("required", .array([.string("query")]))]),
                 annotations: .init(readOnlyHint: true)),
             Tool(
@@ -169,7 +172,7 @@ public enum MCPServer {
                                   ("chunk_id", prop("integer", "")),
                                   ("max_hops", prop("integer", "Default 2, max 4")),
                                   ("include_content", prop("boolean", "Default false")),
-                                  ("type", .string("object")),
+                                  budgetProp, ("type", .string("object")),
                                   ("required", .array([.string("chunk_id")]))]),
                 annotations: .init(readOnlyHint: true)),
             Tool(
@@ -178,7 +181,7 @@ public enum MCPServer {
                 inputSchema: obj([wsProp,
                                   ("id", prop("integer", "Workspace-local record ID")),
                                   ("include_payload", prop("boolean", "Include full payload (default true)")),
-                                  ("type", .string("object")),
+                                  budgetProp, ("type", .string("object")),
                                   ("required", .array([.string("id")]))]),
                 annotations: .init(readOnlyHint: true)),
             Tool(
@@ -190,7 +193,7 @@ public enum MCPServer {
                                   ("status", prop("string", "running | completed | failed")),
                                   ("limit", prop("integer", "1-100, default 50")),
                                   ("offset", prop("integer", "Pagination offset")),
-                                  ("type", .string("object"))]),
+                                  budgetProp, ("type", .string("object"))]),
                 annotations: .init(readOnlyHint: true)),
             Tool(
                 name: "search_records",
@@ -202,7 +205,7 @@ public enum MCPServer {
                                   ("status", prop("string", "running | completed | failed")),
                                   ("limit", prop("integer", "1-100, default 50")),
                                   ("offset", prop("integer", "Pagination offset")),
-                                  ("type", .string("object")),
+                                  budgetProp, ("type", .string("object")),
                                   ("required", .array([.string("query")]))]),
                 annotations: .init(readOnlyHint: true)),
         ]

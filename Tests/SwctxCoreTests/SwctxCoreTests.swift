@@ -626,4 +626,204 @@ final class SwctxCoreTests: XCTestCase {
         }
         XCTAssertEqual(paths, ["ok.py"])
     }
+
+    /// Swift's vendored grammar emits `class_declaration` for struct/enum/
+    /// extension too — `norm` must split them via the decl keyword while
+    /// `kind` keeps the raw node type.
+    func testNormKinds() throws {
+        let src = """
+        public struct Widget {}
+        enum Mode { case a }
+        class Base {}
+        protocol P { func pf() }
+        func top() {}
+        let answer = 42
+        """
+        let r = Analyzer.analyze(bytes: Array(src.utf8), languageID: "swift", path: "a.swift")
+        func norm(_ name: String) -> String? {
+            r.symbols.first { $0.name == name }?.norm
+        }
+        XCTAssertEqual(norm("Widget"), "struct")
+        XCTAssertEqual(norm("Mode"), "enum")
+        XCTAssertEqual(norm("Base"), "class")
+        XCTAssertEqual(norm("P"), "protocol")
+        XCTAssertEqual(norm("top"), "function")
+        XCTAssertEqual(norm("answer"), "variable")
+        XCTAssertEqual(r.symbols.first { $0.name == "Widget" }?.kind,
+                       "class_declaration")
+    }
+
+    /// norm_kind persists through indexing and surfaces in find_definitions
+    /// as `kind` with the raw node type retained as `raw_kind`.
+    func testNormKindsPersisted() async throws {
+        let dir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("swctx-test-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        try "struct Point { let x: Int }\nclass Box {}\n".write(
+            to: dir.appendingPathComponent("m.swift"), atomically: true,
+            encoding: .utf8)
+
+        let store = try Store(workspaceRoot: dir)
+        try Indexer(store: store).run(force: true)
+        let rows: [Row] = try await store.pool.read {
+            try Row.fetchAll($0, sql:
+                "SELECT name, kind, norm_kind FROM symbols ORDER BY name")
+        }
+        let norm = Dictionary(uniqueKeysWithValues: rows.map {
+            (($0["name"] as? String) ?? "", ($0["norm_kind"] as? String) ?? "")
+        })
+        XCTAssertEqual(norm["Point"], "struct")
+        XCTAssertEqual(norm["Box"], "class")
+
+        let out = try await SwctxTools.call(name: "find_definitions", arguments: [
+            "workspace": .string(dir.path), "symbols": .array([.string("Point")]),
+        ])
+        let payload = try JSONSerialization.jsonObject(with: Data(out.utf8)) as? [String: Any]
+        let defs = ((payload?["results"] as? [[String: Any]])?.first)?["definitions"]
+            as? [[String: Any]]
+        XCTAssertEqual(defs?.first?["kind"] as? String, "struct")
+        XCTAssertEqual(defs?.first?["raw_kind"] as? String, "class_declaration")
+    }
+
+    /// Schema v2 -> v3 upgrade: existing rows get norm_kind backfilled from
+    /// kind + signature.
+    func testNormKindBackfill() throws {
+        let dir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("swctx-test-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        try "enum E { case a }\nstruct S {}\n".write(
+            to: dir.appendingPathComponent("m.swift"), atomically: true,
+            encoding: .utf8)
+
+        let store = try Store(workspaceRoot: dir)
+        try Indexer(store: store).run(force: true)
+        // Simulate a pre-v3 index: norm_kind NULL + version 2, then reopen —
+        // migrate() runs the backfill path.
+        try store.pool.write { db in
+            try db.execute(sql: "UPDATE symbols SET norm_kind = NULL")
+            try db.execute(sql: "UPDATE meta SET value = '2' WHERE key = 'schema_version'")
+        }
+        _ = try Store(workspaceRoot: dir)
+        let norm = try store.pool.read { db in
+            try Row.fetchAll(db, sql:
+                "SELECT name, norm_kind FROM symbols ORDER BY name")
+        }
+        let map = Dictionary(uniqueKeysWithValues: norm.map {
+            (($0["name"] as? String) ?? "", ($0["norm_kind"] as? String) ?? "")
+        })
+        XCTAssertEqual(map["E"], "enum")
+        XCTAssertEqual(map["S"], "struct")
+    }
+
+    /// mode=auto routes identifier-shaped queries to the deterministic
+    /// FTS+symbol path and prose to full fusion; the response advertises the
+    /// resolved mode.
+    func testSearchModeAuto() async throws {
+        XCTAssertTrue(Search.identifierLike("SiteCleanup"))
+        XCTAssertTrue(Search.identifierLike("find_usages"))
+        XCTAssertTrue(Search.identifierLike("Foo.Bar::baz"))
+        XCTAssertTrue(Search.identifierLike("Sources/App.swift"))
+        XCTAssertFalse(Search.identifierLike("how does login work"))
+        XCTAssertFalse(Search.identifierLike("authentication"))
+        XCTAssertFalse(Search.identifierLike(""))
+
+        let dir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("swctx-test-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        try "def fetch_user():\n    return 1\n".write(
+            to: dir.appendingPathComponent("m.py"), atomically: true, encoding: .utf8)
+        try Indexer(store: Store(workspaceRoot: dir)).run(force: true)
+
+        let out = try await SwctxTools.call(name: "search", arguments: [
+            "workspace": .string(dir.path), "query": .string("fetch_user"),
+        ])
+        let payload = try JSONSerialization.jsonObject(with: Data(out.utf8)) as? [String: Any]
+        XCTAssertEqual(payload?["mode"] as? String, "auto")
+        XCTAssertEqual(payload?["resolved_mode"] as? String, "identifier")
+
+        let nl = try await SwctxTools.call(name: "search", arguments: [
+            "workspace": .string(dir.path), "query": .string("fetch a user record"),
+        ])
+        let nlPayload = try JSONSerialization.jsonObject(with: Data(nl.utf8)) as? [String: Any]
+        XCTAssertEqual(nlPayload?["resolved_mode"] as? String, "hybrid")
+    }
+
+    /// Output-budget contract: max_tokens trims arrays tail-first and reports
+    /// meta.omitted; an impossible budget yields E_OUTPUT_TOO_LARGE; every
+    /// response carries truncation_applied + content_status.
+    func testOutputBudget() async throws {
+        let dir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("swctx-test-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        for i in 0..<40 {
+            try "def fn_\(i)():\n    return \(i)\n".write(
+                to: dir.appendingPathComponent("f\(i).py"), atomically: true,
+                encoding: .utf8)
+        }
+        try Indexer(store: Store(workspaceRoot: dir)).run(force: true)
+
+        // Unbudgeted: everything present, meta says full.
+        let full = try await SwctxTools.call(name: "get_workspace_tree", arguments: [
+            "workspace": .string(dir.path),
+        ])
+        let fullP = try JSONSerialization.jsonObject(with: Data(full.utf8)) as? [String: Any]
+        XCTAssertEqual((fullP?["files"] as? [[String: Any]])?.count, 40)
+        XCTAssertEqual((fullP?["meta"] as? [String: Any])?["truncation_applied"] as? Bool, false)
+        XCTAssertEqual((fullP?["meta"] as? [String: Any])?["content_status"] as? String, "full")
+
+        // Tight budget: files trimmed, omitted reported.
+        let tight = try await SwctxTools.call(name: "get_workspace_tree", arguments: [
+            "workspace": .string(dir.path), "max_tokens": .int(150),
+        ])
+        let tightP = try JSONSerialization.jsonObject(with: Data(tight.utf8)) as? [String: Any]
+        let files = (tightP?["files"] as? [[String: Any]]) ?? []
+        XCTAssertLessThan(files.count, 40)
+        let meta = tightP?["meta"] as? [String: Any]
+        XCTAssertEqual(meta?["truncation_applied"] as? Bool, true)
+        let omitted = meta?["omitted"] as? [String: Any]
+        XCTAssertEqual(omitted?["reason"] as? String, "max_tokens")
+        XCTAssertEqual((omitted?["items"] as? Int) ?? 0, 40 - files.count)
+        XCTAssertLessThanOrEqual(tight.utf8.count, 700)
+
+        // Impossible budget: hard error envelope.
+        let tiny = try await SwctxTools.call(name: "get_workspace_tree", arguments: [
+            "workspace": .string(dir.path), "max_tokens": .int(1),
+        ])
+        let tinyP = try JSONSerialization.jsonObject(with: Data(tiny.utf8)) as? [String: Any]
+        XCTAssertEqual((tinyP?["error"] as? [String: Any])?["code"] as? String,
+                       "E_OUTPUT_TOO_LARGE")
+
+        // Oversized single content truncates instead of dropping the chunk.
+        let bigDir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("swctx-test-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: bigDir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: bigDir) }
+        let body = "def big():\n" + (0..<400).map {
+            "    # \($0) " + String(repeating: "x", count: 40)
+        }.joined(separator: "\n")
+        try body.write(to: bigDir.appendingPathComponent("big.py"),
+                       atomically: true, encoding: .utf8)
+        try Indexer(store: Store(workspaceRoot: bigDir)).run(force: true)
+        let chunks = try await SwctxTools.call(name: "inspect_path", arguments: [
+            "workspace": .string(bigDir.path), "path": .string("big.py"),
+        ])
+        let chunksP = try JSONSerialization.jsonObject(with: Data(chunks.utf8)) as? [String: Any]
+        let allChunks = (chunksP?["chunks"] as? [[String: Any]]) ?? []
+        let chunkID = allChunks.max(by: {
+            (($0["end_line"] as? Int) ?? 0) < (($1["end_line"] as? Int) ?? 0)
+        })?["chunk_id"] as? Int
+        let fetch = try await SwctxTools.call(name: "fetch_chunks", arguments: [
+            "workspace": .string(bigDir.path),
+            "chunk_ids": .array([.int(chunkID ?? -1)]),
+            "max_tokens": .int(300),
+        ])
+        let fetchP = try JSONSerialization.jsonObject(with: Data(fetch.utf8)) as? [String: Any]
+        let content = ((fetchP?["chunks"] as? [[String: Any]])?.first)?["content"] as? String
+        XCTAssertNotNil(content)
+        XCTAssertTrue(content?.contains("[truncated]") ?? false)
+    }
 }

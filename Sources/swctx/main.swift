@@ -71,7 +71,7 @@ struct SearchCmd: AsyncParsableCommand {
         abstract: "Hybrid search over indexed chunks.")
     @Argument(help: "Workspace path") var path: String
     @Argument(help: "Query") var query: String
-    @Option(name: .long) var mode: String = "hybrid"
+    @Option(name: .long) var mode: String = "auto"
     @Option(name: .long) var limit: Int = 10
 
     func run() async throws {

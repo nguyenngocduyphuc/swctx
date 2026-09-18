@@ -8,7 +8,7 @@ public final class Store: @unchecked Sendable {
     public let workspaceRoot: URL
     public let workspaceKey: String
 
-    public static let schemaVersion = 2
+    public static let schemaVersion = 3
 
     public static func key(for root: URL) -> String {
         let digest = SHA256.hash(data: Data(root.standardizedFileURL.path.utf8))
@@ -125,11 +125,34 @@ public final class Store: @unchecked Sendable {
             // Analyzer EdgeDraft.qualifier field that will populate it.
             try db.execute(sql: "ALTER TABLE edges ADD COLUMN qualifier TEXT")
         }
+        migrator.registerMigration("v3") { db in
+            // Normalized semantic symbol kind alongside the raw tree-sitter
+            // node type (`symbols.kind`); tool output reports norm + raw.
+            try db.execute(sql: "ALTER TABLE symbols ADD COLUMN norm_kind TEXT")
+        }
         try migrator.migrate(pool)
         try pool.write { db in
             try db.execute(
                 sql: "INSERT OR REPLACE INTO meta(key, value) VALUES('schema_version', ?), ('workspace_root', ?), ('created_at', ?)",
                 arguments: [String(Store.schemaVersion), workspaceRoot.path, String(Date().timeIntervalSince1970)])
+            // Backfill norm_kind for pre-v3 rows. `signature` (first decl
+            // line) carries the keyword needed to split swift's umbrella
+            // `class_declaration` into struct/enum/class/etc.
+            if (try Int.fetchOne(db, sql:
+                "SELECT COUNT(*) FROM symbols WHERE norm_kind IS NULL") ?? 0) > 0 {
+                let rows = try Row.fetchAll(db, sql:
+                    "SELECT id, kind, signature FROM symbols WHERE norm_kind IS NULL")
+                for r in rows {
+                    try db.execute(
+                        sql: "UPDATE symbols SET norm_kind = ? WHERE id = ?",
+                        arguments: [
+                            Languages.normKind(
+                                (r["kind"] as? String) ?? "",
+                                declText: r["signature"] as? String),
+                            r["id"] as? Int64 ?? -1,
+                        ])
+                }
+            }
         }
     }
 

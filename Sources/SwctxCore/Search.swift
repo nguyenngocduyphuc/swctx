@@ -156,12 +156,28 @@ public enum Search {
         }
     }
 
+    /// Identifier-shaped lookup (snake_case, CamelCase, `::`, dotted or
+    /// path-like single token). Such queries are definition lookups, so the
+    /// vector leg adds cost and noise without upside.
+    public static func identifierLike(_ query: String) -> Bool {
+        let t = query.trimmingCharacters(in: .whitespaces)
+        guard !t.isEmpty, !t.contains(" "), t.count >= 2 else { return false }
+        if t.range(of: #"[_:.\\/\-]"#, options: .regularExpression) != nil { return true }
+        // camelCase or ALLCAPS signal: an uppercase letter that is not the
+        // leading character of a plain Capitalized word still counts.
+        return t.range(of: #"[a-z][A-Z]|[A-Z][a-z]+[A-Z]|^[A-Z][a-z]*$"#, options: .regularExpression) != nil
+    }
+
     /// Reciprocal-rank fusion of FTS + semantic hits, with deterministic
-    /// symbol/path boosts and a small legacy-archive penalty.
+    /// symbol/path boosts and a small legacy-archive penalty. `includeVector`
+    /// false skips embedding entirely (identifier lookups).
     public static func hybrid(store: Store, embedder: Embedder, query: String,
-                              limit: Int, pathFilter: String? = nil) throws -> [SearchHit] {
+                              limit: Int, pathFilter: String? = nil,
+                              includeVector: Bool = true) throws -> [SearchHit] {
         let ftsHits = try fts(store: store, query: query, limit: limit * 3, pathFilter: pathFilter)
-        let vecHits = try semantic(store: store, embedder: embedder, query: query, limit: limit * 3, pathFilter: pathFilter)
+        let vecHits = includeVector
+            ? try semantic(store: store, embedder: embedder, query: query, limit: limit * 3, pathFilter: pathFilter)
+            : []
         let symHits = try symbolHits(store: store, query: query, limit: limit * 3, pathFilter: pathFilter)
         var rrf: [Int64: Double] = [:]
         for (i, h) in ftsHits.enumerated() { rrf[h.chunkID, default: 0] += 1.0 / (60 + Double(i) + 1) }

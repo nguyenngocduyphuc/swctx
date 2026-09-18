@@ -277,11 +277,11 @@ public final class Indexer {
 
             for s in analysis.symbols {
                 try db.execute(sql: """
-                    INSERT INTO symbols(file_id, chunk_id, name, kind, line, signature)
-                    VALUES(?,?,?,?,?,?)
+                    INSERT INTO symbols(file_id, chunk_id, name, kind, line, signature, norm_kind)
+                    VALUES(?,?,?,?,?,?,?)
                     """, arguments: [fileID,
                                      s.chunkIndex >= 0 ? chunkIDs[s.chunkIndex] : nil,
-                                     s.name, s.kind, s.line, s.signature])
+                                     s.name, s.kind, s.line, s.signature, s.norm])
             }
             for e in analysis.edges where e.chunkIndex >= 0 {
                 try db.execute(sql: """
@@ -484,15 +484,17 @@ public final class Indexer {
             // target declares a concrete type (class/struct/enum) is really
             // `extends`; protocol/interface/trait targets stay `implements`.
             // Unresolved edges keep `implements` — no target to judge.
+            // Norm kinds are language-agnostic, so the same rule works for
+            // every grammar (swift's umbrella `class_declaration` already
+            // resolved to struct/enum/... at insert time).
+            let concrete = Languages.concreteTypeKinds.map { "'\($0)'" }.joined(separator: ",")
+            let abstract = Languages.abstractTypeKinds.map { "'\($0)'" }.joined(separator: ",")
             try db.execute(sql: """
                 UPDATE edges SET kind = 'extends'
                 WHERE kind = 'implements' AND dst_chunk IS NOT NULL AND EXISTS (
                     SELECT 1 FROM symbols s
                     WHERE s.chunk_id = edges.dst_chunk AND s.name = edges.dst_name
-                      AND s.kind IN ('class_declaration','abstract_class_declaration',
-                                     'class_definition','struct_declaration',
-                                     'struct_item','type_declaration',
-                                     'enum_declaration','enum_item'))
+                      AND s.norm_kind IN (\(concrete)))
                 """)
             // Reverse repair: a stale `extends` (target re-declared as a
             // protocol/interface) goes back to `implements`.
@@ -501,8 +503,7 @@ public final class Indexer {
                 WHERE kind = 'extends' AND dst_chunk IS NOT NULL AND EXISTS (
                     SELECT 1 FROM symbols s
                     WHERE s.chunk_id = edges.dst_chunk AND s.name = edges.dst_name
-                      AND s.kind IN ('protocol_declaration','interface_declaration',
-                                     'trait_item'))
+                      AND s.norm_kind IN (\(abstract)))
                 """)
             return resolved
         }
