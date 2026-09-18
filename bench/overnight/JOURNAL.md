@@ -221,3 +221,16 @@ Next latency lever would be FTS-side (smaller window, co-term stats),
 not more parallelism.
 
 **W4 (bge-m3 offline eval, 2f35bd1f): in flight.**
+
+### ITER-5b (~03:20): vector sidecar file — ADOPTED (cold-start)
+
+`vectors.v1.bin` beside index.db: flat header(magic|dim|count|sig) +
+ids + row-major matrix, validated by the same embeddings_epoch
+signature. Cold semantic calls skip 32K blob decodes — one sequential
+~100MB read. Self-heals: first blob-path load writes it atomically;
+epoch bump → signature mismatch → ignored + rewritten.
+
+**Measured (P8, cold CLI):** semantic search 3.21s → 0.92s (3.5x;
+residual is model load + embed). Scores identical — vn_probe 11/16,
+composition unchanged. Test: testVectorSidecarRoundTrip (round-trip +
+stale-sig + dim + truncation rejects). Cost: +100MB disk per index.

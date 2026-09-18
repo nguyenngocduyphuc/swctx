@@ -259,4 +259,31 @@ extension RankingSignalTests {
         for i in 0 ..< 4 { box.store(key: "w\(i)", entry: entry("x")) }
         XCTAssertNil(box.cached(key: "w", signature: "b", dim: 2))
     }
+
+    /// Sidecar round-trip: same ids/matrix/signature back, and a stale
+    /// signature or wrong dim rejects the file (falls back to blobs).
+    func testVectorSidecarRoundTrip() throws {
+        let url = FileManager.default.temporaryDirectory
+            .appendingPathComponent("swctx-sidecar-\(UUID().uuidString).bin")
+        defer { try? FileManager.default.removeItem(at: url) }
+        let entry = Search.CachedVectors(
+            signature: "epoch-abc", dim: 3,
+            ids: [10, 20, 30],
+            matrix: [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, -0.7, -0.8, -0.9],
+            lastUse: Date())
+        try Search.writeVectorSidecar(url: url, entry: entry)
+        let back = Search.readVectorSidecar(url: url, signature: "epoch-abc", dim: 3)
+        XCTAssertNotNil(back)
+        XCTAssertEqual(back?.ids, entry.ids)
+        XCTAssertEqual(back?.matrix, entry.matrix)
+        XCTAssertNil(Search.readVectorSidecar(url: url, signature: "epoch-zzz", dim: 3),
+                     "stale epoch → reject")
+        XCTAssertNil(Search.readVectorSidecar(url: url, signature: "epoch-abc", dim: 4),
+                     "dim mismatch → reject")
+        // Truncated file → reject, no crash.
+        var d = try Data(contentsOf: url)
+        d.removeSubrange((d.count - 16)..<d.count)
+        try d.write(to: url)
+        XCTAssertNil(Search.readVectorSidecar(url: url, signature: "epoch-abc", dim: 3))
+    }
 }

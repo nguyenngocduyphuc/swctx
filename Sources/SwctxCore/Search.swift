@@ -267,10 +267,22 @@ public enum Search {
         }
     }
 
-    /// Load the vector matrix from SQLite, keeping only rows whose stored
-    /// dim matches the active model (mixed-dim guard, same as before).
+    /// Load the vector matrix, keeping only rows whose stored dim matches
+    /// the active model (mixed-dim guard). A flat sidecar file beside
+    /// index.db (validated by the same epoch signature) lets cold starts
+    /// skip 32K blob decodes: one sequential ~100MB read replaces the
+    /// row-by-row SQLite fetch. The sidecar is host-endian — a local
+    /// derived cache, never exchanged.
+    private static let sidecarMagic: [UInt8] = Array("SWVCTRX1".utf8)
+
     private static func loadVectors(store: Store, signature: String,
                                     dim: Int) throws -> CachedVectors? {
+        let sidecar = Store.indexURL(forKey: store.workspaceKey)
+            .deletingLastPathComponent()
+            .appendingPathComponent("vectors.v1.bin")
+        if let e = readVectorSidecar(url: sidecar, signature: signature, dim: dim) {
+            return e
+        }
         let rows = try store.pool.read { db in
             try Row.fetchAll(db, sql: "SELECT chunk_id, dim, vec FROM embeddings")
         }
@@ -290,8 +302,74 @@ public enum Search {
             }
         }
         guard ids.count == matrix.count / dim else { return nil }
+        let entry = CachedVectors(signature: signature, dim: dim, ids: ids,
+                                  matrix: matrix, lastUse: Date())
+        try? writeVectorSidecar(url: sidecar, entry: entry)
+        return entry
+    }
+
+    /// Sidecar layout: magic(8) | dim(u32le) | count(u64le) | sigLen(u16le)
+    /// | sig | ids(count×i64) | matrix(count×dim×f32). Any mismatch on
+    /// magic/dim/signature → nil, caller falls back to the blob path.
+    static func readVectorSidecar(url: URL, signature: String,
+                                          dim: Int) -> CachedVectors? {
+        guard let data = try? Data(contentsOf: url) else { return nil }
+        var off = sidecarMagic.count
+        guard data.count > off + 14,
+              data[0..<off].elementsEqual(sidecarMagic) else { return nil }
+        func u32() -> UInt32? {
+            guard off + 4 <= data.count else { return nil }
+            defer { off += 4 }
+            return data[off..<off + 4].withUnsafeBytes {
+                $0.loadUnaligned(as: UInt32.self)
+            }.littleEndian
+        }
+        func u64() -> UInt64? {
+            guard off + 8 <= data.count else { return nil }
+            defer { off += 8 }
+            return data[off..<off + 8].withUnsafeBytes {
+                $0.loadUnaligned(as: UInt64.self)
+            }.littleEndian
+        }
+        func u16() -> UInt16? {
+            guard off + 2 <= data.count else { return nil }
+            defer { off += 2 }
+            return data[off..<off + 2].withUnsafeBytes {
+                $0.loadUnaligned(as: UInt16.self)
+            }.littleEndian
+        }
+        guard let d = u32(), let n = u64(), let sigLen = u16(),
+              Int(d) == dim, off + Int(sigLen) <= data.count,
+              String(decoding: data[off..<off + Int(sigLen)], as: UTF8.self) == signature
+        else { return nil }
+        off += Int(sigLen)
+        let cnt = Int(n)
+        guard off + cnt * 8 + cnt * dim * 4 == data.count else { return nil }
+        let ids = [Int64](unsafeUninitializedCapacity: cnt) { buf, done in
+            data.copyBytes(to: buf, from: off..<off + cnt * 8)
+            done = cnt
+        }
+        off += cnt * 8
+        let matrix = [Float](unsafeUninitializedCapacity: cnt * dim) { buf, done in
+            data.copyBytes(to: buf, from: off..<off + cnt * dim * 4)
+            done = cnt * dim
+        }
         return CachedVectors(signature: signature, dim: dim, ids: ids,
                              matrix: matrix, lastUse: Date())
+    }
+
+    static func writeVectorSidecar(url: URL, entry: CachedVectors) throws {
+        var d = Data()
+        d.reserveCapacity(24 + entry.signature.count + entry.ids.count * 8
+                          + entry.matrix.count * 4)
+        d.append(contentsOf: sidecarMagic)
+        withUnsafeBytes(of: UInt32(entry.dim).littleEndian) { d.append(contentsOf: $0) }
+        withUnsafeBytes(of: UInt64(entry.ids.count).littleEndian) { d.append(contentsOf: $0) }
+        withUnsafeBytes(of: UInt16(entry.signature.utf8.count).littleEndian) { d.append(contentsOf: $0) }
+        d.append(contentsOf: entry.signature.utf8)
+        entry.ids.withUnsafeBufferPointer { d.append(contentsOf: UnsafeRawBufferPointer($0)) }
+        entry.matrix.withUnsafeBufferPointer { d.append(contentsOf: UnsafeRawBufferPointer($0)) }
+        try d.write(to: url, options: .atomic)
     }
 
     /// Rare path-filtered variant: keeps the joined-row scan so the filter
