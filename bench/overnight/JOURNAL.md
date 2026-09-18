@@ -279,3 +279,15 @@ unnecessary at this evidence level.
 
 Nightly gate updated: --gate 9 → --gate 12 (baseline 13/22 on the
 expanded probe — catches one-query regression).
+
+### Research note (~04:20): jina-reranker-v2-base-multilingual
+
+Vera (local Rust code-search, BM25+vector+rerank, MRR@10 0.28→0.60)
+uses `jinaai/jina-reranker-v2-base-multilingual` as its cross-encoder —
+a third multilingual reranker candidate we have NOT tried (XLM-R →
+SPTokenizer already proven byte-exact). Their embedder is
+jina-embeddings-v5-text-nano-retrieval with CodeRankEmbed-onnx as the
+code-specific option (better retrieval, slower indexing — same tradeoff
+we'd face). Takeaway: our two reranker failures (amberoad + v2m3) are
+model-choice failures, not a wrong architecture — the next reranker
+spike should be jina-v2-base-multilingual via the existing SPTokenizer.
