@@ -234,3 +234,15 @@ epoch bump → signature mismatch → ignored + rewritten.
 residual is model load + embed). Scores identical — vn_probe 11/16,
 composition unchanged. Test: testVectorSidecarRoundTrip (round-trip +
 stale-sig + dim + truncation rejects). Cost: +100MB disk per index.
+
+### Ops check (~03:40): watcher binary drift — FIXED
+
+Found: the 6 launchd watchers had been running since ~21:40 — before
+the v6 folded-column migration (01:08). They held the pre-v6 binary
+image; any file event would have written new chunks with an EMPTY
+`folded` column → folded tail-fill silently weakening per-file.
+Restarted all 6 via `launchctl kickstart -k` (jobs unchanged — no
+consolidation). `swctx status` on P8: healthy, 1 stale file pending,
+pending_embeddings=0. Lesson for runbook: watchers must be restarted
+after any schema-migration release — worth a `--watchers-restart`
+hint in `index` output or install_agent docs.
