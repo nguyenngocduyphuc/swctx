@@ -333,3 +333,48 @@ extraction land nhưng index cũ giữ 0 implements edges cho tới khi force).
   probe falls back to a normal open; that fallback is what kept two live
   384MB worktree indexes out of the orphan list. First real run: 678
   collected, ~112MB freed, 22 live kept.
+- **Unbounded-loop audit (P0 follow-up):** swept every `while`/`repeat`/
+  recursion/traversal in `SwctxCore` — all terminate (bound, visited-set,
+  shrinking measure, or finite structure). `graph_paths` BFS confirmed:
+  `seen` set + `depth < maxHops` + ≤500-id frontier batches. Only remaining
+  `while true` loops are intentional: `embedAll` (attempted==0 / retry cap /
+  batch cap) and the watcher keep-alive (cancellable `Task.sleep`).
+- **`get_record scope=workspace|global|all`:** same contract as
+  list/search_records — `global` reads this repo's shared ledger
+  (`AND ws = ?` when a workspace resolves, unfiltered when none does);
+  `all` tries workspace first then global; a missing index under
+  auto-resolution is fine for global/all (store=nil). Record ids are
+  **per-ledger namespaces** — `put_record` returns the workspace
+  `record_id` only (the global copy has its own id; read it back via
+  `scope=global` list/search). Global rows carry `ws` naming the repo key.
+  `context_pack` rows are workspace-local by design (payload references
+  per-index chunk ids).
+- **MCP `tools/call` deadline:** every tool call races a per-tool deadline
+  (60s default, `index_workspace` 1800s for auto-embed on large trees) in
+  `MCPServer.withDeadline`. A wedged handler — including a non-cooperative
+  CPU loop that ignores cancellation — still answers the client with
+  `{"error":{"code":"E_DEADLINE_EXCEEDED"}}` + `isError:true`; the leaked
+  task is cancelled and abandoned. This is the systemic fix for the
+  ancestor-walk wedge class: even an unknown future hang cannot silence
+  the server.
+- **Cold-cwd wire guard:** `McpColdCwdTests` spawns `swctx mcp` with cwd in
+  an unindexed temp dir and asserts no-workspace `tools/call` responses
+  arrive inside a bounded window; `bench/cold_cwd.py` runs the same check
+  against the release binary. Nightly gate: `bench/nightly.sh` (cold-cwd +
+  `recall_mcp.py --ratchet`) is installed as `com.swctx.bench` at 03:30 —
+  failures append `~/.swctx/bench_failures.log`.
+- **Multilingual embeddings (vn-probe follow-up):** `distiluse-base-
+  multilingual-cased-v2` adopted as a second supported model — converted
+  to CoreML (bit-exact vs HF), WordPiece-compatible via the tokenizer's
+  new cased mode, mean pooling, 768-d. Model choice is a **per-index
+  binding** (`meta.embedding_model`/`embedding_dim`, written once at
+  fresh-DB creation; legacy DBs implicitly bge/768). Precedence: index
+  binding > `--model` > `SWCTX_MODEL` > default; MCP calls follow the
+  bound model via `Embedder.shared` re-resolution. `swctx model` now
+  lists; `model install [<id>] [--from dir]` installs. Measured A/B on
+  the same chunks (bench/vn_model_spike.md): VN semantic recall@5 0/14→
+  1/14 but target-vector ranks improved ~10–50× (leg repaired; recall@5
+  now ranking-bound), embed ~2.5× faster (p95 10.1ms vs 27ms), pure-EN
+  rank regressed — keep bge on English-heavy workspaces. P8_SEO_Clean +
+  18.CRM-Nam-Pham are bound to distiluse (`index.db.bge-bak` beside each
+  DB; rollback `swctx embed --reindex --model bge-base-en-v1.5`).

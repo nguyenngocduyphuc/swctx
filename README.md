@@ -9,9 +9,14 @@ Codex / Cursor) connecting over MCP stdio. swctx only does retrieval.
 - **Incremental index** per workspace: file discovery, SHA-256 change detection,
   tree-sitter syntax-aware chunks, symbol defs, call/import edges.
 - **Hybrid retrieval**: SQLite FTS5 full-text + on-device embeddings, RRF fusion
-  with symbol/path boosts. Embedding backend: **bge-base-en-v1.5 CoreML**
-  (768-d, `swctx model install` once — weights live in `~/.swctx/models/`);
-  falls back to `NLEmbedding.sentenceEmbedding` (512-d) if not installed.
+  with symbol/path boosts. Embedding backend is a **per-index model binding**
+  (`meta.embedding_model`): **bge-base-en-v1.5** CoreML (768-d, default) or
+  **distiluse-base-multilingual-cased-v2** (768-d, 50+ langs incl. Vietnamese —
+  measured ~10–50× better target ranks on VN queries, ~2.5× faster embed,
+  weaker on pure-English queries; see `bench/vn_model_spike.md`). Select with
+  `--model` at index time or `swctx embed --reindex --model <id>`; weights
+  live in `~/.swctx/models/`; falls back to `NLEmbedding.sentenceEmbedding`
+  (512-d) if the bound model is not installed.
 - **Knowledge graph**: `calls`/`imports`/`implements`/`extends`/
   `instantiates`/`uses_type` edges resolved to definition chunks;
   neighbors / paths / transitive impact. `extends` vs `implements` is
@@ -34,14 +39,15 @@ swift build -c release # release
 ## CLI
 
 ```sh
-swctx index <path> [--force] [--skip-embed] [--format json]
+swctx index <path> [--force] [--skip-embed] [--model <id>] [--format json]
 swctx status <path>
 swctx search <path> "query" [--mode auto|identifier|hybrid|fts|semantic] [--limit N]
 swctx tree <path> [--root subdir]
-swctx embed <path> [--reindex]   # fill on-device vectors (index auto-embeds all pending; --skip-embed opts out)
+swctx embed <path> [--reindex] [--model <id>]  # fill on-device vectors (index auto-embeds all pending; --skip-embed opts out)
 swctx watch <path> [--once]      # FSEvents watcher: auto reindex on change (foreground)
 swctx discover <path>            # debug: which files discovery would index
-swctx model            # install/status the bge-base embedding model (~210MB)
+swctx model            # list known models + installed status
+swctx model install [<id>] [--from <dir>]  # install the bge-base default (~210MB) or a converted CoreML dir
 swctx ask <path> "question"   # evidence pack -> local agent CLI (claude/codex/gemini) -> cited answer + record
 swctx mcp              # stdio MCP server
 swctx mcp-config       # print client config snippet
@@ -92,10 +98,21 @@ Any MCP client: point it at the built binary, or run
 | graph_paths | frontier-batched BFS paths between chunks (≤500-id queries, no full-table load); `max_hops`, `max_paths`, `include_content` |
 | get_impact | transitive dependents ("what breaks if I change this"); `include_content` |
 | context_pack | deterministic multi-round retrieval: hybrid hits + 1-hop call-graph expansion; persists a `records` row |
-| get_record | one record by id; `stale` flag when anchors no longer resolve post-HEAD-move |
+| get_record | one record by id; `scope` (workspace default, global, all = workspace first then global); `stale` flag when anchors no longer resolve post-HEAD-move |
 | list_records | records ledger, filters + pagination + `scope` (workspace/global/all); per-record `stale`/`stale_reasons` |
 | search_records | FTS5 over record titles/payloads, same filters + `scope` + `stale` flags |
 | put_record | agent-writable memory: kind + title + payload; dual-writes workspace + cross-worktree global ledger; captures git head_sha + resolvable anchors (symbols/paths) so later reads can flag stale |
+
+### Record scopes
+
+The workspace ledger and the repo-wide global ledger are **separate id
+namespaces** — the same integer `id` names a different record in each.
+`put_record` dual-writes but returns only the workspace `record_id` (plus
+`scope: workspace+global` when the shared write landed); the global copy
+gets its own id — find it via `list_records`/`search_records scope=global`.
+Global rows carry a `ws` field (the repo key), and scoped global reads
+filter on it whenever a workspace resolves. `context_pack` records are
+workspace-local by design: they reference per-index chunk ids.
 
 ### Staleness signaling
 

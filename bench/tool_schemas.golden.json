@@ -194,6 +194,10 @@
       "description": "Optional response budget (~4 chars/token); arrays trim tail-first, meta.omitted reports drops. Hard cap ~64KB always applies",
       "type": "integer"
      },
+     "scope": {
+      "description": "workspace (default) | global (repo-wide ledger, shared across worktrees) | all (union)",
+      "type": "string"
+     },
      "workspace": {
       "description": "Absolute project path; omit or \"auto\" to resolve the nearest indexed ancestor of the server process cwd",
       "type": "string"

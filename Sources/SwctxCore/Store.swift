@@ -7,6 +7,11 @@ public final class Store: @unchecked Sendable {
     public let pool: DatabasePool
     public let workspaceRoot: URL
     public let workspaceKey: String
+    /// Per-index embedding model binding from `meta` — nil on legacy indexes
+    /// (pre-binding DBs, implicitly bge-base-en/768). Set at index creation;
+    /// read by search/embed paths so each index runs its own vector space.
+    public private(set) var embeddingModel: String?
+    public private(set) var embeddingDim: Int?
 
     public static let schemaVersion = 4
 
@@ -39,6 +44,32 @@ public final class Store: @unchecked Sendable {
         }
         pool = try DatabasePool(path: Store.indexURL(forKey: workspaceKey).path, configuration: config)
         try migrate()
+        // Publish this index's embedding-model binding to the process-wide
+        // selection (nil = legacy → revert to flag/env/default). Search and
+        // embed paths resolve their model after opening the Store, so the
+        // index's recorded vector space wins over global defaults.
+        let binding = try pool.read { db -> (String?, String?) in
+            (try String.fetchOne(db, sql: "SELECT value FROM meta WHERE key = 'embedding_model'"),
+             try String.fetchOne(db, sql: "SELECT value FROM meta WHERE key = 'embedding_dim'"))
+        }
+        embeddingModel = binding.0
+        embeddingDim = binding.1.flatMap { Int($0) }
+        Embedder.bindModel(embeddingModel)
+    }
+
+    /// Record (or update) the index's embedding-model binding in `meta` and
+    /// activate it for this process. Called by `swctx index`/`swctx embed`
+    /// when an index is created or deliberately re-bound via `--reindex`.
+    public func setEmbeddingBinding(modelID: String, dim: Int) throws {
+        try pool.write { db in
+            try db.execute(sql: """
+                INSERT OR REPLACE INTO meta(key, value)
+                VALUES('embedding_model', ?), ('embedding_dim', ?)
+                """, arguments: [modelID, String(dim)])
+        }
+        embeddingModel = modelID
+        embeddingDim = dim
+        Embedder.bindModel(modelID)
     }
 
     private func migrate() throws {
@@ -143,6 +174,19 @@ public final class Store: @unchecked Sendable {
             try db.execute(
                 sql: "INSERT OR REPLACE INTO meta(key, value) VALUES('schema_version', ?), ('workspace_root', ?), ('created_at', ?)",
                 arguments: [String(Store.schemaVersion), workspaceRoot.path, String(Date().timeIntervalSince1970)])
+            // Per-index embedding-model binding, recorded once at DB creation
+            // from the caller's requested model (`--model` flag, SWCTX_MODEL,
+            // or the default — never another open index's binding). Pre-
+            // binding DBs keep the keys absent → implicit legacy bge/768.
+            // The files==0 guard keeps a schema-migrated legacy index from
+            // being mislabelled under whatever model is active mid-migration.
+            let activeID = Embedder.requestedModelID
+            let isFresh = (try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM files") ?? 0) == 0
+            if isFresh, let spec = Embedder.spec(for: activeID) {
+                try db.execute(
+                    sql: "INSERT OR REPLACE INTO meta(key, value) VALUES('embedding_model', ?), ('embedding_dim', ?)",
+                    arguments: [spec.id, String(spec.dim)])
+            }
             // Backfill norm_kind for pre-v3 rows. `signature` (first decl
             // line) carries the keyword needed to split swift's umbrella
             // `class_declaration` into struct/enum/class/etc.

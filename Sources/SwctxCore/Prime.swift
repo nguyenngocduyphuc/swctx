@@ -48,8 +48,17 @@ public enum Prime {
         p.standardOutput = out
         p.standardError = FileHandle.nullDevice
         do { try p.run() } catch { return nil }
-        let data = out.fileHandleForReading.readDataToEndOfFile()
-        p.waitUntilExit()
+        var data = Data()
+        let sem = DispatchSemaphore(value: 0)
+        DispatchQueue.global().async {
+            data = out.fileHandleForReading.readDataToEndOfFile()
+            p.waitUntilExit()
+            sem.signal()
+        }
+        if sem.wait(timeout: .now() + .seconds(5)) == .timedOut {
+            p.terminate()
+            return nil
+        }
         let text = String(decoding: data, as: UTF8.self)
         return text.split(separator: "\n").contains { $0.contains(root.path) }
     }

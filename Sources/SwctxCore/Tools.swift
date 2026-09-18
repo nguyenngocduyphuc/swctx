@@ -1061,21 +1061,51 @@ public enum SwctxTools {
     }
 
     static func getRecord(_ args: [String: Value]) throws -> String {
-        let store = try store(args)
+        let scope = args["scope"]?.str ?? "workspace"
+        guard scope == "workspace" || scope == "global" || scope == "all" else {
+            throw ToolError.invalidArg("scope must be workspace | global | all")
+        }
+        // Same leniency as list_records: global/all only need the global
+        // ledger, so a missing index under auto-resolution doesn't error.
+        let store: Store?
+        if scope == "workspace" {
+            store = try self.store(args)
+        } else {
+            do { store = try self.store(args) }
+            catch ToolError.notIndexed { store = nil }
+        }
+        // Global reads stay repo-scoped when a workspace resolves — the
+        // ledgers are separate namespaces, so scope=global means "this
+        // repo's shared ledger" exactly as in list/search_records.
+        let wsKey = store.map { GlobalRecords.repoKey(for: $0.workspaceRoot) }
+        let wsParams: [DatabaseValueConvertible] = wsKey.map { [$0] } ?? []
+        let wsClause = wsKey == nil ? "" : " AND ws = ?"
         guard let id = args["id"]?.int else { throw ToolError.missingArg("id") }
+        let includePayload = args["include_payload"]?.bool ?? true
         do {
-            guard let row = try store.pool.read({ db in
-                try Row.fetchOne(db, sql: """
-                    SELECT id, kind, source, status, title, payload, created_at,
-                           head_sha, anchors
-                    FROM records WHERE id = ?
-                    """, arguments: [id])
-            }) else {
-                return json(["error": "record not found", "id": id])
+            if scope != "global", let store,
+               let row = try store.pool.read({ db in
+                   try Row.fetchOne(db, sql: """
+                       SELECT id, kind, source, status, title, payload, created_at,
+                              head_sha, anchors
+                       FROM records WHERE id = ?
+                       """, arguments: [id])
+               }) {
+                let d = recordDict(row, includePayload: includePayload)
+                return json(["record": withStaleness([d], store: store)[0]])
             }
-            let d = recordDict(
-                row, includePayload: args["include_payload"]?.bool ?? true)
-            return json(["record": withStaleness([d], store: store)[0]])
+            if scope != "workspace", let global = GlobalRecords.shared,
+               let row = try global.pool.read({ db in
+                   try Row.fetchOne(db, sql: """
+                       SELECT id, ws, kind, source, status, title, payload, created_at,
+                              head_sha, anchors
+                       FROM records WHERE id = ?\(wsClause)
+                       """, arguments: StatementArguments([id] + wsParams))
+               }) {
+                let d = recordDict(row, includePayload: includePayload)
+                return json(["record": withStaleness([d], store: store)[0]])
+            }
+            return json(["error": "record not found", "id": id])
         } catch {
             return json(["error": "records unavailable: \(error.localizedDescription)"])
         }

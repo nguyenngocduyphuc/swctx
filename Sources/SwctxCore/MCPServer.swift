@@ -189,9 +189,10 @@ public enum MCPServer {
                 annotations: .init(readOnlyHint: true)),
             Tool(
                 name: "get_record",
-                description: "Retrieve one durable workspace record by its integer ID.",
+                description: "Retrieve one durable record by its integer ID. scope=workspace (default) reads the workspace ledger; scope=global reads the repo-wide ledger shared by all git worktrees (no indexed workspace needed); scope=all checks workspace first then global.",
                 inputSchema: obj([wsProp,
                                   ("id", prop("integer", "Workspace-local record ID")),
+                                  ("scope", prop("string", "workspace (default) | global (repo-wide ledger, shared across worktrees) | all (union)")),
                                   ("include_payload", prop("boolean", "Include full payload (default true)")),
                                   budgetProp, ("type", .string("object")),
                                   ("required", .array([.string("id")]))]),
@@ -242,6 +243,108 @@ public enum MCPServer {
         ]
     }
 
+    // MARK: - tools/call deadline
+
+    /// Per-tool wall-clock budget for `tools/call`. A slow or wedged tool
+    /// must never hang the response: once the budget expires the client
+    /// gets E_DEADLINE_EXCEEDED instead of silence. Tools absent from the
+    /// map get `defaultDeadline`; `index_workspace` earns 30 min because
+    /// auto-embed on 30K+ chunk workspaces legitimately takes many minutes.
+    static let defaultDeadline: Duration = .seconds(60)
+    static let toolDeadlines: [String: Duration] = [
+        "index_workspace": .seconds(1800),
+    ]
+
+    /// Thrown when a tool exceeds its deadline; the CallTool handler maps
+    /// it to the `E_DEADLINE_EXCEEDED` error envelope.
+    struct DeadlineError: Error, LocalizedError {
+        let tool: String
+        let deadline: Duration
+        var errorDescription: String? {
+            "tool \(tool) exceeded \(MCPServer.secondsString(deadline))s deadline"
+        }
+    }
+
+    /// Render a `Duration` as the `N` in "exceeded Ns deadline": integral
+    /// when whole ("60"), else decimal ("0.05").
+    static func secondsString(_ d: Duration) -> String {
+        let c = d.components
+        guard c.attoseconds != 0 else { return "\(c.seconds)" }
+        return String(format: "%g", Double(c.seconds) + Double(c.attoseconds) / 1e18)
+    }
+
+    /// One-shot result slot for `withDeadline`: resumes the parked
+    /// continuation exactly once, whichever finishes first — the operation
+    /// or the cancellation handler on deadline. A result landing before
+    /// the continuation installs is parked and replayed on install.
+    final class ResultSlot<T: Sendable>: @unchecked Sendable {
+        private let lock = NSLock()
+        private var continuation: CheckedContinuation<T, Error>?
+        private var result: Result<T, Error>?
+        private var resumed = false
+
+        func install(_ c: CheckedContinuation<T, Error>) {
+            lock.lock()
+            if let r = result {
+                resumed = true
+                lock.unlock()
+                c.resume(with: r)
+                return
+            }
+            continuation = c
+            lock.unlock()
+        }
+
+        func finish(_ r: Result<T, Error>) {
+            lock.lock()
+            guard !resumed else { lock.unlock(); return }
+            if let c = continuation {
+                resumed = true
+                lock.unlock()
+                c.resume(with: r)
+            } else {
+                result = r
+                lock.unlock()
+            }
+        }
+
+        func cancel() { finish(.failure(CancellationError())) }
+    }
+
+    /// Race `operation` against `deadline`; the first finisher wins and the
+    /// loser is cancelled via `group.cancelAll()`. The operation runs in an
+    /// unstructured task whose result a group child awaits through the
+    /// cancellation-aware `ResultSlot`: a wedged call may keep running in
+    /// the background after the deadline fires — the guarantee is a timely
+    /// client response, not task termination. (Task-group teardown awaits
+    /// all children; parking the operation itself inside the group would
+    /// keep the response hostage to a wedge that never yields.)
+    static func withDeadline<T: Sendable>(
+        _ deadline: Duration, tool: String,
+        _ operation: @escaping @Sendable () async throws -> T
+    ) async throws -> T {
+        let slot = ResultSlot<T>()
+        let work = Task {
+            do { slot.finish(.success(try await operation())) }
+            catch { slot.finish(.failure(error)) }
+        }
+        return try await withThrowingTaskGroup(of: T.self) { group in
+            group.addTask {
+                try await withTaskCancellationHandler {
+                    try await withCheckedThrowingContinuation { slot.install($0) }
+                } onCancel: {
+                    slot.cancel()
+                }
+            }
+            group.addTask {
+                try await Task.sleep(for: deadline)
+                throw DeadlineError(tool: tool, deadline: deadline)
+            }
+            defer { group.cancelAll(); work.cancel() }
+            return try await group.next()!
+        }
+    }
+
     public static func run() async throws {
         let server = Server(
             name: "swctx",
@@ -253,10 +356,25 @@ public enum MCPServer {
             ListTools.Result(tools: toolList)
         }
         await server.withMethodHandler(CallTool.self) { params in
+            let name = params.name
+            let args = params.arguments ?? [:]
             do {
-                let out = try await SwctxTools.call(name: params.name,
-                                                    arguments: params.arguments ?? [:])
+                let out = try await withDeadline(
+                    toolDeadlines[name] ?? defaultDeadline, tool: name) {
+                    try await SwctxTools.call(name: name, arguments: args)
+                }
                 return CallTool.Result(content: [.text(text: out, annotations: nil, _meta: nil)])
+            } catch let e as DeadlineError {
+                let errJson = (try? JSONSerialization.data(
+                    withJSONObject: ["error": [
+                        "code": "E_DEADLINE_EXCEEDED",
+                        "message": e.localizedDescription,
+                    ]]))
+                    .flatMap { String(data: $0, encoding: .utf8) }
+                    ?? "{\"error\":{\"code\":\"E_DEADLINE_EXCEEDED\",\"message\":\"deadline\"}}"
+                return CallTool.Result(
+                    content: [.text(text: errJson, annotations: nil, _meta: nil)],
+                    isError: true)
             } catch {
                 let errJson = (try? JSONSerialization.data(
                     withJSONObject: ["error": error.localizedDescription]))

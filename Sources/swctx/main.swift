@@ -22,14 +22,20 @@ struct IndexCmd: AsyncParsableCommand {
     @Flag(name: .long, help: "Full re-index, ignoring cached hashes") var force = false
     @Flag(name: .long, help: "Report what would change without writing") var dryRun = false
     @Flag(name: .long, help: "Skip the post-index embedding pass (pending chunks stay for `swctx embed`)") var skipEmbed = false
+    @Option(name: .long, help: "Embedding model id (see `swctx model list`); default: index binding, else SWCTX_MODEL, else bge-base-en-v1.5") var model: String?
     @Option(name: .long, help: "Output format: human | json") var format: String = "human"
 
     func run() async throws {
         let root = URL(fileURLWithPath: path).standardizedFileURL
+        if let model {
+            guard Embedder.spec(for: model) != nil else {
+                throw ValidationError("unknown embedding model '\(model)' (see `swctx model list`)")
+            }
+            Embedder.selectModel(model)
+        }
         let store = try Store(workspaceRoot: root)
-        let indexer = Indexer(store: store)
         if dryRun {
-            let report = try indexer.dryRun()
+            let report = try Indexer(store: store).dryRun()
             if format == "json" {
                 print(String(data: try JSONEncoder().encode(report), encoding: .utf8)!)
             } else {
@@ -37,6 +43,22 @@ struct IndexCmd: AsyncParsableCommand {
             }
             return
         }
+        // The index's recorded binding wins over flag/env — mixing vector
+        // spaces inside one index silently zeroes the semantic leg.
+        if let bound = store.embeddingModel, let model, bound != model {
+            throw ValidationError(
+                "index is bound to embedding model '\(bound)'; "
+                    + "run `swctx embed --reindex --model \(model) \(root.path)` to re-embed under '\(model)'")
+        }
+        let modelID = store.embeddingModel ?? Embedder.activeModelID
+        guard let spec = Embedder.spec(for: modelID) else {
+            throw ValidationError("unknown embedding model '\(modelID)' (see `swctx model list`)")
+        }
+        if store.embeddingModel == nil {
+            // First index of this workspace: record the binding in meta.
+            try store.setEmbeddingBinding(modelID: spec.id, dim: spec.dim)
+        }
+        let indexer = Indexer(store: store, embedder: Embedder(modelID: spec.id))
         FileHandle.standardError.write("swctx: indexing \(root.path)\n".data(using: .utf8)!)
         let report = try indexer.run(force: force, autoEmbed: !skipEmbed) { msg in
             FileHandle.standardError.write("swctx: \(msg)\n".data(using: .utf8)!)
@@ -175,11 +197,33 @@ struct EmbedCmd: AsyncParsableCommand {
         abstract: "Fill pending on-device embeddings for an indexed workspace (index auto-embeds; this covers `index --skip-embed` and partial runs).")
     @Argument(help: "Workspace path") var path: String = "."
     @Flag(name: .long, help: "Drop all stored vectors and re-embed every chunk") var reindex = false
+    @Option(name: .long, help: "Embedding model id (see `swctx model list`); default: index binding, else SWCTX_MODEL, else bge-base-en-v1.5") var model: String?
 
     func run() async throws {
         let root = URL(fileURLWithPath: path).resolvingSymlinksInPath()
+        if let model {
+            guard Embedder.spec(for: model) != nil else {
+                throw ValidationError("unknown embedding model '\(model)' (see `swctx model list`)")
+            }
+            Embedder.selectModel(model)
+        }
         let store = try Store(workspaceRoot: root)
-        let indexer = Indexer(store: store)
+        // Requested model wins when rebinding; otherwise the index's
+        // recorded binding wins over flag/env — mixing vector spaces
+        // inside one index silently zeroes the semantic leg.
+        let modelID = model ?? store.embeddingModel ?? Embedder.activeModelID
+        guard let spec = Embedder.spec(for: modelID) else {
+            throw ValidationError("unknown embedding model '\(modelID)' (see `swctx model list`)")
+        }
+        if let bound = store.embeddingModel, let model, bound != model, !reindex {
+            throw ValidationError(
+                "index is bound to embedding model '\(bound)'; "
+                    + "add --reindex to wipe and re-embed under '\(model)'")
+        }
+        if store.embeddingModel != spec.id {
+            try store.setEmbeddingBinding(modelID: spec.id, dim: spec.dim)
+        }
+        let indexer = Indexer(store: store, embedder: Embedder(modelID: spec.id))
         let pending = reindex
             ? (try await store.pool.read { try Int.fetchOne($0, sql: "SELECT COUNT(*) FROM chunks") ?? 0 })
             : try indexer.pendingEmbeddings()
@@ -226,23 +270,86 @@ struct WatchCmd: AsyncParsableCommand {
     }
 }
 
-struct ModelCmd: AsyncParsableCommand {
+struct ModelCmd: ParsableCommand {
     static let configuration = CommandConfiguration(commandName: "model",
-        abstract: "Manage the on-device embedding model (bge-base-en-v1.5 CoreML).")
+        abstract: "Manage on-device embedding models (BERT-family CoreML).",
+        subcommands: [ModelListCmd.self, ModelInstallCmd.self],
+        defaultSubcommand: ModelListCmd.self)
+}
+
+struct ModelListCmd: ParsableCommand {
+    static let configuration = CommandConfiguration(commandName: "list",
+        abstract: "List known embedding models and install status.")
+
+    func run() throws {
+        for spec in Embedder.models {
+            let status = spec.isInstalled ? "installed" : "not installed"
+            print("\(spec.id)\n    \(spec.dim)-d · \(status) · \(spec.displayName)\n    \(spec.modelDir.path)")
+        }
+        if let env = ProcessInfo.processInfo.environment["SWCTX_MODEL"], !env.isEmpty {
+            print("SWCTX_MODEL=\(env)")
+        }
+    }
+}
+
+struct ModelInstallCmd: AsyncParsableCommand {
+    static let configuration = CommandConfiguration(commandName: "install",
+        abstract: "Install an embedding model into ~/.swctx/models/.")
+    @Argument(help: "Model id (see `swctx model list`)") var id: String = Embedder.defaultModelID
+    @Option(name: .long, help: "Path to a locally converted model.mlpackage (for models without a prebuilt download)") var from: String?
 
     func run() async throws {
-        let dir = BGEEmbedder.modelDir
-        if BGEEmbedder.isInstalled {
-            print("installed: \(dir.path) (bge-base-en-v1.5-coreml, 768-d)")
+        guard let spec = Embedder.spec(for: id) else {
+            throw ValidationError("unknown embedding model '\(id)' (see `swctx model list`)")
+        }
+        let dir = spec.modelDir
+        if spec.isInstalled {
+            print("installed: \(dir.path) (\(spec.id), \(spec.dim)-d)")
             return
         }
-        let base = "https://huggingface.co/rsvalerio/bge-base-en-v1.5-coreml/resolve/main"
-        let files = [
-            "vocab.txt", "tokenizer_config.json",
-            "model.mlpackage/Manifest.json",
-            "model.mlpackage/Data/com.apple.CoreML/model.mlmodel",
-            "model.mlpackage/Data/com.apple.CoreML/weights/weight.bin",
-        ]
+        switch spec.id {
+        case Embedder.bgeSpec.id:
+            // Prebuilt CoreML port (rsvalerio/bge-base-en-v1.5-coreml, MIT).
+            try await downloadAll(base: "https://huggingface.co/rsvalerio/bge-base-en-v1.5-coreml/resolve/main",
+                                  files: ["vocab.txt", "tokenizer_config.json",
+                                          "model.mlpackage/Manifest.json",
+                                          "model.mlpackage/Data/com.apple.CoreML/model.mlmodel",
+                                          "model.mlpackage/Data/com.apple.CoreML/weights/weight.bin"],
+                                  into: dir)
+        case Embedder.distiluseSpec.id:
+            // Tokenizer files come from HF; the mlpackage must be supplied
+            // locally (--from) — no public prebuilt conversion exists. See
+            // bench/vn_model_spike.md for the coremltools conversion recipe.
+            try await downloadAll(base: "https://huggingface.co/sentence-transformers/distiluse-base-multilingual-cased-v2/resolve/main",
+                                  files: ["vocab.txt", "tokenizer_config.json"],
+                                  into: dir)
+            guard let from else {
+                FileHandle.standardError.write("""
+                    swctx: vocab.txt installed but no prebuilt model.mlpackage exists for \(spec.id).
+                    Convert it with coremltools (ONNX → mlpackage), then either:
+                      swctx model install \(spec.id) --from /path/to/model.mlpackage
+                    or copy the package to \(dir.path)/model.mlpackage
+                    """.data(using: .utf8)!)
+                throw ExitCode(2)
+            }
+            let src = URL(fileURLWithPath: from)
+            guard FileManager.default.fileExists(
+                atPath: src.appendingPathComponent("Manifest.json").path) else {
+                throw ValidationError("--from is not a .mlpackage directory: \(from)")
+            }
+            let dst = dir.appendingPathComponent("model.mlpackage")
+            try? FileManager.default.removeItem(at: dst)
+            try FileManager.default.copyItem(at: src, to: dst)
+        default:
+            throw ValidationError("no installer for model '\(spec.id)'")
+        }
+        guard spec.isInstalled else {
+            throw ValidationError("install incomplete: \(dir.path) missing model.mlpackage or vocab.txt")
+        }
+        print("installed: \(dir.path) (\(spec.id), \(spec.dim)-d)")
+    }
+
+    private func downloadAll(base: String, files: [String], into dir: URL) async throws {
         for f in files {
             let dst = dir.appendingPathComponent(f)
             try FileManager.default.createDirectory(at: dst.deletingLastPathComponent(),
@@ -253,7 +360,6 @@ struct ModelCmd: AsyncParsableCommand {
             try? FileManager.default.removeItem(at: dst)
             try FileManager.default.moveItem(at: tmp, to: dst)
         }
-        print("installed: \(dir.path) (bge-base-en-v1.5-coreml, 768-d)")
     }
 }
 
