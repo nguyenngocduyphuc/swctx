@@ -313,12 +313,13 @@ public final class Indexer {
                 var seen: Set<String> = []
                 let names = ((c.symbol.map { [$0] } ?? []) + (namesByChunk[i] ?? []))
                     .filter { seen.insert($0).inserted }
+                let pathToks = Search.pathTokenString(rel)
+                let symToks = Search.symbolTokenString(names)
                 try db.execute(sql: """
-                    INSERT INTO chunks_fts(rowid, content, path_tokens, symbol_names)
-                    VALUES(?,?,?,?)
-                    """, arguments: [cid, c.content,
-                                     Search.pathTokenString(rel),
-                                     Search.symbolTokenString(names)])
+                    INSERT INTO chunks_fts(rowid, content, path_tokens, symbol_names, folded)
+                    VALUES(?,?,?,?,?)
+                    """, arguments: [cid, c.content, pathToks, symToks,
+                                     Search.foldText(c.content + " " + pathToks + " " + symToks)])
                 if store.trigramEnabled {
                     try db.execute(sql: """
                         INSERT INTO chunks_trigram(rowid, content) VALUES(?,?)

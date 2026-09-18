@@ -24,11 +24,36 @@ public enum Search {
         return tokens.prefix(12).map { "\"\($0)\"*" }.joined(separator: " OR ")
     }
 
+    /// Folded-only variant query scoped to the `folded` column — one term
+    /// per query token whose diacritic fold differs (VN "đăng" → "dang").
+    /// unicode61 folds case but never folds đ (U+0111), so Vietnamese
+    /// needs this app-level rescue. Column-scoped on purpose: folded
+    /// matches score only through the cheap folded column and the leg is
+    /// used strictly as a tail-filler after real hits — extra candidates
+    /// in the shared window measurably displace borderline real hits.
+    static func ftsFoldedQuery(_ raw: String) -> String? {
+        let tokens = raw
+            .components(separatedBy: CharacterSet.alphanumerics.inverted)
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { $0.count >= 2 }
+        var out: [String] = []
+        var seen: Set<String> = []
+        for t in tokens.prefix(12) {
+            let f = foldText(t)
+            if f != t.lowercased(), f.count >= 2, seen.insert(f).inserted {
+                out.append("folded : \"\(f)\"*")
+            }
+        }
+        return out.isEmpty ? nil : out.joined(separator: " OR ")
+    }
+
     /// BM25F column weights for chunks_fts(content, path_tokens,
-    /// symbol_names). Order must match the CREATE TABLE column order
-    /// exactly — body hits are baseline, path/symbol hits outrank them.
-    static let ftsColumnWeights: (content: Double, path: Double, symbol: Double) =
-        (1.0, 2.5, 5.0)
+    /// symbol_names, folded). Order must match the CREATE TABLE column
+    /// order exactly — body hits are baseline, path/symbol hits outrank
+    /// them, and folded-only matches are deliberately cheap so variant
+    /// noise can't outrank real hits.
+    static let ftsColumnWeights: (content: Double, path: Double, symbol: Double, folded: Double) =
+        (1.0, 2.5, 5.0, 0.6)
 
     /// Post-hoc boost magnitudes (all inside the 0.09 cap, tuned on
     /// bench/vn_probe.py — RRF scores total ~0.05, so boosts must stay
@@ -38,13 +63,45 @@ public enum Search {
     static let pagerankWeight = 0.02        // × min-max normalized file rank
     static let depthPenaltyPerSegment = 0.005
 
+    /// Per-leg RRF weights (fts, semantic, symbol). Defaults are uniform;
+    /// `SWCTX_RRF_W="f,s,y"` overrides for bench sweeps only — tuned
+    /// values get baked in as new defaults once measured, not left
+    /// env-dependent.
+    static func fusionWeights() -> (fts: Double, sem: Double, sym: Double) {
+        if let s = ProcessInfo.processInfo.environment["SWCTX_RRF_W"] {
+            let p = s.split(separator: ",").compactMap { Double($0) }
+            if p.count == 3, p.allSatisfy({ $0 >= 0 }) {
+                return (p[0], p[1], p[2])
+            }
+        }
+        return (1.0, 1.0, 1.0)
+    }
+
     public static func fts(store: Store, query: String, limit: Int, pathFilter: String? = nil) throws -> [SearchHit] {
         guard let match = ftsQuery(query) else { return [] }
+        var hits = try ftsRun(store: store, match: match, limit: limit,
+                              pathFilter: pathFilter)
+        // Folded rescue as tail-filler only (same contract as the trigram
+        // leg): when real hits under-fill the request, column-scoped
+        // folded matches top it up. They can never displace real hits —
+        // mixing them into the shared window measurably pushed
+        // borderline files out of the fused pool (seo-02, vn_probe).
+        if hits.count < limit, let fmatch = ftsFoldedQuery(query) {
+            hits += try ftsRun(store: store, match: fmatch,
+                               limit: limit - hits.count, pathFilter: pathFilter,
+                               excluding: Set(hits.map { $0.chunkID }))
+        }
+        return hits
+    }
+
+    private static func ftsRun(store: Store, match: String, limit: Int,
+                               pathFilter: String? = nil,
+                               excluding: Set<Int64> = []) throws -> [SearchHit] {
         let w = ftsColumnWeights
         return try store.pool.read { db in
             var sql = """
                 SELECT c.id, f.path, c.start_line, c.end_line, c.kind, c.symbol,
-                       bm25(chunks_fts, \(w.content), \(w.path), \(w.symbol)) AS rank,
+                       bm25(chunks_fts, \(w.content), \(w.path), \(w.symbol), \(w.folded)) AS rank,
                        snippet(chunks_fts, 0, '«', '»', ' … ', 24) AS snippet
                 FROM chunks_fts
                 JOIN chunks c ON c.id = chunks_fts.rowid
@@ -55,6 +112,9 @@ public enum Search {
             if let p = pathFilter, !p.isEmpty {
                 sql += " AND f.path LIKE ?"
                 args.append(p.hasSuffix("/") ? p + "%" : p + "/%")
+            }
+            if !excluding.isEmpty {
+                sql += " AND c.id NOT IN (\(excluding.map { String($0) }.joined(separator: ",")))"
             }
             sql += " ORDER BY rank LIMIT ?"
             args.append(limit)
@@ -243,12 +303,13 @@ public enum Search {
             ? try semantic(store: store, embedder: embedder, query: query, limit: limit * 3, pathFilter: pathFilter)
             : []
         let symHits = try symbolHits(store: store, query: query, limit: limit * 3, pathFilter: pathFilter)
+        let w = fusionWeights()
         var rrf: [Int64: Double] = [:]
-        for (i, h) in ftsHits.enumerated() { rrf[h.chunkID, default: 0] += 1.0 / (60 + Double(i) + 1) }
-        for (i, h) in vecHits.enumerated() { rrf[h.chunkID, default: 0] += 1.0 / (60 + Double(i) + 1) }
+        for (i, h) in ftsHits.enumerated() { rrf[h.chunkID, default: 0] += w.fts / (60 + Double(i) + 1) }
+        for (i, h) in vecHits.enumerated() { rrf[h.chunkID, default: 0] += w.sem / (60 + Double(i) + 1) }
         // Exact-symbol leg gets full leg weight: an identifier token is a
         // strong intent signal, so its definitions deserve top placement.
-        for (i, h) in symHits.enumerated() { rrf[h.chunkID, default: 0] += 1.0 / (60 + Double(i) + 1) }
+        for (i, h) in symHits.enumerated() { rrf[h.chunkID, default: 0] += w.sym / (60 + Double(i) + 1) }
         var byID: [Int64: SearchHit] = [:]
         for h in ftsHits + vecHits + symHits { byID[h.chunkID] = h }
 

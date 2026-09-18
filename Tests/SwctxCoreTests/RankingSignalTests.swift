@@ -177,6 +177,25 @@ final class RankingSignalTests: XCTestCase {
         XCTAssertEqual(0, hits.count)
     }
 
+    /// Folded tail-fill: a diacritic query reaches ASCII-folded index
+    /// text through the folded column, but only after real hits — a
+    /// file matching the original terms must always outrank a
+    /// folded-only rescue.
+    func testFoldedTailFillRescuesDiacriticQuery() throws {
+        let dir = try tempDir()
+        defer { try? FileManager.default.removeItem(at: dir) }
+        try write("def xac_thuc_dang_nhap(token):\n    return verify(token)\n",
+                  to: dir.appendingPathComponent("auth_ascii.py"))
+        let store = try Store(workspaceRoot: dir)
+        try Indexer(store: store).run(force: true, autoEmbed: false)
+
+        // "xác thực đăng nhập" has no un-folded match in ASCII code —
+        // only the folded rescue can reach it.
+        let hits = try Search.fts(store: store, query: "xác thực đăng nhập", limit: 5)
+        XCTAssertEqual(1, hits.count)
+        XCTAssertEqual("auth_ascii.py", hits[0].path)
+    }
+
     /// Candidate-pool API: returns the full fused pool before the limit
     /// cut — more rows than `limit` whenever the pool is bigger.
     func testCandidatePoolReturnsMoreThanLimit() throws {

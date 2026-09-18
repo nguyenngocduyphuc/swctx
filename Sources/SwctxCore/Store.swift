@@ -15,7 +15,7 @@ public final class Store: @unchecked Sendable {
     /// `meta.trigram` — substring fallback leg opt-in (off by default).
     public private(set) var trigramEnabled = false
 
-    public static let schemaVersion = 5
+    public static let schemaVersion = 6
 
     public static func key(for root: URL) -> String {
         let digest = SHA256.hash(data: Data(root.standardizedFileURL.path.utf8))
@@ -240,6 +240,51 @@ public final class Store: @unchecked Sendable {
                         (r["content"] as? String) ?? "",
                         Search.pathTokenString((r["path"] as? String) ?? ""),
                         Search.symbolTokenString(names),
+                    ])
+            }
+        }
+        migrator.registerMigration("v6") { db in
+            // Dedicated folded column: app-level foldText of every
+            // searchable field. unicode61 remove_diacritics never folds
+            // đ/Đ (U+0111 has no decomposition), so Vietnamese needs the
+            // app-level fold — the same function folds query terms into
+            // variant spellings (Search.ftsQuery). Column weight is
+            // deliberately low (0.6): folded-only matches rescue diacritic
+            // queries but cannot outrank real content/symbol hits, which
+            // keeps variant noise out of the fused candidate window.
+            try db.execute(sql: "DROP TABLE IF EXISTS chunks_fts")
+            try db.create(virtualTable: "chunks_fts", using: FTS5()) { t in
+                t.column("content")
+                t.column("path_tokens")
+                t.column("symbol_names")
+                t.column("folded")
+            }
+            var namesByChunk: [Int64: [String]] = [:]
+            for r in try Row.fetchAll(db, sql:
+                "SELECT chunk_id, name FROM symbols WHERE chunk_id IS NOT NULL") {
+                guard let cid = r["chunk_id"] as? Int64,
+                      let name = r["name"] as? String else { continue }
+                namesByChunk[cid, default: []].append(name)
+            }
+            let cursor = try Row.fetchCursor(db, sql: """
+                SELECT c.id, c.content, c.symbol, f.path
+                FROM chunks c JOIN files f ON f.id = c.file_id
+                """)
+            while let r = try cursor.next() {
+                guard let cid = r["id"] as? Int64 else { continue }
+                var seen: Set<String> = []
+                let names = (((r["symbol"] as? String).map { [$0] } ?? [])
+                    + (namesByChunk[cid] ?? []))
+                    .filter { seen.insert($0).inserted }
+                let content = (r["content"] as? String) ?? ""
+                let pathToks = Search.pathTokenString((r["path"] as? String) ?? "")
+                let symToks = Search.symbolTokenString(names)
+                try db.execute(sql: """
+                    INSERT INTO chunks_fts(rowid, content, path_tokens, symbol_names, folded)
+                    VALUES(?,?,?,?,?)
+                    """, arguments: [
+                        cid, content, pathToks, symToks,
+                        Search.foldText(content + " " + pathToks + " " + symToks),
                     ])
             }
         }
