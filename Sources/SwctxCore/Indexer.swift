@@ -257,6 +257,7 @@ public final class Indexer {
         }
 
         report.durationMs = Int(Date().timeIntervalSince(started) * 1000)
+        try? store.bumpEmbeddingsEpoch()
         Store.register(root: store.workspaceRoot)
         return report
     }
@@ -921,6 +922,7 @@ public final class Indexer {
                 embedder = Embedder()
             }
         }
+        try? store.bumpEmbeddingsEpoch()
         return total
     }
 
@@ -965,6 +967,7 @@ public final class Indexer {
                                arguments: [cid, dim, blob])
             }
         }
+        try? store.bumpEmbeddingsEpoch()
         return (rows.count, vectors.count)
     }
 }

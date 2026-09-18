@@ -218,3 +218,45 @@ final class RankingSignalTests: XCTestCase {
         XCTAssertEqual(4, pool.count)
     }
 }
+
+extension RankingSignalTests {
+    /// The cache-validation signature must change whenever the writer bumps
+    /// the epoch — otherwise the process-level vector cache would serve a
+    /// stale matrix after reindex.
+    func testEmbeddingsEpochSignatureChanges() throws {
+        let dir = try tempDir()
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let store = try Store(workspaceRoot: dir)
+        let legacy = try store.embeddingsSignature()
+        XCTAssertTrue(legacy.hasPrefix("legacy:"), "no epoch yet → \(legacy)")
+        try store.bumpEmbeddingsEpoch()
+        let s1 = try store.embeddingsSignature()
+        try store.bumpEmbeddingsEpoch()
+        let s2 = try store.embeddingsSignature()
+        XCTAssertNotEqual(legacy, s1)
+        XCTAssertNotEqual(s1, s2, "each bump must produce a fresh nonce")
+    }
+
+    /// Cache mechanics: signature + dim validation, LRU eviction at 4.
+    func testVectorCacheBox() {
+        let box = Search.VectorCacheBox()
+        func entry(_ sig: String, dim: Int = 2) -> Search.CachedVectors {
+            Search.CachedVectors(signature: sig, dim: dim,
+                                 ids: [1, 2], matrix: [1, 0, 0, 1],
+                                 lastUse: Date())
+        }
+        XCTAssertNil(box.cached(key: "w", signature: "a", dim: 2))
+        box.store(key: "w", entry: entry("a"))
+        XCTAssertNotNil(box.cached(key: "w", signature: "a", dim: 2))
+        XCTAssertNil(box.cached(key: "w", signature: "b", dim: 2),
+                     "epoch changed → stale entry rejected")
+        XCTAssertNil(box.cached(key: "w", signature: "a", dim: 3),
+                     "dim mismatch → rejected (model switched)")
+        box.store(key: "w", entry: entry("b"))
+        XCTAssertNotNil(box.cached(key: "w", signature: "b", dim: 2),
+                        "re-stored under the new epoch")
+        // LRU cap: 4 more distinct workspaces evict "w".
+        for i in 0 ..< 4 { box.store(key: "w\(i)", entry: entry("x")) }
+        XCTAssertNil(box.cached(key: "w", signature: "b", dim: 2))
+    }
+}

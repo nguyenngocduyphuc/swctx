@@ -128,34 +128,158 @@ public enum Search {
         }
     }
 
+    /// Process-level cache for the semantic leg's vector matrix. Stores are
+    /// created per tool call, so the matrix must outlive them; entries are
+    /// validated by `Store.embeddingsSignature()` (one tiny meta read) and
+    /// evicted LRU. Scores are identical to a fresh read — same float32s —
+    /// so this changes latency, not ranking.
+    struct CachedVectors {
+        var signature: String
+        var dim: Int
+        var ids: [Int64]
+        var matrix: [Float]  // ids.count × dim, row-major contiguous
+        var lastUse: Date
+    }
+    static let vectorCache = VectorCacheBox()
+
+    /// All mutable state is behind `lock`; entries are value types never
+    /// mutated after storage — safe to share across the MCP server's tasks.
+    final class VectorCacheBox: @unchecked Sendable {
+        private var lock = NSLock()
+        private var entries: [String: CachedVectors] = [:]
+        private let maxEntries = 4
+        private let maxBytes = 512 << 20
+
+        func cached(key: String, signature: String, dim: Int) -> CachedVectors? {
+            lock.lock(); defer { lock.unlock() }
+            guard var e = entries[key],
+                  e.signature == signature, e.dim == dim else { return nil }
+            e.lastUse = Date(); entries[key] = e
+            return e
+        }
+        func store(key: String, entry: CachedVectors) {
+            guard entry.matrix.count * 4 <= maxBytes else { return }
+            lock.lock(); defer { lock.unlock() }
+            entries[key] = entry
+            if entries.count > maxEntries,
+               let oldest = entries.min(by: { $0.value.lastUse < $1.value.lastUse })?.key {
+                entries.removeValue(forKey: oldest)
+            }
+        }
+    }
+
     /// Brute-force cosine over stored (normalized) embeddings.
     public static func semantic(store: Store, embedder: Embedder, query: String,
                                 limit: Int, pathFilter: String? = nil) throws -> [SearchHit] {
         guard let qv = embedder.embed(query) else { return [] }
+        if pathFilter != nil {
+            return try semanticFiltered(store: store, qv: qv, limit: limit,
+                                        pathFilter: pathFilter!)
+        }
+        let key = Store.key(for: store.workspaceRoot)
+        let sig = try store.embeddingsSignature()
+        var entry = vectorCache.cached(key: key, signature: sig, dim: qv.count)
+        if entry == nil {
+            entry = try loadVectors(store: store, signature: sig, dim: qv.count)
+            if let e = entry { vectorCache.store(key: key, entry: e) }
+        }
+        guard let e = entry, !e.ids.isEmpty else { return [] }
+
+        // All dots in one BLAS call (matrix row-major, qv unit-length).
+        let n = e.ids.count
+        var scores = [Float](repeating: 0, count: n)
+        e.matrix.withUnsafeBufferPointer { m in
+            qv.withUnsafeBufferPointer { q in
+                scores.withUnsafeMutableBufferPointer { s in
+                    cblas_sgemv(CblasRowMajor, CblasNoTrans, Int32(n), Int32(e.dim),
+                                1.0, m.baseAddress!, Int32(e.dim),
+                                q.baseAddress!, 1, 0.0, s.baseAddress!, 1)
+                }
+            }
+        }
+        var scored: [(Int64, Float)] = []
+        scored.reserveCapacity(64)
+        for i in 0..<n where scores[i] > 0.05 {
+            scored.append((e.ids[i], scores[i]))
+        }
+        scored.sort { $0.1 > $1.1 }
+        let top = scored.prefix(limit)
+        guard !top.isEmpty else { return [] }
+
+        // Chunk metadata only for the handful of winners — the old query
+        // joined path/lines for every row in the corpus.
+        let topIDs = top.map { $0.0 }
+        let ph = topIDs.map { _ in "?" }.joined(separator: ",")
+        let metaRows = try store.pool.read { db in
+            try Row.fetchAll(db, sql: """
+                SELECT c.id, f.path, c.start_line, c.end_line, c.kind, c.symbol
+                FROM chunks c JOIN files f ON f.id = c.file_id
+                WHERE c.id IN (\(ph))
+                """, arguments: StatementArguments(topIDs))
+        }
+        var meta: [Int64: Row] = [:]
+        meta.reserveCapacity(metaRows.count)
+        for r in metaRows {
+            if let id = r["id"] as? Int64 { meta[id] = r }
+        }
+        return top.compactMap { (cid, score) in
+            guard let row = meta[cid] else { return nil }
+            return SearchHit(
+                chunkID: cid, path: (row["path"] as? String) ?? "",
+                startLine: Int((row["start_line"] as? Int64) ?? 0),
+                endLine: Int((row["end_line"] as? Int64) ?? 0),
+                kind: row["kind"] as? String, symbol: row["symbol"] as? String,
+                score: Double(score), snippet: "")
+        }
+    }
+
+    /// Load the vector matrix from SQLite, keeping only rows whose stored
+    /// dim matches the active model (mixed-dim guard, same as before).
+    private static func loadVectors(store: Store, signature: String,
+                                    dim: Int) throws -> CachedVectors? {
         let rows = try store.pool.read { db in
-            var sql = """
+            try Row.fetchAll(db, sql: "SELECT chunk_id, dim, vec FROM embeddings")
+        }
+        guard !rows.isEmpty else { return nil }
+        var ids: [Int64] = []
+        var matrix: [Float] = []
+        ids.reserveCapacity(rows.count)
+        matrix.reserveCapacity(rows.count * dim)
+        for row in rows {
+            guard let blob = row["vec"] as? Data,
+                  let d = row["dim"] as? Int64, Int(d) == dim,
+                  let cid = row["chunk_id"] as? Int64,
+                  blob.count == dim * 4 else { continue }
+            ids.append(cid)
+            blob.withUnsafeBytes { raw in
+                matrix.append(contentsOf: raw.bindMemory(to: Float.self))
+            }
+        }
+        guard ids.count == matrix.count / dim else { return nil }
+        return CachedVectors(signature: signature, dim: dim, ids: ids,
+                             matrix: matrix, lastUse: Date())
+    }
+
+    /// Rare path-filtered variant: keeps the joined-row scan so the filter
+    /// applies before scoring (the cache holds no paths).
+    private static func semanticFiltered(store: Store, qv: [Float], limit: Int,
+                                         pathFilter: String) throws -> [SearchHit] {
+        let rows = try store.pool.read { db in
+            let prefix = pathFilter.hasSuffix("/") ? pathFilter : pathFilter + "/"
+            return try Row.fetchAll(db, sql: """
                 SELECT e.chunk_id, e.dim, e.vec, f.path, c.start_line, c.end_line,
                        c.kind, c.symbol
                 FROM embeddings e
                 JOIN chunks c ON c.id = e.chunk_id
                 JOIN files f ON f.id = c.file_id
-                """
-            var args: [DatabaseValueConvertible] = []
-            if let f = pathFilter {
-                let prefix = f.hasSuffix("/") ? f : f + "/"
-                sql += " WHERE (f.path = ? OR f.path LIKE ?)"
-                args.append(f)
-                args.append(prefix + "%")
-            }
-            return try Row.fetchAll(db, sql: sql, arguments: StatementArguments(args))
+                WHERE (f.path = ? OR f.path LIKE ?)
+                """, arguments: StatementArguments([pathFilter, prefix + "%"]))
         }
         var scored: [(Int64, Float)] = []
         scored.reserveCapacity(rows.count)
         var byID: [Int64: Row] = [:]
         for row in rows {
             guard let blob = row["vec"] as? Data, let dim = row["dim"] as? Int64 else { continue }
-            // Score straight off the blob bytes — identical to Embedder.vector +
-            // dot (prefix(dim) clamp, count-guarded vDSP_dotpr) minus the copy.
             let s: Float = blob.withUnsafeBytes { raw in
                 let floats = raw.bindMemory(to: Float.self)
                 let n = min(Int(dim), floats.count)

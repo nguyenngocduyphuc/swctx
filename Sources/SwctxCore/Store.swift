@@ -88,6 +88,34 @@ public final class Store: @unchecked Sendable {
         trigramEnabled = on
     }
 
+    /// Random-nonce epoch for the process-level vector cache: every writer
+    /// that mutates chunks/embeddings bumps it once per run, so a cached
+    /// matrix is validated by one tiny meta read instead of re-reading
+    /// ~100MB of vec blobs per query.
+    public func bumpEmbeddingsEpoch() throws {
+        try pool.write { db in
+            try db.execute(sql: """
+                INSERT OR REPLACE INTO meta(key, value)
+                VALUES('embeddings_epoch', hex(randomblob(8)))
+                """)
+        }
+    }
+
+    /// Cache-validation signature: the epoch nonce on indexes written by
+    /// this build; a legacy count/id fingerprint on older ones (misses
+    /// same-id re-embeds until the next index run writes a real epoch).
+    public func embeddingsSignature() throws -> String {
+        try pool.read { db in
+            if let v = try String.fetchOne(
+                db, sql: "SELECT value FROM meta WHERE key='embeddings_epoch'") {
+                return v
+            }
+            let n = try Int64.fetchOne(db, sql: "SELECT COUNT(*) FROM embeddings") ?? 0
+            let m = try Int64.fetchOne(db, sql: "SELECT MAX(chunk_id) FROM embeddings") ?? 0
+            return "legacy:\(n):\(m)"
+        }
+    }
+
     private func migrate() throws {
         // Skip the write entirely when the schema is already current, so plain
         // queries never open a write transaction on an existing index.

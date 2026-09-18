@@ -95,3 +95,35 @@ reranker (W1's SentencePiece → bge-reranker-v2-m3), not more tuning
 of this model.
 
 **Tests:** 86/86 (SPTokenizerTests excluded — W1 in flight).
+
+## ITER-3 — Vector-cache latency clawback (~02:00)
+
+**Change (ADOPT):** process-level `VectorCache` for the semantic leg.
+Store is created per tool call, so the 32K×768 float32 matrix (~100MB on
+P8) was re-read + re-joined from SQLite on EVERY semantic/hybrid call.
+Now: contiguous matrix cached per workspace (LRU×4, 512MB cap), validated
+by `meta.embeddings_epoch` nonce (Indexer bumps once per index/embed run),
+scored in one `cblas_sgemv`, and chunk metadata fetched only for top-k
+instead of joined for all 32K rows.
+
+**Measured (persistent MCP, P8 32,677 chunks):**
+- semantic warm: ~130ms → ~50ms (2.6×; residual ≈ query-embed inference)
+- hybrid warm: ~160ms → ~80-140ms typical
+- profile: embeddings blob scan 56ms/py-loop was the dominant leg cost;
+  metadata fetch 0.3ms, min/max pagerank 0.7ms
+- ratchet: PASS — recall@5 0.9722 unchanged, p95 105.7ms, schema golden PASS
+- vn_probe: auto 10/16, vi 9/14 — unchanged (rank wiggles inside score
+  ties: sgemv reduces in different fp order than vDSP_dotpr)
+- tests: 99/99 (testEmbeddingsEpochSignatureChanges, testVectorCacheBox)
+
+**Known limits (honest):** one-shot CLI calls don't benefit (cache dies
+with the process); legacy indexes without an epoch get a count/max-id
+signature that misses same-id re-embeds until the next index run; first
+semantic call per workspace still pays the full matrix load (~60-130ms).
+Candidate next lever: mmap'd matrix file beside index.db so cold CLI
+calls skip the blob decode too.
+
+**Rejected during profiling:** none — but confirmed folded tail-fill is
+already gated (`hits.count < limit`), no wasted second query.
+
+Pending: W3 bge-reranker-v2-m3 CoreML spike (f8e96b7a) still running.
