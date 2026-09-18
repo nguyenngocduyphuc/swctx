@@ -53,12 +53,13 @@ public enum Search {
         return terms.isEmpty ? nil : terms.joined(separator: " OR ")
     }
 
-    /// Folded adjacent-token PHRASES on the folded column: "chấm công"
-    /// probes folded : "cham cong" — which also matches folded
-    /// snake_case identifiers (tinh_cham_cong → "tinh cham cong") and
-    /// folded path tokens. Phrases are far more discriminating than
-    /// term-OR probes: term-level folded matches flooded windows with
-    /// common VN path/content tokens on every earlier attempt.
+    /// Folded adjacent-token PHRASES on path_tokens: "chấm công"
+    /// probes path_tokens : "cham cong" — matching folded snake_case
+    /// filenames like cham_cong.py. Phrases are far more discriminating
+    /// than term-OR probes: term-level folded matches flooded windows
+    /// with common VN path tokens on every earlier attempt, while a
+    /// phrase on the 2.5-weighted path column gives filename intent a
+    /// real score without touching the fts window.
     static func foldedPhraseQuery(_ raw: String) -> String? {
         let toks = raw
             .components(separatedBy: CharacterSet.alphanumerics.inverted)
@@ -66,7 +67,8 @@ public enum Search {
             .filter { $0.count >= 2 }
         var terms: [String] = []
         var seen: Set<String> = []
-        for pair in zip(toks.prefix(12), toks.prefix(12).dropFirst()) {
+        for pair in zip(toks, toks.dropFirst()) {
+            guard terms.count < 16 else { break }
             let f = foldText(pair.0 + " " + pair.1)
             if f != (pair.0 + " " + pair.1).lowercased(),
                f.count >= 3, seen.insert(f).inserted {

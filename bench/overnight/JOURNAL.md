@@ -170,3 +170,29 @@ never adjacent in query), crm-08 (en_control symbol lookup gap).
 **Lesson:** at n=16 the folded-PATH space is zero-sum UNLESS precision
 is phrase-level AND scoring column is path_tokens (not folded 0.6).
 Term-OR on any column = flood; phrase on weak column = no rank.
+
+### ITER-4 addendum (~02:45): pair-window fix + crm-04 diagnosis + W3 verdict
+
+- **Bug fix kept:** `foldedPhraseQuery` used `toks.prefix(12)` which
+  truncated tail pairs — crm-04's "đóng vòng" sits at tokens 13-14 and
+  was never emitted. Now iterates all pairs, caps at 16 emitted terms.
+  Probe unchanged (11/16) but coverage is strictly more correct.
+- **crm-04 diagnosed, not fixable lexically:** `path_tokens:"dong vong"`
+  matches dong_vong.py at leg rank 2, but its RRF contribution
+  (0.8/62 ≈ 0.013) can't reach fused top-5 (~0.05) against genuine
+  content matches (CEO/đối-soát prose docs). Raising the leg weight
+  ~4x would re-trigger seo-07 displacement — same zero-sum wall.
+- **seo-06 confirmed pure vocab gap:** query "đội hạm" vs file
+  "doi-ngu" (đội ngũ) — different words, no fold bridge exists.
+- **W3 bge-reranker-v2-m3 spike: REJECTED** (bench/reranker_v2m3_
+  spike.md): 7/16 vs baseline 10/16, 0 gains/3 losses, 2817ms/pair
+  (~160x amberoad), CPU-bound 81.5s/call. Domain mismatch — prose-
+  biased cross-encoder. Code kept as opt-in reference (`rerank2`),
+  not wired to MCP. Both available multilingual rerankers now proven
+  prose-biased → rerank path closed pending a code-aware model.
+
+**Remaining 5 misses are semantic/vocab-bound** (seo-04 ảnh↔image,
+seo-05 entity mesh, seo-06 đội hạm↔đội ngũ, crm-08 EN→VN symbol,
+crm-04 competition). Lexical iteration exhausted at 11/16 — next
+lever is embedding-side (CodeRankEmbed/bge-m3 via SPTokenizer, or a
+code-aware reranker), not more FTS surgery.
