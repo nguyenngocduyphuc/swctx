@@ -41,23 +41,22 @@ they are evidence, not waste.
 | Q2 | Weighted/score-normalized RRF | fusion | REJECTED (measured) |
 | Q3 | SentencePiece port → reranker-v2-m3 spike | rerank ceiling | DONE — v2m3 REJECTED (prose-biased, 160x slower) |
 | Q4-Q6 | reranker windows, engine_eval, nightly vn gate | quality/ops | DONE |
-| Q7 | p95 clawback | ops | PARTIAL — vector cache landed (sem 130→50ms); p95 now 125ms (phrase leg cost) |
-| Q11 | **bge-m3 embedder offline eval** — embed 16 queries + full corpus via HF, measure cosine top-30/top-5 before any CoreML investment | THE semantic gap | ITER-5 (worker W4) |
-| Q12 | mmap vector matrix beside index.db — cold CLI/MCP-start latency | cold latency | ITER-5 (lead) |
-| Q13 | CodeRankEmbed-137M spike (nomic BERT, may fit WordPiece stack; code-specialized) | semantic gap | after Q11 signal |
+| Q7 | p95 clawback | ops | DONE — vector cache + sidecar + parallel legs → p95 102.5ms |
+| Q11 | **bge-m3 embedder offline eval** | semantic gap | DONE — GO on recall (4/5 rescued) but REJECTED on latency (~410ms/embed CPU) |
+| Q12 | mmap vector matrix beside index.db | cold latency | DONE — sidecar vectors.v1.bin, cold 3.2→0.9s |
+| Q13 | CodeRankEmbed-137M spike | semantic gap | backlog — e5-base tried first (bigger, proven multilingual) |
+| Q14 | **jina-reranker-v2 spike** (W5) | rerank ceiling | DONE — REJECTED (13/22 neutral, 1567ms/pair). 3/3 rerankers out |
+| Q15 | **multilingual-e5-base eval** (W6) | THE semantic gap | IN FLIGHT — quality near bge-m3 at ~52ms CPU torch (~fits gate) |
+| Q16 | e5 prefix plumbing (embedQuery/embedDocument) | e5 adoption | ready-if-GO |
 | Q9 | Merkle-tree sync | freshness | backlog |
-| Q10 | per-intent recall reporting | eval depth | backlog |
+| Q10 | per-intent recall reporting | eval depth | DONE — vn_probe splits by query_intent/path_signal |
 
 ## Worker assignments
 
-- **W4 (subagent_general, bg):** bge-m3 OFFLINE eval — no Swift changes.
-  HF BAAI/bge-m3 in the conversion venv, embed 16 vn_queries + all
-  chunks in both live index DBs, report per-query cosine rank of
-  expected-file chunks (top-30 pool entry + top-5). Verdict gate:
-  invest in CoreML only if it lifts ≥2 of the 5 misses into pool.
-
-- **W1/W2/W3:** complete (SentencePiece landed byte-exact; research
-  integrated; v2m3 spike rejected).
+- **W4:** bge-m3 offline eval — DONE, GO-quality/NO-GO-latency verdict.
+- **W5:** jina reranker spike — DONE, REJECTED (artifacts committed).
+- **W6:** e5-base offline eval — IN FLIGHT, same harness + gate.
+- **W1/W2/W3:** complete (SentencePiece byte-exact; research; v2m3 rejected).
 
 ## Self-improvement loop
 
