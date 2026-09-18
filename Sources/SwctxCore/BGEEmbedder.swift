@@ -8,28 +8,48 @@ import Accelerate
 /// split CJK chars per HF `tokenize_chinese_chars`).
 public struct EmbeddingModelSpec: Sendable {
     public enum Pooling: Sendable { case cls, mean }
+    public enum Tokenizer: Sendable { case wordpiece, sentencepiece }
     /// Meta/CLI identifier, e.g. "bge-base-en-v1.5".
     public let id: String
     /// Embedding dimension (hidden size).
     public let dim: Int
-    /// Directory under ~/.swctx/models/ holding model.mlpackage + vocab.txt.
+    /// Directory under ~/.swctx/models/ holding model.mlpackage + vocab file.
     public let dirName: String
     /// true → cased vocab: no lowercasing/accent stripping, CJK chars split.
     public let cased: Bool
     /// cls → vector at position 0; mean → attention-mask-weighted mean.
     public let pooling: Pooling
+    /// wordpiece → vocab.txt + WordPieceTokenizer; sentencepiece →
+    /// sentencepiece.bpe.model + SPTokenizer (XLM-R family: bge-m3).
+    public let tokenizer: Tokenizer
     public let displayName: String
+
+    public init(id: String, dim: Int, dirName: String, cased: Bool,
+                pooling: Pooling, tokenizer: Tokenizer = .wordpiece,
+                displayName: String) {
+        self.id = id
+        self.dim = dim
+        self.dirName = dirName
+        self.cased = cased
+        self.pooling = pooling
+        self.tokenizer = tokenizer
+        self.displayName = displayName
+    }
 
     public var modelDir: URL {
         FileManager.default.homeDirectoryForCurrentUser
             .appendingPathComponent(".swctx/models/\(dirName)")
     }
 
+    public var vocabFileName: String {
+        tokenizer == .sentencepiece ? "sentencepiece.bpe.model" : "vocab.txt"
+    }
+
     public var isInstalled: Bool {
         FileManager.default.fileExists(
             atPath: modelDir.appendingPathComponent("model.mlpackage/Manifest.json").path)
             && FileManager.default.fileExists(
-                atPath: modelDir.appendingPathComponent("vocab.txt").path)
+                atPath: modelDir.appendingPathComponent(vocabFileName).path)
     }
 }
 
@@ -189,7 +209,10 @@ public final class BGEEmbedder: @unchecked Sendable {
 
     public let spec: EmbeddingModelSpec
     private let model: MLModel
-    private let tokenizer: WordPieceTokenizer
+    private let tokenizer: WordPieceTokenizer?
+    /// SentencePiece tokenizer for XLM-R-family models (bge-m3) — mutually
+    /// exclusive with `tokenizer` above, selected by `spec.tokenizer`.
+    private let spTokenizer: SPTokenizer?
     /// Model inputs actually fed (distilbert lacks token_type_ids).
     private let inputNames: Set<String>
     /// Output feature carrying [1,seq,dim] hidden states (or [1,dim] pooled).
@@ -216,13 +239,21 @@ public final class BGEEmbedder: @unchecked Sendable {
         cfg.computeUnits = .all
         model = try MLModel(contentsOf: modelURL, configuration: cfg)
 
-        guard let tok = WordPieceTokenizer(
-            vocabAt: dir.appendingPathComponent("vocab.txt"), cased: spec.cased)
-        else {
-            throw NSError(domain: "swctx", code: 3, userInfo: [
-                NSLocalizedDescriptionKey: "missing/unreadable vocab.txt in \(dir.path)"])
+        switch spec.tokenizer {
+        case .wordpiece:
+            guard let tok = WordPieceTokenizer(
+                vocabAt: dir.appendingPathComponent("vocab.txt"), cased: spec.cased)
+            else {
+                throw NSError(domain: "swctx", code: 3, userInfo: [
+                    NSLocalizedDescriptionKey: "missing/unreadable vocab.txt in \(dir.path)"])
+            }
+            tokenizer = tok
+            spTokenizer = nil
+        case .sentencepiece:
+            spTokenizer = try SPTokenizer(
+                modelURL: dir.appendingPathComponent("sentencepiece.bpe.model"))
+            tokenizer = nil
         }
-        tokenizer = tok
 
         inputNames = Set(model.modelDescription.inputDescriptionsByName.keys)
         // Prefer known hidden-state names, else first multiarray output whose
@@ -230,6 +261,7 @@ public final class BGEEmbedder: @unchecked Sendable {
         let outputs = model.modelDescription.outputDescriptionsByName
         if outputs["hidden_states"] != nil { outputName = "hidden_states" }
         else if outputs["last_hidden_state"] != nil { outputName = "last_hidden_state" }
+        else if outputs["embedding"] != nil { outputName = "embedding" }
         else {
             outputName = outputs.first(where: {
                 $0.value.type == .multiArray
@@ -242,7 +274,10 @@ public final class BGEEmbedder: @unchecked Sendable {
     public var modelName: String { spec.id }
     var cased: Bool { spec.cased }
 
-    func tokenize(_ text: String) -> [Int32] { tokenizer.tokenize(text) }
+    func tokenize(_ text: String) -> [Int32] {
+        if let sp = spTokenizer { return sp.encode(text, maxLen: 512).ids }
+        return tokenizer?.tokenize(text) ?? []
+    }
 
     // MARK: - Inference
 

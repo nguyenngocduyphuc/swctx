@@ -30,7 +30,15 @@ public final class Embedder: @unchecked Sendable {
         cased: true, pooling: .mean,
         displayName: "distiluse-base-multilingual-cased-v2 (multilingual 50+ langs incl. Vietnamese, cased, mean pooling)")
 
-    public static let models: [EmbeddingModelSpec] = [bgeSpec, distiluseSpec]
+    /// bge-m3 (XLM-R 24L, SentencePiece, CLS) — adopted after the offline
+    /// eval (bench/bgem3_offline_eval.md) rescued 4/5 dead-semantic-leg
+    /// misses on the vn probe where distiluse scored 1/22.
+    public static let bgem3Spec = EmbeddingModelSpec(
+        id: "bge-m3", dim: 1024, dirName: "bge-m3",
+        cased: true, pooling: .cls, tokenizer: .sentencepiece,
+        displayName: "bge-m3 (XLM-R multilingual, SentencePiece, CLS pooling)")
+
+    public static let models: [EmbeddingModelSpec] = [bgeSpec, distiluseSpec, bgem3Spec]
 
     public static func spec(for id: String?) -> EmbeddingModelSpec? {
         models.first { $0.id == id }
