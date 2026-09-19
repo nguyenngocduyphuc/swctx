@@ -123,6 +123,11 @@ public final class Store: @unchecked Sendable {
             try String.fetchOne(db, sql: "SELECT value FROM meta WHERE key = 'schema_version'")
         }
         if current == String(Store.schemaVersion) { return }
+        // A newer binary already migrated this index: GRDB's migrator no-ops
+        // on unknown applied migrations, so without this guard the meta write
+        // below would stamp our older version down and erase the durable
+        // evidence the watcher uses to detect schema drift. Leave meta intact.
+        if (current.flatMap { Int($0) } ?? 0) > Store.schemaVersion { return }
         var migrator = DatabaseMigrator()
         migrator.registerMigration("v1") { db in
             try db.execute(sql: """
