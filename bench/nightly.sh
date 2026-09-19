@@ -39,5 +39,6 @@ run_gate recall_ratchet python3 bench/recall_mcp.py --ratchet
 # VN retrieval regression net: probe expanded 16→22 queries (ITER-6);
 # current baseline 13/22 auto. Gate at 12 catches a one-query regression.
 run_gate vn_probe python3 bench/vn_probe.py --gate 12 --no-report
+run_gate corruption python3 bench/corruption_gate.py
 
 exit "$rc_all"

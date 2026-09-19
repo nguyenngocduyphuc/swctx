@@ -47,6 +47,14 @@ swift build            # debug
 swift build -c release # release
 ```
 
+Release: `scripts/release.sh` builds the release binary, self-tests it
+(`--version` + `prime` on this repo), and verifies `~/.local/bin/swctx`
+points at `.build/release/swctx` (mismatches are reported, never
+repointed silently); `--tag` additionally creates annotated git tag
+`v<version>`. `bench/nightly.sh` also runs `bench/corruption_gate.py`,
+which injects index corruption into a throwaway index copy and fails if
+the binary crashes instead of degrading gracefully.
+
 ## CLI
 
 ```sh
