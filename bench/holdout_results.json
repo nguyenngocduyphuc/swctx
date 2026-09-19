@@ -1,0 +1,960 @@
+{
+ "timestamp": "2026-09-19T16:53:25+00:00",
+ "swctx_bin": "/Users/phuongnam/02.AI/NP_AI_macos/tools/swctx/.build/debug/swctx",
+ "queries_file": "/Users/phuongnam/02.AI/NP_AI_macos/tools/swctx/bench/holdout_queries.json",
+ "limit": 5,
+ "holdout": true,
+ "note": "frozen holdout — do NOT tune on these numbers",
+ "workspaces": {
+  "seo": "/Users/phuongnam/02.AI/NP_AI_macos/8.P8_SEO_Clean",
+  "crm": "/Users/phuongnam/02.AI/NP_AI_macos/18.CRM-Nam-Pham"
+ },
+ "aggregate": {
+  "by_scope": [
+   {
+    "scope": "ALL (n=20)",
+    "search": {
+     "hits": 11,
+     "n": 20,
+     "recall": 0.55
+    },
+    "find_definitions": {
+     "hits": 6,
+     "n": 6,
+     "recall": 1.0
+    }
+   },
+   {
+    "scope": "8.P8_SEO_Clean (n=11)",
+    "search": {
+     "hits": 5,
+     "n": 11,
+     "recall": 0.4545
+    },
+    "find_definitions": {
+     "hits": 1,
+     "n": 1,
+     "recall": 1.0
+    }
+   },
+   {
+    "scope": "18.CRM-Nam-Pham (n=9)",
+    "search": {
+     "hits": 6,
+     "n": 9,
+     "recall": 0.6667
+    },
+    "find_definitions": {
+     "hits": 5,
+     "n": 5,
+     "recall": 1.0
+    }
+   },
+   {
+    "scope": "lang=en (n=3)",
+    "search": {
+     "hits": 2,
+     "n": 3,
+     "recall": 0.6667
+    },
+    "find_definitions": {
+     "hits": 1,
+     "n": 1,
+     "recall": 1.0
+    }
+   },
+   {
+    "scope": "lang=vi (n=17)",
+    "search": {
+     "hits": 9,
+     "n": 17,
+     "recall": 0.5294
+    },
+    "find_definitions": {
+     "hits": 5,
+     "n": 5,
+     "recall": 1.0
+    }
+   },
+   {
+    "scope": "tag=en_to_en (n=3)",
+    "search": {
+     "hits": 2,
+     "n": 3,
+     "recall": 0.6667
+    },
+    "find_definitions": {
+     "hits": 1,
+     "n": 1,
+     "recall": 1.0
+    }
+   },
+   {
+    "scope": "tag=vn_to_en (n=5)",
+    "search": {
+     "hits": 2,
+     "n": 5,
+     "recall": 0.4
+    },
+    "find_definitions": {
+     "hits": 2,
+     "n": 2,
+     "recall": 1.0
+    }
+   },
+   {
+    "scope": "tag=vn_to_vn (n=12)",
+    "search": {
+     "hits": 7,
+     "n": 12,
+     "recall": 0.5833
+    },
+    "find_definitions": {
+     "hits": 3,
+     "n": 3,
+     "recall": 1.0
+    }
+   },
+   {
+    "scope": "query_intent=concept_flow (n=14)",
+    "search": {
+     "hits": 8,
+     "n": 14,
+     "recall": 0.5714
+    }
+   },
+   {
+    "scope": "query_intent=symbol_lookup (n=6)",
+    "search": {
+     "hits": 3,
+     "n": 6,
+     "recall": 0.5
+    },
+    "find_definitions": {
+     "hits": 6,
+     "n": 6,
+     "recall": 1.0
+    }
+   },
+   {
+    "scope": "path_signal=in_body_only (n=10)",
+    "search": {
+     "hits": 3,
+     "n": 10,
+     "recall": 0.3
+    },
+    "find_definitions": {
+     "hits": 5,
+     "n": 5,
+     "recall": 1.0
+    }
+   },
+   {
+    "scope": "path_signal=in_path (n=10)",
+    "search": {
+     "hits": 8,
+     "n": 10,
+     "recall": 0.8
+    },
+    "find_definitions": {
+     "hits": 1,
+     "n": 1,
+     "recall": 1.0
+    }
+   }
+  ],
+  "search_recall_at_5": {
+   "hits": 11,
+   "n": 20,
+   "recall": 0.55
+  },
+  "search_latency_ms_median": 835.0,
+  "search_misses": [
+   {
+    "id": "hseo-01",
+    "query": "gate rà nội dung ymyl dược phẩm bắt câu hứa chữa khỏi tuyệt đối thiếu disclaimer",
+    "expected_path": "scripts/p8_ymyl_guard.py",
+    "tags": [
+     "vn_to_vn"
+    ],
+    "path_signal": "in_path"
+   },
+   {
+    "id": "hseo-02",
+    "query": "lệnh dọn cache cloudflare cho loạt url vừa publish xong",
+    "expected_path": "scripts/p8_cloudflare_purge.py",
+    "tags": [
+     "vn_to_en"
+    ],
+    "path_signal": "in_path"
+   },
+   {
+    "id": "hseo-03",
+    "query": "job sáng chủ nhật tổng hợp số liệu search console hai site rồi bắn báo cáo telegram",
+    "expected_path": "scripts/p8_weekly_digest.py",
+    "tags": [
+     "vn_to_vn"
+    ],
+    "path_signal": "in_body_only"
+   },
+   {
+    "id": "hseo-04",
+    "query": "lớp gác cuối quét html bài đang chạy trên site thật để bắt placeholder markdown sót lại",
+    "expected_path": "scripts/p8_live_sentinel.py",
+    "tags": [
+     "vn_to_vn"
+    ],
+    "path_signal": "in_body_only"
+   },
+   {
+    "id": "hseo-05",
+    "query": "hàm đoán một bài viết nên gắn json-ld loại gì, faq hay howto",
+    "expected_path": "scripts/p8_schema_injector.py",
+    "tags": [
+     "vn_to_en"
+    ],
+    "path_signal": "in_body_only"
+   },
+   {
+    "id": "hseo-07",
+    "query": "script bắn http check nhanh vài trang chính sau khi deploy site",
+    "expected_path": "factory/qa/smoke_web.py",
+    "tags": [
+     "vn_to_en"
+    ],
+    "path_signal": "in_body_only"
+   },
+   {
+    "id": "hcrm-03",
+    "query": "script canh độ tươi của dashboard, quá ba mươi giờ không cập nhật thì báo telegram",
+    "expected_path": "crm-nam-pham/09-build/heartbeat.py",
+    "tags": [
+     "vn_to_vn"
+    ],
+    "path_signal": "in_body_only"
+   },
+   {
+    "id": "hcrm-05",
+    "query": "đoạn xử lý khi ceo bấm một trong ba nút quyết định trên dashboard",
+    "expected_path": "crm-nam-pham/functions/api/[[path]].js",
+    "tags": [
+     "vn_to_vn"
+    ],
+    "path_signal": "in_body_only"
+   },
+   {
+    "id": "hcrm-08",
+    "query": "class serving mcp tool calls over a localhost http server inside the electron main process",
+    "expected_path": "bridge.js",
+    "tags": [
+     "en_to_en"
+    ],
+    "path_signal": "in_body_only"
+   }
+  ]
+ },
+ "queries": [
+  {
+   "id": "hseo-01",
+   "workspace": "/Users/phuongnam/02.AI/NP_AI_macos/8.P8_SEO_Clean",
+   "lang": "vi",
+   "tags": [
+    "vn_to_vn"
+   ],
+   "target_type": "code",
+   "query_intent": "concept_flow",
+   "path_signal": "in_path",
+   "query": "gate rà nội dung ymyl dược phẩm bắt câu hứa chữa khỏi tuyệt đối thiếu disclaimer",
+   "expected_path": "scripts/p8_ymyl_guard.py",
+   "verified": true,
+   "verify_detail": {
+    "in_index": true,
+    "symbol_indexed": true
+   },
+   "results": {
+    "search": {
+     "hits": [
+      "docs/handoffs/HANDOFF_20260727_dinh-dang-noi-dung.md",
+      "docs/resources/DOCS_QUALITY_GATE_V2.md",
+      "scripts/p8_content_depth_worker.py",
+      "scripts/p8_repo_status.py",
+      "docs/IMAGE_HOUSE_STYLE.md"
+     ],
+     "rank": 0,
+     "recall": 0,
+     "latency_ms": 823.5
+    }
+   }
+  },
+  {
+   "id": "hseo-02",
+   "workspace": "/Users/phuongnam/02.AI/NP_AI_macos/8.P8_SEO_Clean",
+   "lang": "vi",
+   "tags": [
+    "vn_to_en"
+   ],
+   "target_type": "code",
+   "query_intent": "concept_flow",
+   "path_signal": "in_path",
+   "query": "lệnh dọn cache cloudflare cho loạt url vừa publish xong",
+   "expected_path": "scripts/p8_cloudflare_purge.py",
+   "verified": true,
+   "verify_detail": {
+    "in_index": true,
+    "symbol_indexed": true
+   },
+   "results": {
+    "search": {
+     "hits": [
+      "docs/archive/phamducphuongnam-seo/stage_b_content_publish.py",
+      "docs/archive/architecture-snapshots/P8_CLOUDFLARE_WORDPRESS_OPERATING_DECISIONS.md",
+      "docs/handoffs/HANDOFF_20260814_site-title-cache-va-cua-gac.md",
+      "docs/handoffs/HANDOFF_20260814_site-title-cache-va-cua-gac.md",
+      "docs/handoffs/HANDOFF_20260814_site-title-cache-va-cua-gac.md"
+     ],
+     "rank": 0,
+     "recall": 0,
+     "latency_ms": 851.2
+    }
+   }
+  },
+  {
+   "id": "hseo-03",
+   "workspace": "/Users/phuongnam/02.AI/NP_AI_macos/8.P8_SEO_Clean",
+   "lang": "vi",
+   "tags": [
+    "vn_to_vn"
+   ],
+   "target_type": "code",
+   "query_intent": "concept_flow",
+   "path_signal": "in_body_only",
+   "query": "job sáng chủ nhật tổng hợp số liệu search console hai site rồi bắn báo cáo telegram",
+   "expected_path": "scripts/p8_weekly_digest.py",
+   "verified": true,
+   "verify_detail": {
+    "in_index": true,
+    "symbol_indexed": true
+   },
+   "results": {
+    "search": {
+     "hits": [
+      "docs/handoffs/HANDOFF_20260729_SANG_e2e-flyenv-va-hmi-giam-sat.md",
+      "docs/fleet/SITE_BUILD_PLAYBOOK.md",
+      "docs/handoffs/HANDOFF_20260729_SANG_crm-dong-bo-va-goc-benh.md",
+      "docs/references/seo/google-search-essentials.md",
+      "docs/references/compliance/_pending/2026-09-18_085611-google_search_blog-draft.md"
+     ],
+     "rank": 0,
+     "recall": 0,
+     "latency_ms": 829.3
+    }
+   }
+  },
+  {
+   "id": "hseo-04",
+   "workspace": "/Users/phuongnam/02.AI/NP_AI_macos/8.P8_SEO_Clean",
+   "lang": "vi",
+   "tags": [
+    "vn_to_vn"
+   ],
+   "target_type": "code",
+   "query_intent": "concept_flow",
+   "path_signal": "in_body_only",
+   "query": "lớp gác cuối quét html bài đang chạy trên site thật để bắt placeholder markdown sót lại",
+   "expected_path": "scripts/p8_live_sentinel.py",
+   "verified": true,
+   "verify_detail": {
+    "in_index": true,
+    "symbol_indexed": true
+   },
+   "results": {
+    "search": {
+     "hits": [
+      "docs/handoffs/HANDOFF_20260814_site-title-cache-va-cua-gac.md",
+      "docs/handoffs/HANDOFF_20260814_cua-gac-drift-va-huong-site.md",
+      "docs/handoffs/HANDOFF_20260814_cua-gac-drift-va-huong-site.md",
+      "docs/handoffs/HANDOFF_20260814_site-title-cache-va-cua-gac.md",
+      "docs/handoffs/HANDOFF_20260814_cua-gac-to-cmux.md"
+     ],
+     "rank": 0,
+     "recall": 0,
+     "latency_ms": 825.0
+    }
+   }
+  },
+  {
+   "id": "hseo-05",
+   "workspace": "/Users/phuongnam/02.AI/NP_AI_macos/8.P8_SEO_Clean",
+   "lang": "vi",
+   "tags": [
+    "vn_to_en"
+   ],
+   "target_type": "code",
+   "query_intent": "symbol_lookup",
+   "path_signal": "in_body_only",
+   "query": "hàm đoán một bài viết nên gắn json-ld loại gì, faq hay howto",
+   "expected_path": "scripts/p8_schema_injector.py",
+   "expected_symbol": "detect_schema_type",
+   "verified": true,
+   "verify_detail": {
+    "in_index": true,
+    "symbol_indexed": true
+   },
+   "results": {
+    "search": {
+     "hits": [
+      "docs/00_governance/CHUAN_BO_CUC_TRANG_BAI_VIET.md",
+      "docs/handoffs/HANDOFF_20260729_ui-bo-cuc-trang-bai-viet.md",
+      "docs/archive/phamducphuongnam-seo/phase-2/T2-schema/json-ld/2189.json",
+      "docs/archive/phamducphuongnam-seo/phase-2/T2-schema/json-ld/2189.bak.json",
+      "docs/archive/phamducphuongnam-seo/phase-2/T2-schema/json-ld/2189.bak.json"
+     ],
+     "rank": 0,
+     "recall": 0,
+     "latency_ms": 839.6
+    },
+    "find_definitions": {
+     "symbol": "detect_schema_type",
+     "hits": [
+      "scripts/p8_schema_injector.py"
+     ],
+     "rank": 1,
+     "recall": 1,
+     "latency_ms": 4.6
+    }
+   }
+  },
+  {
+   "id": "hseo-06",
+   "workspace": "/Users/phuongnam/02.AI/NP_AI_macos/8.P8_SEO_Clean",
+   "lang": "vi",
+   "tags": [
+    "vn_to_en"
+   ],
+   "target_type": "code",
+   "query_intent": "concept_flow",
+   "path_signal": "in_path",
+   "query": "server mcp tối giản bọc p8ctl thành tools cho agent gọi qua stdio",
+   "expected_path": "scripts/p8_mcp_server.py",
+   "verified": true,
+   "verify_detail": {
+    "in_index": true,
+    "symbol_indexed": true
+   },
+   "results": {
+    "search": {
+     "hits": [
+      "scripts/p8_mcp_server.py",
+      "scripts/_legacy/p8_mcp_server.py",
+      "docs/00_governance/AGENT_CAPA_LOG.md",
+      "WORKFLOW.md",
+      "start.yaml"
+     ],
+     "rank": 1,
+     "recall": 1,
+     "latency_ms": 833.7
+    }
+   }
+  },
+  {
+   "id": "hseo-07",
+   "workspace": "/Users/phuongnam/02.AI/NP_AI_macos/8.P8_SEO_Clean",
+   "lang": "vi",
+   "tags": [
+    "vn_to_en"
+   ],
+   "target_type": "code",
+   "query_intent": "concept_flow",
+   "path_signal": "in_body_only",
+   "query": "script bắn http check nhanh vài trang chính sau khi deploy site",
+   "expected_path": "factory/qa/smoke_web.py",
+   "verified": true,
+   "verify_detail": {
+    "in_index": true,
+    "symbol_indexed": true
+   },
+   "results": {
+    "search": {
+     "hits": [
+      "scripts/p8_theme_deploy_gate.py",
+      "docs/00_governance/LEGACY_SCRIPT_INDEX.md",
+      "docs/handoffs/HANDOFF_20260814_site-title-cache-va-cua-gac.md",
+      "vendors/codex-plugin-cc/tests/bump-version.test.mjs",
+      "vendors/codex-plugin-cc/tests/runtime.test.mjs"
+     ],
+     "rank": 0,
+     "recall": 0,
+     "latency_ms": 834.1
+    }
+   }
+  },
+  {
+   "id": "hseo-08",
+   "workspace": "/Users/phuongnam/02.AI/NP_AI_macos/8.P8_SEO_Clean",
+   "lang": "vi",
+   "tags": [
+    "vn_to_vn"
+   ],
+   "target_type": "doc",
+   "query_intent": "concept_flow",
+   "path_signal": "in_body_only",
+   "query": "trang chỉ cho agent mới vào đội nên đọc những tài liệu nào trước",
+   "expected_path": "docs-fleet/onboarding.md",
+   "verified": true,
+   "verify_detail": {
+    "in_index": true,
+    "symbol_indexed": true
+   },
+   "results": {
+    "search": {
+     "hits": [
+      "docs/AGENT_MAP.md",
+      "docs/DOC_GOVERNANCE.md",
+      "docs/00_governance/AGENT_CAPA_LOG.md",
+      "docs/00_governance/AGENT_CAPA_LOG.md",
+      "docs-fleet/onboarding.md"
+     ],
+     "rank": 5,
+     "recall": 1,
+     "latency_ms": 836.0
+    }
+   }
+  },
+  {
+   "id": "hseo-09",
+   "workspace": "/Users/phuongnam/02.AI/NP_AI_macos/8.P8_SEO_Clean",
+   "lang": "vi",
+   "tags": [
+    "vn_to_vn"
+   ],
+   "target_type": "doc",
+   "query_intent": "concept_flow",
+   "path_signal": "in_path",
+   "query": "tài liệu vòng lặp vận hành từ asana task tới dispatch worker rồi verify",
+   "expected_path": "docs-fleet/van-hanh.md",
+   "verified": true,
+   "verify_detail": {
+    "in_index": true,
+    "symbol_indexed": true
+   },
+   "results": {
+    "search": {
+     "hits": [
+      "docs-fleet/van-hanh.md",
+      "docs-fleet/van-hanh.md",
+      "docs-fleet/van-hanh.md",
+      "docs-fleet/van-hanh.md",
+      "docs/handoffs/HANDOFF_20260726_ra-soat-van-hanh.md"
+     ],
+     "rank": 1,
+     "recall": 1,
+     "latency_ms": 846.9
+    }
+   }
+  },
+  {
+   "id": "hseo-10",
+   "workspace": "/Users/phuongnam/02.AI/NP_AI_macos/8.P8_SEO_Clean",
+   "lang": "en",
+   "tags": [
+    "en_to_en"
+   ],
+   "target_type": "code",
+   "query_intent": "concept_flow",
+   "path_signal": "in_path",
+   "query": "package and deploy a wordpress theme from git workspace to production over rsync",
+   "expected_path": "factory/generators/deploy_theme.py",
+   "verified": true,
+   "verify_detail": {
+    "in_index": true,
+    "symbol_indexed": true
+   },
+   "results": {
+    "search": {
+     "hits": [
+      "docs/operations/custom-theme-factory/06_GITOPS_THEME_DEPLOY_PIPELINE.md",
+      "factory/generators/deploy_theme.py",
+      "factory/generators/deploy_theme.py",
+      "docs/operations/custom-theme-factory/06_GITOPS_THEME_DEPLOY_PIPELINE.md",
+      "docs/operations/custom-theme-factory/06_GITOPS_THEME_DEPLOY_PIPELINE.md"
+     ],
+     "rank": 2,
+     "recall": 1,
+     "latency_ms": 185.0
+    }
+   }
+  },
+  {
+   "id": "hseo-11",
+   "workspace": "/Users/phuongnam/02.AI/NP_AI_macos/8.P8_SEO_Clean",
+   "lang": "en",
+   "tags": [
+    "en_to_en"
+   ],
+   "target_type": "code",
+   "query_intent": "concept_flow",
+   "path_signal": "in_path",
+   "query": "fail-closed guard that checks a suggested edit preserves the article's declared intent",
+   "expected_path": "scripts/p8_intent_guard.py",
+   "verified": true,
+   "verify_detail": {
+    "in_index": true,
+    "symbol_indexed": true
+   },
+   "results": {
+    "search": {
+     "hits": [
+      "scripts/p8_intent_guard.py",
+      "scripts/p8_intent_guard.py",
+      "scripts/p8_intent_guard.py",
+      "scripts/p8_intent_guard.py",
+      "tests/test_p8_intent_guard.py"
+     ],
+     "rank": 1,
+     "recall": 1,
+     "latency_ms": 239.7
+    }
+   }
+  },
+  {
+   "id": "hcrm-01",
+   "workspace": "/Users/phuongnam/02.AI/NP_AI_macos/18.CRM-Nam-Pham",
+   "lang": "vi",
+   "tags": [
+    "vn_to_vn"
+   ],
+   "target_type": "code",
+   "query_intent": "symbol_lookup",
+   "path_signal": "in_body_only",
+   "query": "hàm tạo vân tay sha1 cho một phát hiện site audit kéo từ 1marketingtool",
+   "expected_path": "crm-nam-pham/09-build/nap_1mkt.py",
+   "expected_symbol": "van_tay",
+   "verified": true,
+   "verify_detail": {
+    "in_index": true,
+    "symbol_indexed": true
+   },
+   "results": {
+    "search": {
+     "hits": [
+      "crm-nam-pham/09-build/audit_sites.py",
+      "crm-nam-pham/09-build/nap_1mkt.py",
+      "crm-nam-pham/09-build/nap_serp.py",
+      "0-MASTER-PLAN-AUDIT.md",
+      "crm-nam-pham/04-app-frontend/loc-site.js"
+     ],
+     "rank": 2,
+     "recall": 1,
+     "latency_ms": 832.3
+    },
+    "find_definitions": {
+     "symbol": "van_tay",
+     "hits": [
+      "crm-nam-pham/09-build/audit_sites.py",
+      "crm-nam-pham/09-build/nap_1mkt.py",
+      "crm-nam-pham/09-build/nap_serp.py"
+     ],
+     "rank": 2,
+     "recall": 1,
+     "latency_ms": 21.9
+    }
+   }
+  },
+  {
+   "id": "hcrm-02",
+   "workspace": "/Users/phuongnam/02.AI/NP_AI_macos/18.CRM-Nam-Pham",
+   "lang": "vi",
+   "tags": [
+    "vn_to_vn"
+   ],
+   "target_type": "code",
+   "query_intent": "symbol_lookup",
+   "path_signal": "in_path",
+   "query": "hàm trộn các dòng quyết định kéo ngược từ d1 về sqlite theo khoá tự nhiên",
+   "expected_path": "crm-nam-pham/09-build/pull_d1.py",
+   "expected_symbol": "merge_rows",
+   "verified": true,
+   "verify_detail": {
+    "in_index": true,
+    "symbol_indexed": true
+   },
+   "results": {
+    "search": {
+     "hits": [
+      "crm-nam-pham/09-build/test_push_d1_thickness.py",
+      "crm-nam-pham/04-app-frontend/bang-quyet-dinh.html",
+      "crm-nam-pham/09-build/pull_d1.py",
+      "crm-nam-pham/07-docs/D1_BACKEND.md",
+      "crm-nam-pham/07-docs/PHANBIEN_PLAN_UI_20260820.md"
+     ],
+     "rank": 3,
+     "recall": 1,
+     "latency_ms": 833.2
+    },
+    "find_definitions": {
+     "symbol": "merge_rows",
+     "hits": [
+      "crm-nam-pham/09-build/pull_d1.py"
+     ],
+     "rank": 1,
+     "recall": 1,
+     "latency_ms": 15.3
+    }
+   }
+  },
+  {
+   "id": "hcrm-03",
+   "workspace": "/Users/phuongnam/02.AI/NP_AI_macos/18.CRM-Nam-Pham",
+   "lang": "vi",
+   "tags": [
+    "vn_to_vn"
+   ],
+   "target_type": "code",
+   "query_intent": "concept_flow",
+   "path_signal": "in_body_only",
+   "query": "script canh độ tươi của dashboard, quá ba mươi giờ không cập nhật thì báo telegram",
+   "expected_path": "crm-nam-pham/09-build/heartbeat.py",
+   "verified": true,
+   "verify_detail": {
+    "in_index": true,
+    "symbol_indexed": true
+   },
+   "results": {
+    "search": {
+     "hits": [
+      "README.md",
+      "PLAN-ceo-nampham-net.md",
+      "crm-nam-pham/04-app-frontend/bang-quyet-dinh.html",
+      "crm-nam-pham/07-docs/AUDIT_FULL_20260811_cowork.html",
+      "crm-nam-pham/04-app-frontend/ceo-cockpit.html"
+     ],
+     "rank": 0,
+     "recall": 0,
+     "latency_ms": 846.2
+    }
+   }
+  },
+  {
+   "id": "hcrm-04",
+   "workspace": "/Users/phuongnam/02.AI/NP_AI_macos/18.CRM-Nam-Pham",
+   "lang": "vi",
+   "tags": [
+    "vn_to_vn"
+   ],
+   "target_type": "code",
+   "query_intent": "concept_flow",
+   "path_signal": "in_path",
+   "query": "vòng chạy sau phiên gom hoạt động đẩy lên d1 rồi audit nhanh và deploy",
+   "expected_path": "crm-nam-pham/09-build/sau-phien.sh",
+   "verified": true,
+   "verify_detail": {
+    "in_index": true,
+    "symbol_indexed": true
+   },
+   "results": {
+    "search": {
+     "hits": [
+      "crm-nam-pham/09-build/dong_vong.py",
+      "0-MASTER-PLAN-AUDIT.md",
+      "0-MASTER-PLAN-AUDIT.md",
+      "crm-nam-pham/09-build/sau-phien.sh",
+      "crm-nam-pham/07-docs/AUDIT_3_SURFACE_CEO_20260820_agy.md"
+     ],
+     "rank": 4,
+     "recall": 1,
+     "latency_ms": 851.9
+    }
+   }
+  },
+  {
+   "id": "hcrm-05",
+   "workspace": "/Users/phuongnam/02.AI/NP_AI_macos/18.CRM-Nam-Pham",
+   "lang": "vi",
+   "tags": [
+    "vn_to_vn"
+   ],
+   "target_type": "code",
+   "query_intent": "symbol_lookup",
+   "path_signal": "in_body_only",
+   "query": "đoạn xử lý khi ceo bấm một trong ba nút quyết định trên dashboard",
+   "expected_path": "crm-nam-pham/functions/api/[[path]].js",
+   "expected_symbol": "handleQuyetDinh",
+   "verified": true,
+   "verify_detail": {
+    "in_index": true,
+    "symbol_indexed": true
+   },
+   "results": {
+    "search": {
+     "hits": [
+      "crm-nam-pham/07-docs/RESEARCH_CEO_ADMIN_UI_20260820.md",
+      "crm-nam-pham/07-docs/PLAN_UI_QUANTRI_CEO_20260820.html",
+      "crm-nam-pham/04-app-frontend/bang-quyet-dinh.html",
+      "crm-nam-pham/07-docs/RESEARCH_CEO_ADMIN_UI_20260820.md",
+      "crm-nam-pham/07-docs/RESEARCH_CEO_ADMIN_UI_20260820.md"
+     ],
+     "rank": 0,
+     "recall": 0,
+     "latency_ms": 842.9
+    },
+    "find_definitions": {
+     "symbol": "handleQuyetDinh",
+     "hits": [
+      "crm-nam-pham/functions/api/[[path]].js"
+     ],
+     "rank": 1,
+     "recall": 1,
+     "latency_ms": 15.6
+    }
+   }
+  },
+  {
+   "id": "hcrm-06",
+   "workspace": "/Users/phuongnam/02.AI/NP_AI_macos/18.CRM-Nam-Pham",
+   "lang": "vi",
+   "tags": [
+    "vn_to_vn"
+   ],
+   "target_type": "doc",
+   "query_intent": "concept_flow",
+   "path_signal": "in_path",
+   "query": "biên bản sự cố sổ crm bị xoá mất lịch sử quyết định ba ngày liền",
+   "expected_path": "crm-nam-pham/07-docs/SUCO_XOA_SO_CRM_20260906-08.md",
+   "verified": true,
+   "verify_detail": {
+    "in_index": true,
+    "symbol_indexed": true
+   },
+   "results": {
+    "search": {
+     "hits": [
+      "crm-nam-pham/07-docs/SUCO_XOA_SO_CRM_20260906-08.md",
+      "crm-nam-pham/07-docs/SUCO_XOA_SO_CRM_20260906-08.md",
+      "crm-nam-pham/04-app-frontend/lich-su-hang.html",
+      "crm-nam-pham/09-build/test_tra_lai_khong_mat_du_lieu.py",
+      "crm-nam-pham/04-app-frontend/co-che.html"
+     ],
+     "rank": 1,
+     "recall": 1,
+     "latency_ms": 845.4
+    }
+   }
+  },
+  {
+   "id": "hcrm-07",
+   "workspace": "/Users/phuongnam/02.AI/NP_AI_macos/18.CRM-Nam-Pham",
+   "lang": "vi",
+   "tags": [
+    "vn_to_vn"
+   ],
+   "target_type": "code",
+   "query_intent": "concept_flow",
+   "path_signal": "in_path",
+   "query": "file css định nghĩa token màu hệ thiết kế dùng chung cho mọi trang",
+   "expected_path": "crm-nam-pham/04-app-frontend/he-thiet-ke.css",
+   "verified": true,
+   "verify_detail": {
+    "in_index": true,
+    "symbol_indexed": true
+   },
+   "results": {
+    "search": {
+     "hits": [
+      "crm-nam-pham/09-build/kiem_he_thiet_ke.py",
+      "crm-nam-pham/04-app-frontend/he-thiet-ke.css",
+      "crm-nam-pham/04-app-frontend/he-thiet-ke.css",
+      "crm-nam-pham/07-docs/THAMCHIEU_1MKT_UI_20260820.md",
+      "crm-nam-pham/functions/_middleware.js"
+     ],
+     "rank": 2,
+     "recall": 1,
+     "latency_ms": 844.4
+    }
+   }
+  },
+  {
+   "id": "hcrm-08",
+   "workspace": "/Users/phuongnam/02.AI/NP_AI_macos/18.CRM-Nam-Pham",
+   "lang": "en",
+   "tags": [
+    "en_to_en"
+   ],
+   "target_type": "code",
+   "query_intent": "symbol_lookup",
+   "path_signal": "in_body_only",
+   "query": "class serving mcp tool calls over a localhost http server inside the electron main process",
+   "expected_path": "bridge.js",
+   "expected_symbol": "MarketingMcpBridge",
+   "verified": true,
+   "verify_detail": {
+    "in_index": true,
+    "symbol_indexed": true
+   },
+   "results": {
+    "search": {
+     "hits": [
+      "setup.js",
+      "mcp-names.js",
+      "mcp-names.js",
+      "setup.js",
+      "setup.js"
+     ],
+     "rank": 0,
+     "recall": 0,
+     "latency_ms": 47.0
+    },
+    "find_definitions": {
+     "symbol": "MarketingMcpBridge",
+     "hits": [
+      "bridge.js"
+     ],
+     "rank": 1,
+     "recall": 1,
+     "latency_ms": 5.6
+    }
+   }
+  },
+  {
+   "id": "hcrm-09",
+   "workspace": "/Users/phuongnam/02.AI/NP_AI_macos/18.CRM-Nam-Pham",
+   "lang": "vi",
+   "tags": [
+    "vn_to_en"
+   ],
+   "target_type": "code",
+   "query_intent": "symbol_lookup",
+   "path_signal": "in_body_only",
+   "query": "hàm lấy danh sách url từ sitemap của một site",
+   "expected_path": "crm-nam-pham/09-build/gsc_index_lib.py",
+   "expected_symbol": "sitemap_urls",
+   "verified": true,
+   "verify_detail": {
+    "in_index": true,
+    "symbol_indexed": true
+   },
+   "results": {
+    "search": {
+     "hits": [
+      "crm-nam-pham/09-build/audit_sites.py",
+      "crm-nam-pham/04-app-frontend/loc-site.js",
+      "crm-nam-pham/09-build/gsc_index_lib.py",
+      "crm-nam-pham/09-build/gsc_index_crm.py",
+      "crm-nam-pham/09-build/nap_1mkt.py"
+     ],
+     "rank": 3,
+     "recall": 1,
+     "latency_ms": 846.9
+    },
+    "find_definitions": {
+     "symbol": "sitemap_urls",
+     "hits": [
+      "crm-nam-pham/09-build/gsc_index_lib.py"
+     ],
+     "rank": 1,
+     "recall": 1,
+     "latency_ms": 10.7
+    }
+   }
+  }
+ ]
+}

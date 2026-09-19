@@ -1,0 +1,297 @@
+{
+  "version": 1,
+  "created": "2026-09-19",
+  "description": "Holdout probe set for swctx — FROZEN, not used for tuning (exit gate in docs/07-KE-HOACH-TOI-UU.md: 'frozen vn_probe + holdout mới, không dùng holdout để tune'). Same schema and workspaces as vn_queries.json but every expected_path is a DIFFERENT file from the 22-query probe, spread across new directories (factory/generators, factory/qa, 04-app-frontend, functions/api, repo-root bridge.js). kind=search only. Every expected_path verified on disk AND in the index files table before inclusion; every expected_symbol verified in the symbols table. tags: vn_to_vn = VN query whose target chunk is Vietnamese-heavy; vn_to_en = VN query whose target file is English-only (pure semantic-leg test); en_to_en = English query onto English-only content (the 'en_control' role in vn_queries terms). query_intent: symbol_lookup queries carry expected_symbol; path_signal: in_path = filename carries literal/folded signal for this query, in_body_only = signal lives in the body only.",
+  "workspaces": {
+    "seo": "/Users/phuongnam/02.AI/NP_AI_macos/8.P8_SEO_Clean",
+    "crm": "/Users/phuongnam/02.AI/NP_AI_macos/18.CRM-Nam-Pham"
+  },
+  "queries": [
+    {
+      "id": "hseo-01",
+      "workspace": "/Users/phuongnam/02.AI/NP_AI_macos/8.P8_SEO_Clean",
+      "kind": "search",
+      "lang": "vi",
+      "tags": [
+        "vn_to_vn"
+      ],
+      "target_type": "code",
+      "query_intent": "concept_flow",
+      "path_signal": "in_path",
+      "query": "gate rà nội dung ymyl dược phẩm bắt câu hứa chữa khỏi tuyệt đối thiếu disclaimer",
+      "expected_path": "scripts/p8_ymyl_guard.py"
+    },
+    {
+      "id": "hseo-02",
+      "workspace": "/Users/phuongnam/02.AI/NP_AI_macos/8.P8_SEO_Clean",
+      "kind": "search",
+      "lang": "vi",
+      "tags": [
+        "vn_to_en"
+      ],
+      "target_type": "code",
+      "query_intent": "concept_flow",
+      "path_signal": "in_path",
+      "query": "lệnh dọn cache cloudflare cho loạt url vừa publish xong",
+      "expected_path": "scripts/p8_cloudflare_purge.py"
+    },
+    {
+      "id": "hseo-03",
+      "workspace": "/Users/phuongnam/02.AI/NP_AI_macos/8.P8_SEO_Clean",
+      "kind": "search",
+      "lang": "vi",
+      "tags": [
+        "vn_to_vn"
+      ],
+      "target_type": "code",
+      "query_intent": "concept_flow",
+      "path_signal": "in_body_only",
+      "query": "job sáng chủ nhật tổng hợp số liệu search console hai site rồi bắn báo cáo telegram",
+      "expected_path": "scripts/p8_weekly_digest.py"
+    },
+    {
+      "id": "hseo-04",
+      "workspace": "/Users/phuongnam/02.AI/NP_AI_macos/8.P8_SEO_Clean",
+      "kind": "search",
+      "lang": "vi",
+      "tags": [
+        "vn_to_vn"
+      ],
+      "target_type": "code",
+      "query_intent": "concept_flow",
+      "path_signal": "in_body_only",
+      "query": "lớp gác cuối quét html bài đang chạy trên site thật để bắt placeholder markdown sót lại",
+      "expected_path": "scripts/p8_live_sentinel.py"
+    },
+    {
+      "id": "hseo-05",
+      "workspace": "/Users/phuongnam/02.AI/NP_AI_macos/8.P8_SEO_Clean",
+      "kind": "search",
+      "lang": "vi",
+      "tags": [
+        "vn_to_en"
+      ],
+      "target_type": "code",
+      "query_intent": "symbol_lookup",
+      "path_signal": "in_body_only",
+      "query": "hàm đoán một bài viết nên gắn json-ld loại gì, faq hay howto",
+      "expected_path": "scripts/p8_schema_injector.py",
+      "expected_symbol": "detect_schema_type"
+    },
+    {
+      "id": "hseo-06",
+      "workspace": "/Users/phuongnam/02.AI/NP_AI_macos/8.P8_SEO_Clean",
+      "kind": "search",
+      "lang": "vi",
+      "tags": [
+        "vn_to_en"
+      ],
+      "target_type": "code",
+      "query_intent": "concept_flow",
+      "path_signal": "in_path",
+      "query": "server mcp tối giản bọc p8ctl thành tools cho agent gọi qua stdio",
+      "expected_path": "scripts/p8_mcp_server.py"
+    },
+    {
+      "id": "hseo-07",
+      "workspace": "/Users/phuongnam/02.AI/NP_AI_macos/8.P8_SEO_Clean",
+      "kind": "search",
+      "lang": "vi",
+      "tags": [
+        "vn_to_en"
+      ],
+      "target_type": "code",
+      "query_intent": "concept_flow",
+      "path_signal": "in_body_only",
+      "query": "script bắn http check nhanh vài trang chính sau khi deploy site",
+      "expected_path": "factory/qa/smoke_web.py"
+    },
+    {
+      "id": "hseo-08",
+      "workspace": "/Users/phuongnam/02.AI/NP_AI_macos/8.P8_SEO_Clean",
+      "kind": "search",
+      "lang": "vi",
+      "tags": [
+        "vn_to_vn"
+      ],
+      "target_type": "doc",
+      "query_intent": "concept_flow",
+      "path_signal": "in_body_only",
+      "query": "trang chỉ cho agent mới vào đội nên đọc những tài liệu nào trước",
+      "expected_path": "docs-fleet/onboarding.md"
+    },
+    {
+      "id": "hseo-09",
+      "workspace": "/Users/phuongnam/02.AI/NP_AI_macos/8.P8_SEO_Clean",
+      "kind": "search",
+      "lang": "vi",
+      "tags": [
+        "vn_to_vn"
+      ],
+      "target_type": "doc",
+      "query_intent": "concept_flow",
+      "path_signal": "in_path",
+      "query": "tài liệu vòng lặp vận hành từ asana task tới dispatch worker rồi verify",
+      "expected_path": "docs-fleet/van-hanh.md"
+    },
+    {
+      "id": "hseo-10",
+      "workspace": "/Users/phuongnam/02.AI/NP_AI_macos/8.P8_SEO_Clean",
+      "kind": "search",
+      "lang": "en",
+      "tags": [
+        "en_to_en"
+      ],
+      "target_type": "code",
+      "query_intent": "concept_flow",
+      "path_signal": "in_path",
+      "query": "package and deploy a wordpress theme from git workspace to production over rsync",
+      "expected_path": "factory/generators/deploy_theme.py"
+    },
+    {
+      "id": "hseo-11",
+      "workspace": "/Users/phuongnam/02.AI/NP_AI_macos/8.P8_SEO_Clean",
+      "kind": "search",
+      "lang": "en",
+      "tags": [
+        "en_to_en"
+      ],
+      "target_type": "code",
+      "query_intent": "concept_flow",
+      "path_signal": "in_path",
+      "query": "fail-closed guard that checks a suggested edit preserves the article's declared intent",
+      "expected_path": "scripts/p8_intent_guard.py"
+    },
+    {
+      "id": "hcrm-01",
+      "workspace": "/Users/phuongnam/02.AI/NP_AI_macos/18.CRM-Nam-Pham",
+      "kind": "search",
+      "lang": "vi",
+      "tags": [
+        "vn_to_vn"
+      ],
+      "target_type": "code",
+      "query_intent": "symbol_lookup",
+      "path_signal": "in_body_only",
+      "query": "hàm tạo vân tay sha1 cho một phát hiện site audit kéo từ 1marketingtool",
+      "expected_path": "crm-nam-pham/09-build/nap_1mkt.py",
+      "expected_symbol": "van_tay"
+    },
+    {
+      "id": "hcrm-02",
+      "workspace": "/Users/phuongnam/02.AI/NP_AI_macos/18.CRM-Nam-Pham",
+      "kind": "search",
+      "lang": "vi",
+      "tags": [
+        "vn_to_vn"
+      ],
+      "target_type": "code",
+      "query_intent": "symbol_lookup",
+      "path_signal": "in_path",
+      "query": "hàm trộn các dòng quyết định kéo ngược từ d1 về sqlite theo khoá tự nhiên",
+      "expected_path": "crm-nam-pham/09-build/pull_d1.py",
+      "expected_symbol": "merge_rows"
+    },
+    {
+      "id": "hcrm-03",
+      "workspace": "/Users/phuongnam/02.AI/NP_AI_macos/18.CRM-Nam-Pham",
+      "kind": "search",
+      "lang": "vi",
+      "tags": [
+        "vn_to_vn"
+      ],
+      "target_type": "code",
+      "query_intent": "concept_flow",
+      "path_signal": "in_body_only",
+      "query": "script canh độ tươi của dashboard, quá ba mươi giờ không cập nhật thì báo telegram",
+      "expected_path": "crm-nam-pham/09-build/heartbeat.py"
+    },
+    {
+      "id": "hcrm-04",
+      "workspace": "/Users/phuongnam/02.AI/NP_AI_macos/18.CRM-Nam-Pham",
+      "kind": "search",
+      "lang": "vi",
+      "tags": [
+        "vn_to_vn"
+      ],
+      "target_type": "code",
+      "query_intent": "concept_flow",
+      "path_signal": "in_path",
+      "query": "vòng chạy sau phiên gom hoạt động đẩy lên d1 rồi audit nhanh và deploy",
+      "expected_path": "crm-nam-pham/09-build/sau-phien.sh"
+    },
+    {
+      "id": "hcrm-05",
+      "workspace": "/Users/phuongnam/02.AI/NP_AI_macos/18.CRM-Nam-Pham",
+      "kind": "search",
+      "lang": "vi",
+      "tags": [
+        "vn_to_vn"
+      ],
+      "target_type": "code",
+      "query_intent": "symbol_lookup",
+      "path_signal": "in_body_only",
+      "query": "đoạn xử lý khi ceo bấm một trong ba nút quyết định trên dashboard",
+      "expected_path": "crm-nam-pham/functions/api/[[path]].js",
+      "expected_symbol": "handleQuyetDinh"
+    },
+    {
+      "id": "hcrm-06",
+      "workspace": "/Users/phuongnam/02.AI/NP_AI_macos/18.CRM-Nam-Pham",
+      "kind": "search",
+      "lang": "vi",
+      "tags": [
+        "vn_to_vn"
+      ],
+      "target_type": "doc",
+      "query_intent": "concept_flow",
+      "path_signal": "in_path",
+      "query": "biên bản sự cố sổ crm bị xoá mất lịch sử quyết định ba ngày liền",
+      "expected_path": "crm-nam-pham/07-docs/SUCO_XOA_SO_CRM_20260906-08.md"
+    },
+    {
+      "id": "hcrm-07",
+      "workspace": "/Users/phuongnam/02.AI/NP_AI_macos/18.CRM-Nam-Pham",
+      "kind": "search",
+      "lang": "vi",
+      "tags": [
+        "vn_to_vn"
+      ],
+      "target_type": "code",
+      "query_intent": "concept_flow",
+      "path_signal": "in_path",
+      "query": "file css định nghĩa token màu hệ thiết kế dùng chung cho mọi trang",
+      "expected_path": "crm-nam-pham/04-app-frontend/he-thiet-ke.css"
+    },
+    {
+      "id": "hcrm-08",
+      "workspace": "/Users/phuongnam/02.AI/NP_AI_macos/18.CRM-Nam-Pham",
+      "kind": "search",
+      "lang": "en",
+      "tags": [
+        "en_to_en"
+      ],
+      "target_type": "code",
+      "query_intent": "symbol_lookup",
+      "path_signal": "in_body_only",
+      "query": "class serving mcp tool calls over a localhost http server inside the electron main process",
+      "expected_path": "bridge.js",
+      "expected_symbol": "MarketingMcpBridge"
+    },
+    {
+      "id": "hcrm-09",
+      "workspace": "/Users/phuongnam/02.AI/NP_AI_macos/18.CRM-Nam-Pham",
+      "kind": "search",
+      "lang": "vi",
+      "tags": [
+        "vn_to_en"
+      ],
+      "target_type": "code",
+      "query_intent": "symbol_lookup",
+      "path_signal": "in_body_only",
+      "query": "hàm lấy danh sách url từ sitemap của một site",
+      "expected_path": "crm-nam-pham/09-build/gsc_index_lib.py",
+      "expected_symbol": "sitemap_urls"
+    }
+  ]
+}
