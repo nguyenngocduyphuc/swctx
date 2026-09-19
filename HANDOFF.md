@@ -622,3 +622,23 @@ bge-m3/XLM-R-class models when the embedder spike lands.
   evidence-level rescue needs planner loop → W12b dispatched.
 - Release binary rebuilt — `answer` + translation leg now live in
   ~/.local/bin/swctx.
+
+## 2026-09-20 — W12b planner loop landed (`79bbeea`) + holdout set
+
+- **Planner loop**: `swctx answer --plan` — LLM proposes ≤3 query
+  variants/round (VN+EN), retrieves, grows the same evidence pack,
+  ≤4 rounds, dedup + zero-new-evidence early stop + deadline abort.
+  Worker run canceled mid-flight; lead verified (build + 18
+  PlannerTests + measured probe) and committed per protocol.
+- **Measured rescue on 8 residual misses**: seo-04, seo-05, crm-04,
+  crm-10 → expected_path enters evidence pack (**4/8**; single-shot
+  was 1/9). Remaining misses: seo-06, seo-09, crm-11.
+- **Local-only coverage: 19/22** (13 search + 1 find_defs + 5 answer)
+  vs ctxe-union 22/22. Gap = 3 hardest in_body_only queries.
+- **Holdout (`e0ad02c`)**: 20-query frozen set, baseline 11/20 (55%),
+  consistent with vn_probe — confirms the signal is real, not tuned.
+  Notably holdout vn_to_en scored 2/5 vs probe's 0/5.
+- Remaining plan items: W13 fast_understand --synthesize, W14
+  find_defs latency, W15 reranker (telemetry-gated), exit-gate chase
+  for the 3 residual misses (deeper planner / 27B route / better
+  variant seeds).
