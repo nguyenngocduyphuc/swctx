@@ -568,3 +568,31 @@ offline eval in flight) — not more FTS surgery.
 **Tokenizer asset:** `SPTokenizer.swift` — SentencePiece unigram port
 verified byte-exact vs the real BGE-M3 vocab (250K pieces). Unlocks
 bge-m3/XLM-R-class models when the embedder spike lands.
+
+## 2026-09-19 — P1 telemetry live + full-surface comparison + plan tối ưu
+
+- **P1 usage telemetry landed (`3ac98c7`)**: `usage_events` table in
+  `~/.swctx/records.db` (global ledger — no index schema bump, no
+  watcher-drift trip). Every MCP `tools/call` records
+  ts/ws/tool/latency_ms/hits/ok/query≤200c via `defer` + async
+  fire-and-forget (never breaks a call). `swctx stats` reports
+  per-tool calls/errors/avg/p50/p95 + zero-hit search queries.
+  12 new tests → 137/137 green. Release binary deployed — telemetry
+  is live for all MCP clients now.
+- **Full-surface parity probe (`2a23e9b`)**: all 18 ctxe tools probed
+  head-to-head (`bench/parity_probe.py`) — parity on
+  fetch_chunks/inspect_path/graph_neighbors/records/status; swctx ≥
+  ctxe on find_usages (2v1 on format_fragment) and get_impact
+  (hydrated dependents vs hop+score).
+- **ask_context full miss coverage (`7d8e13d`)**: all 9 swctx-search
+  misses run through ctxe ask_context — durable record rescues
+  **9/9** (rank 1-3). Union coverage 22/22. compose_answer verified
+  live (record 19, 10.5s).
+- **Excel rebuilt (`215cb41`)**: `docs/swctx-vs-ctxe.xlsx` 5 sheets,
+  all measured — `bench/make_xlsx.py` regenerates.
+- **Optimization plan**: `docs/07-KE-HOACH-TOI-UU.md` — goal "swctx
+  better than ctxe on every measured axis". W11 vn_to_en translation
+  leg (Ollama local), W12 `swctx answer` local synthesis (qwen2.5:3b /
+  Qwopus-27B already pulled), W13 fast_understand synthesize mode,
+  W14 find_definitions latency, W15 reranker revisit gated by
+  telemetry, W16 packaging+corruption gates.
