@@ -418,8 +418,35 @@ server, score file-recall@5 per surface. Comparability map trung thực:
   L1-reflex/L2-oracle giờ có paired data, không còn là giả thuyết.
 - Chi phí: đúng 4 ask_context calls (cap honored), mọi thứ khác free.
 
-### W9 — e5-large-instruct eval — IN FLIGHT khi ghi journal
+### W9 — e5-large-instruct eval — NO-GO (commit `d2691ed`, artifacts kept)
 
-MPS latency đã đo: **median 21.6ms** (trong gate ~150ms nếu CoreML
-tương đương). CRM corpus xong; P8 32.7K chunks đang embed. Quality
-verdict chờ corpus xong — cùng gate ≥2 misses rescued + no regressions.
+`intfloat/multilingual-e5-large-instruct` (XLM-R-large 24L/1024-d ~560M,
+instruct prefix query-side, mean-pool). **Latency GO**: MPS fp16
+**21.6ms**, CPU fp32 111.1ms — trong gate, ~3.7× nhanh hơn bge-m3 CPU
+trên cùng backbone 24L/1024. **Quality NO-GO**:
+
+- Rescued 5/9 misses vào top-30 pool: seo-06 r1, crm-04 r8, crm-10 r4,
+  crm-11 r17, seo-10 r25 — vượt ngưỡng ≥3.
+- Nhưng evict đúng **5 queries đang pass** (seo-01 r95, seo-02 r358,
+  seo-03 r363, seo-07 r34, crm-02 r43) → net pool 13/22, membership
+  khác. **Pure churn, zero lift** — cùng failure signature của e5-base
+  (cosine nén 0.82-0.94).
+- Mạnh trên CRM (10/11 top-30, 7 ở rank ≤2), bleed trên P8 English-
+  heavy. vn_to_en vẫn khó: 2/6 (seo-04 r1065, seo-05 r94).
+
+**Bản đồ semantic-model đóng hoàn chỉnh** — 4 model đo end-to-end trên
+cùng probe + corpus, không model nào có đủ 2 nửa:
+
+| model | quality | latency | verdict |
+|---|---|---|---|
+| distiluse (live) | sem 1/22 | nhanh | baseline |
+| e5-base 278M | 1/9 +5 reg | ~50ms | NO |
+| e5-large-instruct 560M | 5/9 rescued / 5 evicted | 21.6ms | NO |
+| bge-m3 568M | 4/5 rescued | ~410ms | NO |
+
+Levers còn lại (giữ nguyên): CodeRankEmbed (code-specialized, EN bias —
+rủi ro với VN), distill/quantize bge-m3 (giữ quality, giải latency),
+translation-assisted retrieval (VN query → EN terms → lexical — cheap,
+không cần model mới). Kết luận trung thực: **bức tường vn_to_en 0/5 là
+model-bound trên phần cứng này**, không phải thiếu thử — 4 model, 3
+reranker, 5+ lexical variants đều đã đo.

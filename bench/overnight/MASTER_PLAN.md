@@ -53,7 +53,7 @@ they are evidence, not waste.
 | Q16 | e5 prefix plumbing (embedQuery/embedDocument) | e5 adoption | ready-if-GO (e5-large still candidate) |
 | Q17 | **embed --reindex kill-safety** (W7) | ops | DONE `2a80b14` — persistent vec_snapshot, restore-on-entry |
 | Q18 | **watcher schema-drift exit** (W8) | ops | DONE `09c1978`+`90087a3` — ledger check + abort(), Store meta guard |
-| Q19 | **e5-large-instruct eval** (W9) | THE semantic gap | IN FLIGHT — MPS 21.6ms measured; P8 corpus embedding |
+| Q19 | **e5-large-instruct eval** (W9) | THE semantic gap | DONE `d2691ed` — REJECTED: 5/9 rescued but 5 evicted = net churn 0; MPS 21.6ms inside gate |
 | Q20 | **swctx↔ctxe A/B harness** (W10) | dual-engine goal | DONE `9be4b95` — union 17/22, L1/L2 thesis confirmed by paired data |
 | Q9 | Merkle-tree sync | freshness | backlog |
 | Q10 | per-intent recall reporting | eval depth | DONE — vn_probe splits by query_intent/path_signal |
@@ -62,7 +62,7 @@ they are evidence, not waste.
 
 - **W7:** embed kill-safety — DONE, persistent snapshot adopted (`2a80b14`).
 - **W8:** watcher drift — DONE, ledger+abort adopted (`09c1978`); lead Store guard `90087a3`.
-- **W9:** e5-large-instruct eval — IN FLIGHT, same harness + gate.
+- **W9:** e5-large-instruct eval — DONE, REJECTED (net churn 0; `d2691ed`).
 - **W10:** A/B harness — DONE (`9be4b95`): parity only at find_definitions;
   ctxe no NL-retrieval surface; L2 rescues L1 misses at 200-600× cost.
 - **W4/W5/W6:** complete (bge-m3 NO-GO latency; jina REJECTED; e5-base REJECTED).

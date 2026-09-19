@@ -4,7 +4,7 @@ Date: 2026-09-19 (overnight loop + SWE-2 wave) · Status: **working, verified en
 
 ## 2026-09-19 — SWE-2 wave (4 worker song song, ~13:00)
 
-Bốn gap còn lại sau review → 3 landed, 1 in flight (e5-large):
+Bốn gap còn lại sau review → cả 4 đã đóng (3 adopted, 1 measured-reject):
 
 - **`embed --reindex` kill-safe** (`2a80b14`): `vec_snapshot` thành bảng
   thật (sống sót process death), snapshot-trước-wipe một committed unit,
@@ -25,8 +25,11 @@ Bốn gap còn lại sau review → 3 landed, 1 in flight (e5-large):
   `ask_context` record-view hit 4/4 gồm cả vn_to_en misses của swctx —
   L2 rescue đúng chỗ L1 yếu, giá 200-600× latency + credits + record
   hop. Union 17/22 vs swctx-only 14/22. **L1/L2 thesis có paired data.**
-- **e5-large-instruct** (W9): MPS 21.6ms (trong gate); quality eval
-  đang chạy trên P8 corpus.
+- **e5-large-instruct** (`d2691ed`, W9): REJECTED — MPS 21.6ms trong
+  gate nhưng 5 rescued / 5 evicted = net churn 0. Semantic-model map
+  đóng: 4 model (distiluse, e5-base, e5-large, bge-m3) không cái nào
+  đủ cả quality lẫn latency. Levers còn: CodeRankEmbed, distill bge-m3,
+  translation-assisted retrieval.
 
 ## 2026-09-19 — Overnight retrieval loop (ITER-1 → ITER-8)
 
