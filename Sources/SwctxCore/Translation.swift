@@ -97,6 +97,121 @@ public enum Translation {
         """
     }
 
+    // MARK: - VN lexicon (deterministic morpheme map)
+
+    /// Folded-VN phrase → English filename terms. The 3B translator is
+    /// nondeterministic — the SAME prompt rendered "bộ não" as "brain"
+    /// in one run and "cognitive engine" in another — but filename
+    /// probes need a stable atom to be useful. This table is the
+    /// retrieval equivalent of accent folding: a fixed lexical
+    /// resource, matched on whitespace boundaries of the folded query.
+    /// Longest phrase wins; single-word entries only fill in when no
+    /// phrase covered that token. Terms land in `plannerProbeAtoms`
+    /// like model translations do — rare ones become solo path probes.
+    static let vnLexicon: [(String, [String])] = [
+        // phrases first — a 2-3 word unit is the reliable signal
+        ("bo nao", ["brain"]),
+        ("doi ham", ["fleet"]),
+        ("doi ngu", ["team", "roster"]),
+        ("nhat ky", ["log", "journal"]),
+        ("thoi gian thuc", ["live", "realtime"]),
+        ("tinh trang", ["status"]),
+        ("trang thai", ["status"]),
+        ("liet ke", ["list"]),
+        ("hoat dong", ["activity"]),
+        ("phan tich", ["analysis"]),
+        ("du lieu", ["data"]),
+        ("bao cao", ["report"]),
+        ("kich ban", ["script"]),
+        ("tap lenh", ["script"]),
+        ("nguoi dung", ["user"]),
+        ("nhan vien", ["employee", "staff"]),
+        ("nhan su", ["hr", "staff"]),
+        ("khach hang", ["customer"]),
+        ("don hang", ["order"]),
+        ("hoa don", ["invoice"]),
+        ("thanh toan", ["payment"]),
+        ("giao dich", ["transaction"]),
+        ("cham cong", ["attendance"]),
+        ("tinh luong", ["payroll", "salary"]),
+        ("ton kho", ["inventory"]),
+        ("nha cung cap", ["supplier", "vendor"]),
+        ("thong bao", ["notification"]),
+        ("canh bao", ["alert"]),
+        ("lich su", ["history"]),
+        ("theo doi", ["monitor", "track"]),
+        ("giam sat", ["monitor"]),
+        ("kiem tra", ["check"]),
+        ("danh gia", ["review"]),
+        ("dong bo", ["sync"]),
+        ("sao luu", ["backup"]),
+        ("khoi phuc", ["restore", "recovery"]),
+        ("lap lich", ["schedule"]),
+        ("len lich", ["schedule"]),
+        ("lich trinh", ["schedule"]),
+        ("dang nhap", ["login"]),
+        ("dang xuat", ["logout"]),
+        ("mat khau", ["password"]),
+        ("thu muc", ["folder", "directory"]),
+        ("trang web", ["site", "website"]),
+        ("bai viet", ["post", "article"]),
+        ("noi dung", ["content"]),
+        ("tieu de", ["title"]),
+        ("mo ta", ["description"]),
+        ("hieu suat", ["performance"]),
+        ("tu khoa", ["keyword"]),
+        ("tim kiem", ["search"]),
+        ("xep hang", ["rank", "ranking"]),
+        ("thong ke", ["stats"]),
+        ("cong cu", ["tool"]),
+        ("tu dong", ["auto", "automation"]),
+        ("xac thuc", ["auth"]),
+        ("bao mat", ["security"]),
+        ("san pham", ["product"]),
+        ("ke hoach", ["plan"]),
+        ("su kien", ["event"]),
+        ("diem danh", ["attendance", "checkin"]),
+        ("ghi so", ["ledger"]),
+        ("cong no", ["debt"]),
+        ("tuyen dung", ["recruit"]),
+        ("phan hoi", ["feedback"]),
+        ("bi chan", ["blocked"]),
+        ("ap dung", ["apply"]),
+        ("goi y", ["suggest", "recommend"]),
+        ("minh hoa", ["illustrate", "illustration"]),
+        ("sinh anh", ["image"]),
+        ("noi bo", ["internal"]),
+        // single-word fallbacks — only when the phrase missed.
+        // NOTE: no "nao" entry — "nào" (which) is a function word and
+        // folding makes it indistinguishable from "não" (brain); the
+        // "bo nao" phrase above carries the brain mapping safely.
+        ("luong", ["salary", "payroll"]),
+        ("kho", ["warehouse", "stock"]),
+        ("loi", ["error", "bug"]),
+        ("tep", ["file"]),
+        ("anh", ["image"]),
+        ("lich", ["schedule"]),
+    ]
+
+    /// English terms from the lexicon for `query`, matched on token
+    /// boundaries of the folded query. Free, deterministic — never a
+    /// model call. Longest patterns first so "thoi gian thuc" beats a
+    /// bare "thuc".
+    static func lexiconTerms(for query: String) -> [String] {
+        let folded = " " + Search.foldText(query)
+            .components(separatedBy: CharacterSet.alphanumerics.inverted)
+            .filter { !$0.isEmpty }
+            .joined(separator: " ") + " "
+        var out: [String] = []
+        var seen: Set<String> = []
+        for (pattern, terms) in vnLexicon.sorted(by: {
+            $0.0.count > $1.0.count
+        }) where folded.contains(" \(pattern) ") {
+            for t in terms where seen.insert(t).inserted { out.append(t) }
+        }
+        return out
+    }
+
     // MARK: - Cache (bounded LRU, outside the index DB)
 
     /// One small JSON file shared by all workspaces

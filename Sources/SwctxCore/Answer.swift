@@ -199,6 +199,18 @@ public enum Answer {
                                 query: String, pathFilter: String?,
                                 directMax: Int = 6,
                                 relatedMax: Int = 3) throws {
+        // Filename probe FIRST: rare query atoms get a solo path_tokens
+        // pass so a common term can't bury the file a rare atom names —
+        // "bộ não … SEO" never says "brain", but if any query atom is
+        // rare the file it names surfaces. It runs before hybrid because
+        // broad hits would otherwise fill the pack and the surgical
+        // filename match would be dropped. Cached translation terms
+        // join for free — a cache lookup only, never a model call.
+        let probe = try pathProbe(store: store, query: query,
+                                  pathFilter: pathFilter)
+        _ = try? acc.addSearchHits(store: store, hits: probe,
+                                   why: "path-probe", cap: 4)
+
         let hits = try Search.hybrid(store: store, embedder: store.embedder,
                                      query: query, limit: 16,
                                      pathFilter: pathFilter)
@@ -244,19 +256,49 @@ public enum Answer {
         }
     }
 
-    /// One planner search: hybrid hits file-deduped into `acc` with fresh
-    /// E-handles (`why="planner"`). Returns NEW items appended — 0 means
-    /// the query added nothing (feeds the early-stop streak).
+    /// The filename probe shared by the initial fill and planner
+    /// rounds: atoms of `query` merged with `extraAtoms` (the original
+    /// question's atoms — VN filename atoms the model's English
+    /// variants drop, e.g. "đội hạm" → "doi") plus that query's cached
+    /// translation terms AND the deterministic VN lexicon (both lookups
+    /// only, never a model call).
+    static func pathProbe(store: Store, query: String,
+                          pathFilter: String?,
+                          extraAtoms: [String] = []) throws -> [SearchHit] {
+        var terms = extraAtoms
+        terms += Translation.lexiconTerms(for: query)
+        if let t = Translation.activeCache.get(Translation.cacheKey(query)) {
+            terms += t
+        }
+        let atoms = Search.plannerProbeAtoms(query: query,
+                                             extraTerms: terms)
+        guard !atoms.isEmpty else { return [] }
+        return (try? Search.plannerPathProbe(store: store, atoms: atoms,
+                                             pathFilter: pathFilter)) ?? []
+    }
+
+    /// One planner search: the filename probe runs FIRST (`why=
+    /// "planner-path"`) — a rare-atom stem match is the surgical signal
+    /// and must not be crowded out by broad hybrid hits — then hybrid
+    /// hits file-dedupe in (`why="planner"`). Returns NEW items
+    /// appended — 0 means the query added nothing (early-stop streak).
     static func collectPlannerEvidence(store: Store, acc: PackBuilder,
                                        query: String,
                                        cap: Int = plannerPerQueryCap,
-                                       pathFilter: String?) throws -> Int {
+                                       pathFilter: String?,
+                                       probeAtoms: [String] = []) throws -> Int {
+        var added = 0
+        let probe = try pathProbe(store: store, query: query,
+                                  pathFilter: pathFilter,
+                                  extraAtoms: probeAtoms)
+        added += try acc.addSearchHits(store: store, hits: probe,
+                                       why: "planner-path", cap: 4)
         let hits = try Search.hybrid(store: store, embedder: store.embedder,
                                      query: query, limit: 16,
                                      pathFilter: pathFilter)
-        return try acc.addSearchHits(store: store, hits: hits,
-                                     why: "planner",
-                                     cap: cap)
+        added += try acc.addSearchHits(store: store, hits: hits,
+                                       why: "planner", cap: cap)
+        return added
     }
 
     // MARK: - Prompt
@@ -545,9 +587,22 @@ public enum Answer {
         var triedNorm: Set<String> = []
         var zeroNewStreak = 0
         var autoLeft = plannerAutoVariants(query, limit: 32)
+        // The original question's atoms ride along on every planner
+        // query's filename probe — the model's English variants drop
+        // VN filename atoms ("đội hạm" → "doi"), which are exactly the
+        // rare atoms that name the target file. Its cached translation
+        // terms join too (lookup only — the probe never spawns the
+        // model), so "nhật ký" reaches "log" even if the planner never
+        // emits an English query.
+        let baseAtoms = Search.plannerProbeAtoms(
+            query: query,
+            extraTerms: Translation.lexiconTerms(for: query)
+                + (Translation.activeCache.get(
+                    Translation.cacheKey(query)) ?? []))
         /// One shared query-execution step for model queries and
         /// deterministic auto-variants: normalize → dedupe → record →
-        /// hybrid → file-deduped into the pack. Returns items added.
+        /// hybrid + filename probe → file-deduped into the pack.
+        /// Returns items added.
         func runQuery(_ q: String, cap: Int = plannerPerQueryCap) -> Int {
             let norm = normalizePlannerQuery(q)
             // Drop literal placeholders a small model echoes from the
@@ -563,7 +618,7 @@ public enum Answer {
             rep.queriesTried.append(q)
             return (try? collectPlannerEvidence(
                 store: store, acc: acc, query: q, cap: cap,
-                pathFilter: pathFilter)) ?? 0
+                pathFilter: pathFilter, probeAtoms: baseAtoms)) ?? 0
         }
         rounds: for round in 1...plannerMaxRounds {
             // A useful round needs at least a couple of seconds — with
@@ -928,6 +983,14 @@ public enum Answer {
         let clampedTimeout = min(max(timeout, 5), 900)
         let clampedPlanTimeout = min(max(planTimeout, 5), 900)
 
+        // Warm the translation cache for VN-diacritic questions — the
+        // filename probe consumes it below; cold cache would leave
+        // "nhật ký"→"log"-style atoms unreachable in standalone
+        // `answer` calls. Bounded by Translation's own spawn cap and
+        // cooldown; failure is silent (probes use raw atoms only).
+        if Translation.needsTranslation(query) {
+            _ = Translation.englishTerms(for: query)
+        }
         let acc = PackBuilder(tokenBudget: defaultEvidenceTokens,
                               maxItems: 6 + 3)   // directMax + relatedMax
         // Plan mode seeds a smaller initial pack AND caps its tokens —

@@ -476,6 +476,70 @@ final class PlannerTests: XCTestCase {
         XCTAssertNil(payload["planner_rounds"])
     }
 
+    // MARK: - filename probe (rare-atom path_tokens rescue)
+
+    /// Probe atoms are folded ("đội"→"doi"), ≥3 chars, deduped.
+    func testPlannerProbeAtomsFoldedFiltered() {
+        let atoms = Search.plannerProbeAtoms(
+            query: "Đội hạm con nào đang bị block",
+            extraTerms: ["worker status", "block list"])
+        XCTAssertTrue(atoms.contains("doi"))
+        XCTAssertTrue(atoms.contains("ham"))
+        XCTAssertTrue(atoms.contains("block"))
+        XCTAssertTrue(atoms.contains("worker"))
+        XCTAssertTrue(atoms.contains("status"))
+        // 2-char atoms ("bi") dropped; no dupes.
+        XCTAssertFalse(atoms.contains("bi"))
+        XCTAssertEqual(atoms.count, Set(atoms).count)
+    }
+
+    /// A single RARE atom names the file even when the query's other
+    /// atoms match nothing — the "seo brain" → p8_brain.py rescue.
+    func testPlannerPathProbeRareAtom() throws {
+        let (dir, store) = try makeWorkspace()
+        defer { cleanup(dir) }
+        let hits = try Search.plannerPathProbe(
+            store: store, atoms: ["brixel", "zzznomatch", "neverthere"])
+        XCTAssertEqual(hits.map(\.path), ["brixel.py"])
+    }
+
+    /// Multi-atom coverage surfaces the file whose path shares the
+    /// most query atoms — {sub,other} → sub/other.py though the query
+    /// never names the file stem.
+    func testPlannerPathProbeMultiAtomCoverage() throws {
+        let (dir, store) = try makeWorkspace()
+        defer { cleanup(dir) }
+        let hits = try Search.plannerPathProbe(
+            store: store, atoms: ["sub", "other", "nomatch"])
+        XCTAssertEqual(hits.first?.path, "sub/other.py")
+    }
+
+    /// Zero-coverage atoms yield nothing — a gibberish probe never
+    /// invents evidence.
+    func testPlannerPathProbeNoMatchReturnsEmpty() throws {
+        let (dir, store) = try makeWorkspace()
+        defer { cleanup(dir) }
+        let hits = try Search.plannerPathProbe(
+            store: store, atoms: ["qqqzzz", "nevermatch"])
+        XCTAssertTrue(hits.isEmpty)
+    }
+
+    /// Integration: collectPlannerEvidence on a query whose hybrid leg
+    /// finds nothing still rescues via probeAtoms — a file the rare
+    /// atom names lands in the pack as "planner-path" evidence.
+    func testCollectPlannerEvidenceProbeRescue() throws {
+        let (dir, store) = try makeWorkspace()
+        defer { cleanup(dir) }
+        let acc = Answer.PackBuilder(
+            tokenBudget: Answer.defaultEvidenceTokens, maxItems: 12)
+        let added = try Answer.collectPlannerEvidence(
+            store: store, acc: acc, query: "zxqvjkwm blorfnotfound",
+            pathFilter: nil, probeAtoms: ["brixel"])
+        XCTAssertGreaterThanOrEqual(added, 1)
+        let item = acc.items.first { $0.path == "brixel.py" }
+        XCTAssertEqual(item?.why, "planner-path")
+    }
+
     /// Ollama absent + plan → deterministic pack, planner recorded as
     /// skipped, never a throw.
     func testPlanWithOllamaAbsentDegrades() throws {

@@ -161,7 +161,7 @@ public enum Search {
     static func ftsTranslatedAtoms(_ terms: [String]) -> [String] {
         var atoms: [String] = []
         var seen: Set<String> = []
-        for t in terms.prefix(8) {
+        for t in terms.prefix(12) {
             for tok in t.lowercased()
                 .components(separatedBy: CharacterSet.alphanumerics.inverted)
                 .filter({ $0.count >= 2 }) where seen.insert(tok).inserted {
@@ -173,6 +173,232 @@ public enum Search {
             }
         }
         return atoms
+    }
+
+    /// Vietnamese function words — folded forms. They add atoms that
+    /// only ever match junk ("dang" → định-dạng slugs) while crowding
+    /// real atoms out of the probe cap. Grammatical words only; a
+    /// content word never belongs here even if it is usually noise.
+    static let vnStopwords: Set<String> = [
+        "cac", "con", "dang", "trong", "that", "roi", "kem", "cho",
+        "voi", "cua", "mot", "nhung", "khi", "nhu", "van", "chi",
+        "toi", "theo", "den", "ra", "vao", "len", "tren", "duoi",
+        "giua", "ngoai", "vay", "thi", "ma", "la", "va", "hoac",
+        "hay", "neu", "vi", "boi", "do", "da", "se", "rat", "qua",
+        "lam", "nen", "cung", "deu", "moi", "tung", "bi", "co",
+        "khong", "duoc", "nay", "kia", "day", "gi", "ai", "thu",
+    ]
+
+    /// Atom pool for the planner filename probe: extra terms FIRST —
+    /// they are the curated rescue vocabulary (VN lexicon, cached
+    /// translations) added precisely because the raw query lacks them —
+    /// then the query's own folded atoms minus stopwords ("đội hạm" →
+    /// "doi ham"). Same atomization/singularization as the translation
+    /// leg; ≥3 chars — 2-char prefixes match half the corpus. Cap 24:
+    /// a dense VN question plus lexicon terms needs the headroom.
+    static func plannerProbeAtoms(query: String,
+                                  extraTerms: [String] = []) -> [String] {
+        var out: [String] = []
+        var seen: Set<String> = []
+        for a in ftsTranslatedAtoms(extraTerms)
+                + ftsTranslatedAtoms([foldText(query)])
+                    .filter({ !vnStopwords.contains($0) })
+        where a.count >= 3 && seen.insert(a).inserted {
+            out.append(a)
+        }
+        return Array(out.prefix(24))
+    }
+
+    /// Planner filename probe. A multi-term query lets one common atom
+    /// flood the fused ranking ("seo brain" buried p8_brain.py past the
+    /// pack cutoff), so each atom whose PATH-match file count is low
+    /// gets a solo pass on path_tokens — inside a shared OR window a
+    /// popular atom's rows crowd the rare atom's out entirely. The solo
+    /// pass ANDs the path anchor with an OR over the three atoms that
+    /// are rarest in CONTENT — path names the file, folded content
+    /// still has to speak the question's language:
+    /// `path_tokens:"doi"* AND folded:(ham OR liet OR worker)` reaches
+    /// doi-ngu.md while "chuyển đổi số" manifest reports (also "doi")
+    /// lack all three. Bare path probe is the fallback when the AND
+    /// comes up empty. File-deduped, ranked by distinct path coverage.
+    static func plannerPathProbe(store: Store, atoms: [String],
+                                 pathFilter: String? = nil,
+                                 rareMaxFiles: Int = 60,
+                                 midMaxFiles: Int = 200,
+                                 limit: Int = 10) throws -> [SearchHit] {
+        guard !atoms.isEmpty else { return [] }
+        func fileCount(_ match: String) -> Int {
+            (try? store.pool.read { db in
+                try Int.fetchOne(db, sql: """
+                    SELECT COUNT(DISTINCT c.file_id) FROM chunks_fts
+                    JOIN chunks c ON c.id = chunks_fts.rowid
+                    WHERE chunks_fts MATCH ?
+                    """, arguments: [match])
+            }) ?? 0
+        }
+        var pathDF: [String: Int] = [:]
+        for a in atoms {
+            pathDF[a] = fileCount("path_tokens : \"\(a)\"*")
+        }
+        // Two tiers: RARE atoms (≤rareMaxFiles files) get the AND-folded
+        // probe plus a bare path fallback; MID atoms (≤midMaxFiles) get
+        // the AND-folded probe ONLY — a bare "apply" probe returns 84
+        // files, but `apply* AND folded:(suggest|internal|link)` isolates
+        // ghost_link_builder_apply.py because the content must still
+        // speak the question's language.
+        let probed = atoms.filter { (pathDF[$0] ?? 0) > 0
+            && pathDF[$0]! <= midMaxFiles }
+        guard !probed.isEmpty else { return [] }
+        // Content-DF orders the folded-AND discriminators — an atom rare
+        // in paths but common in prose ("dang", "trang") narrows nothing.
+        var contentDF: [String: Int] = [:]
+        for a in atoms { contentDF[a] = fileCount("folded : \"\(a)\"*") }
+        var raw: [SearchHit] = []
+        for a in probed {
+            // Discriminators must be atoms the target plausibly
+            // CONTAINS, not merely rare ones: lowest content-DF picks
+            // words absent from every file ("illustrate"), which ANDs
+            // the target away. Blend 3 rarest + 2 most common — the
+            // common atoms ("link", "internal") are what the target's
+            // content actually speaks.
+            let others = atoms.filter { $0 != a }
+                .sorted { (contentDF[$0] ?? 0) < (contentDF[$1] ?? 0) }
+            let disc = Array(others.prefix(3))
+                + Array(others.suffix(5))
+            var hits: [SearchHit] = []
+            if !disc.isEmpty {
+                let and = "path_tokens : \"\(a)\"* AND folded : ("
+                    + disc.map { "\"\($0)\"*" }.joined(separator: " OR ")
+                    + ")"
+                hits = try ftsFileProbe(store: store, match: and,
+                                        limit: 20, pathFilter: pathFilter)
+            }
+            // Bare fallback only for atoms rare enough to trust it —
+            // a mid-DF atom without content agreement is skipped, not
+            // flooded in.
+            if hits.isEmpty, pathDF[a]! <= rareMaxFiles {
+                hits = try ftsFileProbe(store: store,
+                                        match: "path_tokens : \"\(a)\"*",
+                                        limit: 20, pathFilter: pathFilter)
+            }
+            raw += hits
+            if ProcessInfo.processInfo.environment["SWCTX_PROBE_DEBUG"] == "1" {
+                FileHandle.standardError.write(
+                    "probe atom=\(a) hits=\(hits.map(\.path))\n".data(using: .utf8)!)
+            }
+        }
+        var seenFiles: Set<String> = []
+        var scored: [(hit: SearchHit, fingerprint: Bool, cover: Int,
+                      stemLen: Int)] = []
+        for h in raw where seenFiles.insert(h.path).inserted {
+            // Coverage counts atoms that are exact TOKENS anywhere in
+            // the path — substring matching would credit junk ("con"
+            // inside "content"). DIRECTORY tokens count too, and they
+            // are the stronger signal: "docs-fleet/doi-ngu.md" covers
+            // {doi, fleet} — the dir literally names the concept the
+            // question asked about.
+            let pathTokens = Set(pathTokenString(h.path)
+                .components(separatedBy: " ").filter { !$0.isEmpty })
+            let matched = atoms.filter { pathTokens.contains($0) }
+            // The path_tokens prefix probe can return files that never
+            // name the atom ("blockquote" for "block") — a hit with
+            // zero token coverage is noise, not a filename intent.
+            guard !matched.isEmpty else { continue }
+            // A fingerprint atom is one only a handful of files carry
+            // (path-DF ≤ 2): "brain" names exactly p8_brain.py, so its
+            // hit outranks plausible multi-atom matches like a
+            // gsc-ga4 playbook whose atoms are merely uncommon.
+            let fingerprint = matched.contains {
+                let df = pathDF[$0] ?? 0
+                return df >= 1 && df <= 2
+            }
+            // Filename conciseness: concept-named files are short —
+            // "doi-ngu.md" (2 atoms) vs "post_2167_chuyen-doi-so-…"
+            // (12+).
+            let stemLen = Set(
+                foldText(((h.path as NSString).lastPathComponent
+                    as NSString).deletingPathExtension)
+                .components(separatedBy: CharacterSet.alphanumerics.inverted)
+                .filter { !$0.isEmpty }).count
+            scored.append((h, fingerprint, matched.count, stemLen))
+        }
+        scored.sort {
+            if $0.fingerprint != $1.fingerprint { return $0.fingerprint }
+            if $0.cover != $1.cover { return $0.cover > $1.cover }
+            if $0.stemLen != $1.stemLen { return $0.stemLen < $1.stemLen }
+            return $0.hit.score > $1.hit.score
+        }
+        if ProcessInfo.processInfo.environment["SWCTX_PROBE_DEBUG"] == "1" {
+            FileHandle.standardError.write(
+                ("probe ranked: " + scored.map {
+                    "\($0.hit.path) fp=\($0.fingerprint) cov=\($0.cover) sl=\($0.stemLen) s=\(String(format: "%.1f", $0.hit.score))"
+                }.joined(separator: " | ") + "\n").data(using: .utf8)!)
+        }
+        // Per-directory cap: generated backup/manifest dirs hold dozens
+        // of near-identical slugs ("2150-pre-apply-stage-a.json"…) that
+        // all inherit the same dir tokens and would otherwise fill the
+        // window. Two per directory keeps one representative.
+        var dirCount: [String: Int] = [:]
+        var out: [SearchHit] = []
+        for s in scored {
+            let dir = (s.hit.path as NSString).deletingLastPathComponent
+            if (dirCount[dir] ?? 0) >= 2 { continue }
+            dirCount[dir] = (dirCount[dir] ?? 0) + 1
+            out.append(s.hit)
+            if out.count >= limit { break }
+        }
+        return out
+    }
+
+    /// File-level FTS probe: one row per FILE (the chunk achieving the
+    /// best bm25 for the match), so a many-chunked file can't crowd the
+    /// row window. bm25() must be evaluated on MATCH rows — it throws
+    /// inside GROUP BY — so the inner subquery materializes scores via
+    /// `LIMIT -1` and the outer groups + picks each file's min-rank
+    /// chunk (SQLite bare-column-from-min-row semantics). Used by
+    /// `plannerPathProbe` where candidates are filenames, not chunks.
+    private static func ftsFileProbe(store: Store, match: String,
+                                     limit: Int,
+                                     pathFilter: String? = nil) throws
+        -> [SearchHit] {
+        let w = ftsColumnWeights
+        return try store.pool.read { db in
+            var sql = """
+                SELECT sub.id, f.path, sub.start_line, sub.end_line,
+                       sub.kind, sub.symbol, MIN(sub.rank) AS rank,
+                       sub.snippet
+                FROM (
+                    SELECT c.id, c.file_id, c.start_line, c.end_line,
+                           c.kind, c.symbol,
+                           bm25(chunks_fts, \(w.content), \(w.path), \(w.symbol), \(w.folded)) AS rank,
+                           snippet(chunks_fts, 0, '«', '»', ' … ', 24) AS snippet
+                    FROM chunks_fts
+                    JOIN chunks c ON c.id = chunks_fts.rowid
+                    WHERE chunks_fts MATCH ?
+                    LIMIT -1
+                ) sub
+                JOIN files f ON f.id = sub.file_id
+                """
+            var args: [DatabaseValueConvertible] = [match]
+            if let p = pathFilter, !p.isEmpty {
+                sql += " WHERE f.path LIKE ?"
+                args.append(p.hasSuffix("/") ? p + "%" : p + "/%")
+            }
+            sql += " GROUP BY sub.file_id ORDER BY rank LIMIT ?"
+            args.append(limit)
+            return try Row.fetchAll(db, sql: sql,
+                arguments: StatementArguments(args)).map { row in
+                SearchHit(
+                    chunkID: (row["id"] as? Int64) ?? -1,
+                    path: (row["path"] as? String) ?? "",
+                    startLine: Int((row["start_line"] as? Int64) ?? 0),
+                    endLine: Int((row["end_line"] as? Int64) ?? 0),
+                    kind: row["kind"] as? String,
+                    symbol: row["symbol"] as? String,
+                    score: -((row["rank"] as? Double) ?? 0),
+                    snippet: (row["snippet"] as? String) ?? "")
+            }
+        }
     }
 
     /// BM25F column weights for chunks_fts(content, path_tokens,
