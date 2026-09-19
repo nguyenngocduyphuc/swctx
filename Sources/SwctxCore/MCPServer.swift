@@ -185,6 +185,8 @@ public enum MCPServer {
                                   ("query", prop("string", "Natural-language question about the codebase")),
                                   ("model", prop("string", "Ollama model override (default qwen2.5:3b; env SWCTX_ANSWER_MODEL)")),
                                   ("timeout", prop("integer", "Per-attempt Ollama seconds, default 60 (one format-retry allowed)")),
+                                  ("plan", prop("boolean", "Bounded planner loop (≤4 rounds, ≤3 queries/round): iterates retrieval before answering — rescue mode for retrieval misses. Default off = single-shot.")),
+                                  ("plan_timeout", prop("integer", "Planner total wall-clock seconds, default 60 (~20s per planner call)")),
                                   ("path", prop("string", "Optional relative path prefix filter for retrieval")),
                                   ("expected_path", prop("string", "Eval-harness oracle path — recorded for scoring only, never shown to the model")),
                                   budgetProp, ("type", .string("object")),
@@ -266,8 +268,9 @@ public enum MCPServer {
     static let defaultDeadline: Duration = .seconds(60)
     static let toolDeadlines: [String: Duration] = [
         "index_workspace": .seconds(1800),
-        // Local LLM inference: default 60s/attempt + one format-retry.
-        "answer": .seconds(120),
+        // Local LLM inference: default 60s/attempt + one format-retry;
+        // `--plan` adds up to a 60s planner loop ahead of synthesis.
+        "answer": .seconds(240),
     ]
 
     /// Thrown when a tool exceeds its deadline; the CallTool handler maps

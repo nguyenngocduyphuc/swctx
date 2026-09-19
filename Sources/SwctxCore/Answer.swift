@@ -1,5 +1,6 @@
 import Darwin
 import Foundation
+import GRDB
 
 /// W12 `swctx answer` — local synthesis over verified evidence: hybrid
 /// retrieval packs cited chunks (`[E01] path=… start_line=… end_line=…`),
@@ -19,6 +20,29 @@ public enum Answer {
     /// bulk for prompt scaffold + generated answer leaves ~4K tokens of
     /// evidence as the measured fit (chars/4 estimate, same as max_tokens).
     public static let defaultEvidenceTokens = 4000
+    /// Planner bounds (`answer --plan`): ≤4 retrieval rounds, ≤3 queries per
+    /// round, pack capped at 12 items, ~60s total wall deadline with ~20s
+    /// per planner call — then synthesis runs over whatever evidence exists.
+    public static let plannerMaxRounds = 4
+    public static let plannerMaxQueriesPerRound = 3
+    public static let plannerMaxEvidence = 12
+    /// Each planner query contributes at most this many file-deduped items
+    /// — breadth-first admission: every tried query gets its best file
+    /// before any query spends a second slot of the ≤12-item pack.
+    public static let plannerPerQueryCap = 2
+    /// Deterministic question-derived variants tried alongside the model's
+    /// queries each search round (rescue doesn't hinge on a 3B's guesses).
+    public static let plannerAutoPerRound = 2
+    /// Auto-variants run first and admit only their top file — they are
+    /// precision probes, and the budget they leave behind is the model's
+    /// to spend.
+    public static let plannerAutoPerQueryCap = 1
+    public static let defaultPlanTimeoutSeconds = 60
+    public static let plannerCallTimeoutSeconds = 20
+    /// Plan mode caps the initial fill at this many tokens — a couple of
+    /// fat markdown chunks can otherwise spend the whole 4000-token
+    /// budget before the planner's rescue queries get any room.
+    public static let planInitialTokenCeiling = 2200
     /// One 3B-class local inference at a time per process — a second
     /// concurrent `answer` waits rather than thrashing the model.
     private static let runSemaphore = DispatchSemaphore(value: 1)
@@ -56,6 +80,101 @@ public enum Answer {
         return h + "\n" + e.content
     }
 
+    /// Bounded pack accumulator shared by the initial retrieval pass and
+    /// the planner's extra rounds: file-dedup, the item cap and the token
+    /// budget live in one place, and every appended item mints the next
+    /// sequential E-handle so planner additions are citable like any
+    /// other evidence.
+    final class PackBuilder {
+        let tokenBudget: Int
+        /// Soft token cap — plan mode lowers it for the initial fill so
+        /// planner rounds inherit real headroom; restored to the full
+        /// budget before the planner starts adding evidence.
+        var tokenCeiling: Int
+        var maxItems: Int
+        private(set) var items: [Evidence] = []
+        var seenChunks: Set<Int64> = []
+        var seenFiles: Set<String> = []
+        private(set) var usedTokens = 0
+        private(set) var truncated = false
+
+        init(tokenBudget: Int, maxItems: Int) {
+            self.tokenBudget = tokenBudget
+            self.tokenCeiling = tokenBudget
+            self.maxItems = maxItems
+        }
+
+        /// True while another meaningful item could still be appended —
+        /// item cap AND token ceiling both open. The planner's early-stop
+        /// condition: a pack that can't grow ends the loop.
+        var hasRoom: Bool {
+            items.count < maxItems
+                && tokenCeiling - usedTokens - 14 >= 100   // ≥400 chars
+        }
+
+        /// Returns content (possibly trimmed) that fits the remaining
+        /// token budget, or nil when nothing meaningful fits.
+        func fits(_ content: String) -> String? {
+            let overhead = 14   // handle line ≈ 50 chars
+            let remain = tokenCeiling - usedTokens - overhead
+            let minChars = 400  // below this a trimmed tail is noise
+            if estTokens(content) <= remain { return content }
+            let chars = remain * 4
+            guard chars >= minChars else { return nil }
+            return String(content.prefix(chars)) + "\n…[truncated]"
+        }
+
+        /// Append one item under the item cap AND token budget; returns
+        /// false (and marks `truncated`) when either bound trips.
+        @discardableResult
+        func append(path: String, chunkID: Int64, start: Int, end: Int,
+                    why: String, symbol: String?, kind: String?,
+                    content: String) -> Bool {
+            guard items.count < maxItems, let c = fits(content) else {
+                truncated = true
+                return false
+            }
+            items.append(Evidence(
+                id: String(format: "E%02d", items.count + 1),
+                chunkID: chunkID, path: path, startLine: start,
+                endLine: end, why: why, symbol: symbol, kind: kind,
+                content: c))
+            usedTokens += estTokens(c) + 14
+            if estTokens(c) < estTokens(content) { truncated = true }
+            return true
+        }
+
+        /// File-dedupe `hits` against the pack (a new chunk of an
+        /// already-covered file is still skipped), hydrate content in one
+        /// query, append in rank order. `cap` bounds items added from one
+        /// call — the planner passes plannerPerQueryCap so one broad query
+        /// can't flood the pack. Returns items actually added — the
+        /// planner's zero-growth signal.
+        @discardableResult
+        func addSearchHits(store: Store, hits: [SearchHit],
+                           why: String, cap: Int? = nil) throws -> Int {
+            let cap = cap ?? maxItems
+            var seeds: [SearchHit] = []
+            for h in hits where seeds.count < cap {
+                guard seenChunks.insert(h.chunkID).inserted,
+                      seenFiles.insert(h.path).inserted else { continue }
+                seeds.append(h)
+            }
+            let contents = try ContextPack.contents(
+                store: store, ids: seeds.map(\.chunkID))
+            var added = 0
+            for h in seeds {
+                guard let c = contents[h.chunkID], !c.isEmpty else { continue }
+                guard append(path: h.path, chunkID: h.chunkID,
+                             start: h.startLine, end: h.endLine, why: why,
+                             symbol: h.symbol, kind: h.kind,
+                             content: c) else { break }
+                added += 1
+            }
+            return added
+        }
+    }
+
     /// Retrieve + pack evidence: `Search.hybrid` direct hits (file-deduped,
     /// ≤ `directMax`), then 1-hop call/called_by neighbors (≤ `relatedMax`).
     /// Item AND token budgets both apply: items are added in rank order
@@ -65,45 +184,29 @@ public enum Answer {
                           directMax: Int = 6, relatedMax: Int = 3,
                           tokenBudget: Int = defaultEvidenceTokens) throws
         -> (evidence: [Evidence], truncated: Bool) {
+        let acc = PackBuilder(tokenBudget: tokenBudget,
+                              maxItems: directMax + relatedMax)
+        try fillInitialPack(store: store, acc: acc, query: query,
+                            pathFilter: pathFilter,
+                            directMax: directMax, relatedMax: relatedMax)
+        return (acc.items, acc.truncated)
+    }
+
+    /// The first retrieval pass into `acc` — kept separate from
+    /// `buildPack` so `run` can keep the accumulator (and its seen-sets)
+    /// for planner rounds that extend the same pack.
+    static func fillInitialPack(store: Store, acc: PackBuilder,
+                                query: String, pathFilter: String?,
+                                directMax: Int = 6,
+                                relatedMax: Int = 3) throws {
         let hits = try Search.hybrid(store: store, embedder: store.embedder,
                                      query: query, limit: 16,
                                      pathFilter: pathFilter)
-        var pack: [Evidence] = []
-        var seenChunks: Set<Int64> = []
-        var seenFiles: Set<String> = []
-        var usedTokens = 0
-        var truncated = false
-        var nextID = 1
-
-        func fits(_ content: String) -> String? {
-            // returns content (possibly trimmed) that fits the remaining
-            // token budget, or nil when nothing meaningful fits
-            let overhead = 14   // handle line ≈ 50 chars
-            let remain = tokenBudget - usedTokens - overhead
-            let minChars = 400  // below this a trimmed tail is noise
-            if estTokens(content) <= remain { return content }
-            let chars = remain * 4
-            guard chars >= minChars else { return nil }
-            return String(content.prefix(chars)) + "\n…[truncated]"
-        }
-        func append(path: String, chunkID: Int64, start: Int, end: Int,
-                    why: String, symbol: String?, kind: String?,
-                    content: String) {
-            guard let c = fits(content) else { truncated = true; return }
-            pack.append(Evidence(
-                id: String(format: "E%02d", nextID), chunkID: chunkID,
-                path: path, startLine: start, endLine: end, why: why,
-                symbol: symbol, kind: kind, content: c))
-            nextID += 1
-            usedTokens += estTokens(c) + 14
-            if estTokens(c) < estTokens(content) { truncated = true }
-        }
-
         // Direct hits: file-deduped so the pack covers distinct sources.
         var directSeeds: [SearchHit] = []
         for h in hits where directSeeds.count < directMax {
-            guard seenChunks.insert(h.chunkID).inserted,
-                  seenFiles.insert(h.path).inserted else { continue }
+            guard acc.seenChunks.insert(h.chunkID).inserted,
+                  acc.seenFiles.insert(h.path).inserted else { continue }
             directSeeds.append(h)
         }
         // Hydrate direct content in one query, preserving rank order.
@@ -111,22 +214,22 @@ public enum Answer {
             store: store, ids: directSeeds.map(\.chunkID))
         for h in directSeeds {
             guard let c = directContent[h.chunkID], !c.isEmpty else { continue }
-            append(path: h.path, chunkID: h.chunkID, start: h.startLine,
-                   end: h.endLine, why: "direct", symbol: h.symbol,
-                   kind: h.kind, content: c)
+            acc.append(path: h.path, chunkID: h.chunkID, start: h.startLine,
+                       end: h.endLine, why: "direct", symbol: h.symbol,
+                       kind: h.kind, content: c)
         }
 
         // Related: 1-hop graph neighbors of the direct seeds, content
         // hydrated too — the model cannot call fetch_chunks.
-        if !directSeeds.isEmpty, pack.count < directMax + relatedMax {
+        if !directSeeds.isEmpty, acc.items.count < acc.maxItems {
             let neighbors = (try? ContextPack.oneHop(
                 store: store, seeds: directSeeds.map(\.chunkID),
                 perSeed: 2)) ?? []
             var relIDs: [Int64] = []
             var relByID: [Int64: ContextPack.Neighbor] = [:]
-            for n in neighbors where !seenChunks.contains(n.id)
+            for n in neighbors where !acc.seenChunks.contains(n.id)
                 && relIDs.count < relatedMax {
-                seenChunks.insert(n.id)
+                acc.seenChunks.insert(n.id)
                 relIDs.append(n.id)
                 relByID[n.id] = n
             }
@@ -134,12 +237,26 @@ public enum Answer {
             for id in relIDs {
                 guard let n = relByID[id], let c = relContent[id],
                       !c.isEmpty else { continue }
-                append(path: n.path, chunkID: n.id, start: n.startLine,
-                       end: n.endLine, why: n.why, symbol: n.symbol,
-                       kind: n.kind, content: c)
+                acc.append(path: n.path, chunkID: n.id, start: n.startLine,
+                           end: n.endLine, why: n.why, symbol: n.symbol,
+                           kind: n.kind, content: c)
             }
         }
-        return (pack, truncated)
+    }
+
+    /// One planner search: hybrid hits file-deduped into `acc` with fresh
+    /// E-handles (`why="planner"`). Returns NEW items appended — 0 means
+    /// the query added nothing (feeds the early-stop streak).
+    static func collectPlannerEvidence(store: Store, acc: PackBuilder,
+                                       query: String,
+                                       cap: Int = plannerPerQueryCap,
+                                       pathFilter: String?) throws -> Int {
+        let hits = try Search.hybrid(store: store, embedder: store.embedder,
+                                     query: query, limit: 16,
+                                     pathFilter: pathFilter)
+        return try acc.addSearchHits(store: store, hits: hits,
+                                     why: "planner",
+                                     cap: cap)
     }
 
     // MARK: - Prompt
@@ -181,6 +298,350 @@ public enum Answer {
             """
         }
         return p
+    }
+
+    // MARK: - Planner loop (`answer --plan`)
+
+    /// Planner telemetry — recorded into the `kind=ask` record payload as
+    /// planner_rounds / queries_tried / evidence_growth (+stopped reason).
+    struct PlannerReport {
+        var rounds = 0
+        var queriesTried: [String] = []
+        var evidenceGrowth: [Int] = []   // items added per executed round
+        var malformed = 0                // planner outputs that weren't strict JSON
+        var stopped = ""                 // answer|round_cap|deadline|no_new_evidence|pack_full|planner_error|ollama_unavailable|semaphore_busy
+    }
+
+    /// The planner's decision for one round.
+    enum PlannerAction: Equatable {
+        case search([String])
+        case answer
+    }
+
+    /// Compact planner prompt: the question + evidence HANDLES only
+    /// (id/path/lines — never content, keeping the prompt small) + the
+    /// queries already tried so the model doesn't loop on repeats + a few
+    /// real sibling paths so it can imitate the corpus's naming language
+    /// (this corpus names files in Vietnamese snake_case — an honest `ls`
+    /// signal, not an oracle). `expectedPath` stays a harness oracle —
+    /// never a parameter here.
+    static func buildPlannerPrompt(query: String, pack: [Evidence],
+                                   triedQueries: [String],
+                                   nearby: [String],
+                                   round: Int, maxRounds: Int) -> String {
+        var ev = ""
+        for e in pack {
+            ev += "[\(e.id)] path=\(e.path) start_line=\(e.startLine) end_line=\(e.endLine)\n"
+        }
+        if ev.isEmpty { ev = "(none yet)\n" }
+        let tried = triedQueries.isEmpty
+            ? "(none)"
+            : triedQueries.map { "\"\($0)\"" }.joined(separator: ", ")
+        var nb = ""
+        for p in nearby { nb += p + "\n" }
+        if nb.isEmpty { nb = "(none)\n" }
+        return """
+        You plan retrieval for a code search engine over a mixed \
+        Vietnamese/English codebase.
+
+        USER QUESTION: \(query)
+
+        EVIDENCE COLLECTED SO FAR (handles only):
+        \(ev)
+        NEARBY INDEXED FILES (naming hints — imitate their language):
+        \(nb)
+        SEARCH QUERIES ALREADY TRIED: \(tried)
+
+        Reply with ONE JSON object and nothing else:
+        - the collected evidence is enough to answer → {"action":"answer"}
+        - need more retrieval → \
+        {"action":"search","queries":["<terms>","<terms>","<terms>"]}
+
+        Each query is 2-6 words of real search terms — never a \
+        placeholder like "q1". Spread the angles across queries: the \
+        question's key nouns verbatim, the same idea in the OTHER \
+        language (Vietnamese ↔ English), and snake_case identifier or \
+        filename guesses matching the naming style above. To search a \
+        hinted file, use its stem tokens — "foo-bar.md" → "foo bar", \
+        "sync_users.py" → "sync users". \
+        {"action":"search","queries":["<key nouns from the question>","<same idea in English>","<snake_case file guess>"]}
+        Never repeat a tried query. Never reuse terms from these \
+        instructions — only terms about THIS question. \
+        Round \(round) of \(maxRounds).
+        """
+    }
+
+    /// `ls`-style context for the planner: real indexed paths in the
+    /// directories evidence already landed in (the target is often a
+    /// sibling of a near-miss), ranked by basename/token overlap with the
+    /// question so VN-derived names surface; plus a couple of top-level
+    /// segments for orientation. Deterministic, path-only, ≤ `limit`.
+    static func siblingHints(store: Store, pack: [Evidence], query: String,
+                           limit: Int = 14) -> [String] {
+        let packPaths = Set(pack.map(\.path))
+        let qTerms = Set(Search.foldText(query)
+            .components(separatedBy: .alphanumerics.inverted)
+            .filter { $0.count >= 2 })
+        var dirs: [String] = []
+        var seenDirs: Set<String> = []
+        for e in pack {
+            let d = (e.path as NSString).deletingLastPathComponent
+            if !d.isEmpty, seenDirs.insert(d).inserted { dirs.append(d) }
+            if dirs.count >= 3 { break }
+        }
+        var hints: [String] = []
+        var hintSet: Set<String> = []
+        for d in dirs {
+            let esc = d.replacingOccurrences(of: "\\", with: "\\\\")
+                .replacingOccurrences(of: "%", with: "\\%")
+                .replacingOccurrences(of: "_", with: "\\_")
+            let rows = (try? store.pool.read { db in
+                try Row.fetchAll(db, sql: """
+                    SELECT path FROM files
+                    WHERE path LIKE ? ESCAPE '\\' LIMIT 40
+                    """, arguments: [esc + "/%"])
+            }) ?? []
+            // Rank by basename-token overlap with the question — a
+            // sibling whose name shares a query noun is the likeliest
+            // naming-convention hint (and often the miss itself).
+            var scored: [(String, Int)] = []
+            for r in rows {
+                guard let p = r["path"] as? String,
+                      !packPaths.contains(p) else { continue }
+                let base = (p as NSString).lastPathComponent
+                let bToks = Set(Search.foldText(base)
+                    .components(separatedBy: .alphanumerics.inverted)
+                    .filter { $0.count >= 2 && $0 != "py" && $0 != "md" })
+                scored.append((p, bToks.intersection(qTerms).count))
+            }
+            scored.sort { $0.1 != $1.1 ? $0.1 > $1.1 : $0.0 < $1.0 }
+            for (p, _) in scored.prefix(6) {
+                if hintSet.insert(p).inserted { hints.append(p) }
+                if hints.count >= limit { return hints }
+            }
+        }
+        // A couple of top-level segments for orientation (also the sole
+        // hint when the pack is empty or root-only).
+        let topRows = (try? store.pool.read { db in
+            try Row.fetchAll(db, sql: "SELECT path FROM files LIMIT 300")
+        }) ?? []
+        for r in topRows {
+            guard let p = r["path"] as? String else { continue }
+            let comps = p.split(separator: "/", omittingEmptySubsequences: true)
+            // A directory hint — never a file already in the pack:
+            // "a/b/c.py" → "a/b", "a/b.py" → "a", "b.py" → "b.py" (root).
+            let seg = comps.count > 2
+                ? comps.prefix(2).joined(separator: "/")
+                : comps.count == 2
+                    ? String(comps[0])
+                    : p
+            if hintSet.insert(seg).inserted { hints.append(seg) }
+            if hints.count >= limit { break }
+        }
+        return hints
+    }
+
+    /// Deterministic question-derived variants: adjacent bigrams, tail
+    /// first — in these mixed-VN questions the qualifier noun phrase that
+    /// became the filename ("…để đóng vòng" → dong_vong.py) sits at the
+    /// end. Pairs containing a function word ("into the", "đang bị") are
+    /// skipped — they rank noise into the pack. Deduped, ≤ `limit`.
+    static func plannerAutoVariants(_ query: String, limit: Int) -> [String] {
+        let toks = query.components(separatedBy: .alphanumerics.inverted)
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { $0.count >= 2 }
+        var out: [String] = []
+        var seen: Set<String> = []
+        for pair in zip(toks, toks.dropFirst()).reversed() {
+            if stopPair(pair.0, pair.1) { continue }
+            let s = pair.0 + " " + pair.1
+            if seen.insert(s.lowercased()).inserted { out.append(s) }
+            if out.count >= limit { break }
+        }
+        return out
+    }
+
+    /// Function words (EN + VN, stored folded) that make a bigram a
+    /// noise probe. A pair is skipped when EITHER side is one —
+    /// "operations ledger" survives, "the operations" doesn't.
+    private static let autoStopwords: Set<String> = [
+        "the", "a", "an", "of", "to", "in", "for", "on", "at", "by",
+        "with", "from", "into", "and", "or", "but", "is", "are", "was",
+        "were", "be", "been", "it", "its", "that", "this", "one", "when",
+        "while", "as", "do", "does",
+        // Vietnamese, folded (để→de, của→cua, đang→dang, …)
+        "va", "cua", "cho", "trong", "cac", "mot", "khi", "la", "bi",
+        "dang", "con", "nao", "theo", "de", "voi", "thanh", "nhung",
+        "moi", "tung",
+    ]
+
+    private static func stopPair(_ a: String, _ b: String) -> Bool {
+        autoStopwords.contains(Search.foldText(a))
+            || autoStopwords.contains(Search.foldText(b))
+    }
+
+    /// Parse the planner's STRICT JSON decision. Anything unparseable —
+    /// prose, fences, wrong schema — degrades to {"action":"answer"} so a
+    /// noisy model can never crash or wedge the loop. `queries` is capped
+    /// at plannerMaxQueriesPerRound (query-explosion guard).
+    static func parsePlannerAction(_ raw: String)
+        -> (action: PlannerAction, malformed: Bool) {
+        var s = stripANSI(raw).trimmingCharacters(in: .whitespacesAndNewlines)
+        if s.hasPrefix("```") {
+            s = s.replacingOccurrences(of: "```json", with: "")
+                .replacingOccurrences(of: "```", with: "")
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+        var dict = (try? JSONSerialization.jsonObject(with: Data(s.utf8)))
+            as? [String: Any]
+        if dict == nil, let lo = s.firstIndex(of: "{"),
+           let hi = s.lastIndex(of: "}"), hi > lo {
+            dict = (try? JSONSerialization.jsonObject(
+                with: Data(String(s[lo...hi]).utf8))) as? [String: Any]
+        }
+        guard let d = dict,
+              let action = (d["action"] as? String)?
+                .trimmingCharacters(in: .whitespaces).lowercased()
+        else { return (.answer, true) }
+        guard action == "search" else {
+            return (.answer, action != "answer")
+        }
+        var queries: [String] = []
+        for q in (d["queries"] as? [Any]) ?? [] {
+            guard let qs = q as? String else { continue }
+            let t = qs.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !t.isEmpty { queries.append(t) }
+        }
+        // tolerate {"action":"search","query":"…"}
+        if let single = d["query"] as? String {
+            let t = single.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !t.isEmpty { queries.append(t) }
+        }
+        if queries.isEmpty { return (.answer, false) }
+        return (.search(Array(queries.prefix(plannerMaxQueriesPerRound))),
+                false)
+    }
+
+    /// Repeat-detection normalization: case- and whitespace-insensitive.
+    static func normalizePlannerQuery(_ q: String) -> String {
+        q.lowercased()
+            .components(separatedBy: .whitespacesAndNewlines)
+            .filter { !$0.isEmpty }
+            .joined(separator: " ")
+    }
+
+    /// Bounded retrieval-agent loop (≤ plannerMaxRounds). Each round the
+    /// model sees the question + compact evidence handles + tried queries
+    /// and answers strict JSON: {"action":"search","queries":[≤3]} or
+    /// {"action":"answer"}. Stops on "answer", the round cap, the wall
+    /// `deadline`, two consecutive zero-growth rounds, a full pack, or a
+    /// transport error — the caller then synthesizes over whatever
+    /// evidence exists. Reuses the same `spawn` subprocess path as
+    /// synthesis; the run semaphore is already held by `run`.
+    static func planLoop(store: Store, acc: PackBuilder, query: String,
+                         bin: String, model: String, deadline: Date,
+                         pathFilter: String?) -> PlannerReport {
+        var rep = PlannerReport()
+        var triedNorm: Set<String> = []
+        var zeroNewStreak = 0
+        var autoLeft = plannerAutoVariants(query, limit: 32)
+        /// One shared query-execution step for model queries and
+        /// deterministic auto-variants: normalize → dedupe → record →
+        /// hybrid → file-deduped into the pack. Returns items added.
+        func runQuery(_ q: String, cap: Int = plannerPerQueryCap) -> Int {
+            let norm = normalizePlannerQuery(q)
+            // Drop literal placeholders a small model echoes from the
+            // schema ("q1", "<key nouns>") — never executed, never
+            // recorded as tried.
+            guard norm.count >= 3, !norm.contains("<"),
+                  triedNorm.insert(norm).inserted else {
+                return 0
+            }
+            // Only record queries that actually execute — a
+            // deadline-blocked query wasn't tried.
+            guard deadline.timeIntervalSinceNow > 0.2 else { return 0 }
+            rep.queriesTried.append(q)
+            return (try? collectPlannerEvidence(
+                store: store, acc: acc, query: q, cap: cap,
+                pathFilter: pathFilter)) ?? 0
+        }
+        rounds: for round in 1...plannerMaxRounds {
+            // A useful round needs at least a couple of seconds — with
+            // <2s left the per-call timeout would kill the call anyway.
+            let remain = deadline.timeIntervalSinceNow
+            guard remain > 2 else { rep.stopped = "deadline"; break }
+            rep.rounds = round
+            // Deterministic probes lead each round — tail-first bigrams
+            // reach VN-derived filenames the model keeps circling, and
+            // their hits land in the prompt the model is about to see.
+            var added = 0
+            for _ in 0..<plannerAutoPerRound {
+                guard let v = autoLeft.first else { break }
+                autoLeft.removeFirst()
+                added += runQuery(v, cap: plannerAutoPerQueryCap)
+            }
+            // A pack that can't grow (item cap or token ceiling) —
+            // skip the model call entirely.
+            if !acc.hasRoom {
+                rep.evidenceGrowth.append(added)
+                rep.stopped = "pack_full"
+                break rounds
+            }
+            let prompt = buildPlannerPrompt(
+                query: query, pack: acc.items,
+                triedQueries: rep.queriesTried,
+                nearby: siblingHints(store: store, pack: acc.items,
+                                     query: query),
+                round: round, maxRounds: plannerMaxRounds)
+            // One retry on transport failure — a cold model load or a
+            // wedged generation can burn a 20s call; a second attempt
+            // still leaves the loop bounded by the same wall deadline
+            // (the per-attempt timeout is recomputed from what remains).
+            var out: String? = nil
+            for attempt in 0...1 {
+                let callTimeout = min(
+                    plannerCallTimeoutSeconds,
+                    max(1, Int(deadline.timeIntervalSinceNow.rounded(.up))))
+                do {
+                    out = try spawn(bin, argv: [
+                        "run", model, "--format", "json",
+                        "--hidethinking", "--nowordwrap", prompt,
+                    ], timeout: callTimeout)
+                    break
+                } catch {
+                    if attempt == 1
+                        || deadline.timeIntervalSinceNow < 5 {
+                        rep.stopped = "planner_error"
+                    }
+                }
+            }
+            guard let out else {
+                if rep.stopped.isEmpty { rep.stopped = "deadline" }
+                break
+            }
+            let decision = parsePlannerAction(out)
+            if decision.malformed { rep.malformed += 1 }
+            switch decision.action {
+            case .answer:
+                rep.evidenceGrowth.append(added)
+                rep.stopped = "answer"
+                break rounds
+            case .search(let queries):
+                for q in queries { added += runQuery(q) }
+                rep.evidenceGrowth.append(added)
+                zeroNewStreak = added == 0 ? zeroNewStreak + 1 : 0
+                if zeroNewStreak >= 2 {
+                    rep.stopped = "no_new_evidence"
+                    break rounds
+                }
+                if !acc.hasRoom {
+                    rep.stopped = "pack_full"
+                    break rounds
+                }
+            }
+        }
+        if rep.stopped.isEmpty { rep.stopped = "round_cap" }
+        return rep
     }
 
     // MARK: - Ollama subprocess
@@ -447,24 +908,39 @@ public enum Answer {
 
     // MARK: - Top level
 
-    /// Retrieve → (preflight) → Ollama → validate → record. Ollama-side
-    /// failures degrade to the deterministic pack + a structured
-    /// `limitations` field; only index/retrieval errors throw.
+    /// Retrieve → (preflight) → [planner] → Ollama → validate → record.
+    /// Ollama-side failures degrade to the deterministic pack + a
+    /// structured `limitations` field; only index/retrieval errors throw.
+    /// `plan` inserts the bounded planner loop between the initial pack
+    /// and synthesis (default off = current single-shot behavior);
+    /// `planTimeout` is the planner's total wall deadline — on expiry the
+    /// loop aborts and synthesis runs over whatever evidence exists.
     /// `expectedPath` is a harness oracle: echoed into the response and the
     /// durable record for scoring, NEVER into the prompt.
     public static func run(store: Store, query: String, model: String? = nil,
                            ollamaBin: String? = nil, timeout: Int = defaultTimeoutSeconds,
                            expectedPath: String? = nil, source: String = "mcp",
-                           pathFilter: String? = nil) throws -> [String: Any] {
+                           pathFilter: String? = nil, plan: Bool = false,
+                           planTimeout: Int = defaultPlanTimeoutSeconds) throws -> [String: Any] {
         let t0 = Date()
         let modelID = resolveModel(model)
         let bin = resolveBin(ollamaBin)
         let clampedTimeout = min(max(timeout, 5), 900)
-        let packResult = try buildPack(store: store, query: query,
-                                       pathFilter: pathFilter)
-        let pack = packResult.evidence
+        let clampedPlanTimeout = min(max(planTimeout, 5), 900)
+
+        let acc = PackBuilder(tokenBudget: defaultEvidenceTokens,
+                              maxItems: 6 + 3)   // directMax + relatedMax
+        // Plan mode seeds a smaller initial pack AND caps its tokens —
+        // the planner iterates retrieval into the reserved headroom, so
+        // the first pass can't saturate the pack (a few fat chunks would
+        // otherwise spend the whole budget before a rescue query runs).
+        if plan { acc.tokenCeiling = Self.planInitialTokenCeiling }
+        try fillInitialPack(store: store, acc: acc, query: query,
+                            pathFilter: pathFilter,
+                            directMax: plan ? 4 : 6,
+                            relatedMax: plan ? 1 : 3)
         var limitations: [String] = []
-        if packResult.truncated {
+        if acc.truncated {
             limitations.append("evidence pack trimmed to token budget")
         }
 
@@ -473,82 +949,106 @@ public enum Answer {
         var invalidCitations: [String] = []
         var citationValid = false
         var attempts = 0
-        var ollamaOK = false
         var rawOutput: String? = nil
+        var planner: PlannerReport? = plan ? PlannerReport() : nil
+
+        // Preflight once — the planner and synthesis share the verdict.
+        let pre = ollamaAvailable(bin: bin, model: modelID)
+        let ollamaOK = pre.ok
+        if !pre.ok {
+            limitations.append("ollama unavailable — deterministic evidence pack only (\(pre.detail))")
+            planner?.stopped = "ollama_unavailable"
+        }
+
+        // One 3B-class local run at a time — held across planner rounds
+        // AND synthesis so a concurrent caller degrades instead of
+        // double-loading the model.
+        var heldSemaphore = false
+        if pre.ok && (plan || !acc.items.isEmpty) {
+            let waitBudget = DispatchTime.now()
+                + .seconds(clampedTimeout * 2 + 30
+                           + (plan ? clampedPlanTimeout : 0))
+            guard runSemaphore.wait(timeout: waitBudget) == .success else {
+                limitations.append("another answer run held the local model semaphore")
+                planner?.stopped = "semaphore_busy"
+                return finish(store: store, query: query, model: modelID,
+                              pack: acc.items, packTruncated: acc.truncated,
+                              answer: nil, resolved: [], invalid: [],
+                              citationValid: false, attempts: 0,
+                              ollamaOK: true, rawOutput: nil,
+                              limitations: limitations, expectedPath: expectedPath,
+                              source: source, t0: t0, planner: planner)
+            }
+            heldSemaphore = true
+        }
+        defer { if heldSemaphore { runSemaphore.signal() } }
+
+        // Bounded planner loop: iterate retrieval (VN+EN query variants,
+        // identifier guesses) before answering — the rescue path for
+        // retrieval misses the initial pack couldn't reach.
+        if plan, pre.ok {
+            acc.maxItems = plannerMaxEvidence
+            acc.tokenCeiling = acc.tokenBudget   // planner phase gets the rest
+            planner = planLoop(store: store, acc: acc, query: query,
+                               bin: bin, model: modelID,
+                               deadline: t0.addingTimeInterval(
+                                   TimeInterval(clampedPlanTimeout)),
+                               pathFilter: pathFilter)
+        }
+        let pack = acc.items
 
         if pack.isEmpty {
             limitations.append("no evidence retrieved for query")
-        } else {
-            let pre = ollamaAvailable(bin: bin, model: modelID)
-            ollamaOK = pre.ok
-            if !pre.ok {
-                limitations.append("ollama unavailable — deterministic evidence pack only (\(pre.detail))")
-            } else {
-                // One 3B-class local run at a time; a queued second caller
-                // degrades instead of double-loading the model.
-                let waitBudget = DispatchTime.now()
-                    + .seconds(clampedTimeout * 2 + 30)
-                guard runSemaphore.wait(timeout: waitBudget) == .success else {
-                    limitations.append("another answer run held the local model semaphore")
-                    return finish(store: store, query: query, model: modelID,
-                                  pack: pack, packTruncated: packResult.truncated,
-                                  answer: nil, resolved: [], invalid: [],
-                                  citationValid: false, attempts: 0,
-                                  ollamaOK: true, rawOutput: nil,
-                                  limitations: limitations, expectedPath: expectedPath,
-                                  source: source, t0: t0)
-                }
-                defer { runSemaphore.signal() }
-                for attempt in 1...2 {
-                    attempts = attempt
-                    let prompt = buildPrompt(query: query, evidence: pack,
-                                             retry: attempt == 2)
-                    do {
-                        // --nowordwrap: without it `ollama run` rewraps
-                        // output at ~50 cols, injecting literal \n inside
-                        // JSON string values and corrupting the payload.
-                        let out = try spawn(bin, argv: [
-                            "run", modelID, "--format", "json",
-                            "--hidethinking", "--nowordwrap", prompt,
-                        ], timeout: clampedTimeout)
-                        rawOutput = stripANSI(out)
-                        if let parsed = parseAnswer(out) {
-                            answer = parsed.answer
-                            let v = validateCitations(parsed.citations, pack: pack)
-                            resolvedCitations = v.resolved
-                            invalidCitations = v.invalid
-                            citationValid = v.valid
-                            if !parsed.limitations.isEmpty {
-                                limitations.append(parsed.limitations)
-                            }
-                            break
+        } else if pre.ok {
+            for attempt in 1...2 {
+                attempts = attempt
+                let prompt = buildPrompt(query: query, evidence: pack,
+                                         retry: attempt == 2)
+                do {
+                    // --nowordwrap: without it `ollama run` rewraps
+                    // output at ~50 cols, injecting literal \n inside
+                    // JSON string values and corrupting the payload.
+                    let out = try spawn(bin, argv: [
+                        "run", modelID, "--format", "json",
+                        "--hidethinking", "--nowordwrap", prompt,
+                    ], timeout: clampedTimeout)
+                    rawOutput = stripANSI(out)
+                    if let parsed = parseAnswer(out) {
+                        answer = parsed.answer
+                        let v = validateCitations(parsed.citations, pack: pack)
+                        resolvedCitations = v.resolved
+                        invalidCitations = v.invalid
+                        citationValid = v.valid
+                        if !parsed.limitations.isEmpty {
+                            limitations.append(parsed.limitations)
                         }
-                        // malformed → exactly one format-retry
-                        if attempt == 2 {
-                            limitations.append("model output was not the required JSON after 1 format-retry")
-                        }
-                    } catch {
-                        limitations.append("ollama call failed: \(error.localizedDescription)")
-                        break   // transport errors never retry
+                        break
                     }
+                    // malformed → exactly one format-retry
+                    if attempt == 2 {
+                        limitations.append("model output was not the required JSON after 1 format-retry")
+                    }
+                } catch {
+                    limitations.append("ollama call failed: \(error.localizedDescription)")
+                    break   // transport errors never retry
                 }
-                if !invalidCitations.isEmpty {
-                    limitations.append("\(invalidCitations.count) citation(s) rejected: "
-                        + invalidCitations.joined(separator: "; "))
-                }
-                if answer != nil, resolvedCitations.isEmpty, invalidCitations.isEmpty {
-                    limitations.append("model returned no usable citations")
-                }
+            }
+            if !invalidCitations.isEmpty {
+                limitations.append("\(invalidCitations.count) citation(s) rejected: "
+                    + invalidCitations.joined(separator: "; "))
+            }
+            if answer != nil, resolvedCitations.isEmpty, invalidCitations.isEmpty {
+                limitations.append("model returned no usable citations")
             }
         }
 
         return finish(store: store, query: query, model: modelID, pack: pack,
-                      packTruncated: packResult.truncated, answer: answer,
+                      packTruncated: acc.truncated, answer: answer,
                       resolved: resolvedCitations, invalid: invalidCitations,
                       citationValid: citationValid, attempts: attempts,
                       ollamaOK: ollamaOK, rawOutput: answer == nil ? rawOutput : nil,
                       limitations: limitations, expectedPath: expectedPath,
-                      source: source, t0: t0)
+                      source: source, t0: t0, planner: planner)
     }
 
     /// Assemble the response dict + write the durable `kind=ask` record.
@@ -560,7 +1060,8 @@ public enum Answer {
                        invalid: [String], citationValid: Bool,
                        attempts: Int, ollamaOK: Bool, rawOutput: String?,
                        limitations: [String], expectedPath: String?,
-                       source: String, t0: Date) -> [String: Any] {
+                       source: String, t0: Date,
+                       planner: PlannerReport? = nil) -> [String: Any] {
         let latencyMs = Int(Date().timeIntervalSince(t0) * 1000)
         let evidenceDicts: [[String: Any]] = pack.map { e in
             var d: [String: Any] = [
@@ -591,6 +1092,15 @@ public enum Answer {
         if !invalid.isEmpty { resp["invalid_citations"] = invalid }
         if let rawOutput { resp["raw_output"] = String(rawOutput.prefix(4000)) }
         if let expectedPath { resp["expected_path"] = expectedPath }
+        if let planner {
+            resp["planner"] = [
+                "rounds": planner.rounds,
+                "queries_tried": planner.queriesTried,
+                "evidence_growth": planner.evidenceGrowth,
+                "stopped": planner.stopped,
+                "malformed": planner.malformed,
+            ] as [String: Any]
+        }
 
         // Durable record — same ledger path as contextPack/putRecord:
         // staleness evidence (HEAD + resolving anchors) included.
@@ -610,6 +1120,15 @@ public enum Answer {
         ]
         if let answer { payload["answer"] = answer }
         if let expectedPath { payload["expected_path"] = expectedPath }
+        if let planner {
+            payload["planner_rounds"] = planner.rounds
+            payload["queries_tried"] = planner.queriesTried
+            payload["evidence_growth"] = planner.evidenceGrowth
+            payload["planner_stopped"] = planner.stopped
+            if planner.malformed > 0 {
+                payload["planner_malformed"] = planner.malformed
+            }
+        }
         if let data = try? JSONSerialization.data(withJSONObject: payload),
            let payloadJSON = String(data: data, encoding: .utf8) {
             let headSHA = GlobalRecords.git(["rev-parse", "HEAD"],

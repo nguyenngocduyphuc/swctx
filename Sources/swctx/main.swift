@@ -903,6 +903,8 @@ struct AnswerCmd: AsyncParsableCommand {
     @Option(name: .long, help: "Question to answer") var query: String
     @Option(name: .long, help: "Ollama model (default qwen2.5:3b; env SWCTX_ANSWER_MODEL)") var model: String?
     @Option(name: .long, help: "Per-attempt Ollama timeout seconds (one format-retry allowed)") var timeout: Int = Answer.defaultTimeoutSeconds
+    @Flag(name: .long, help: "Bounded planner loop: iterate retrieval (≤4 rounds, VN+EN query variants) before answering — rescue mode for retrieval misses") var plan = false
+    @Option(name: .long, help: "Planner total wall-clock seconds (default 60; ~20s per planner call)") var planTimeout: Int = Answer.defaultPlanTimeoutSeconds
     @Option(name: .long, help: "Eval oracle path — recorded only, never shown to the model") var expectedPath: String?
     @Option(name: .long, help: "Output format: json | human") var format: String = "json"
 
@@ -914,6 +916,10 @@ struct AnswerCmd: AsyncParsableCommand {
             "source": .string("cli"),
         ]
         if let model { args["model"] = .string(model) }
+        if plan {
+            args["plan"] = .bool(true)
+            args["plan_timeout"] = .int(planTimeout)
+        }
         if let expectedPath { args["expected_path"] = .string(expectedPath) }
         let out = try await SwctxTools.call(name: "answer", arguments: args)
         if format == "json" {
