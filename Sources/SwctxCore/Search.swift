@@ -288,42 +288,91 @@ public enum Search {
             }
         }
         var seenFiles: Set<String> = []
-        var scored: [(hit: SearchHit, fingerprint: Bool, cover: Int,
-                      stemLen: Int)] = []
+        var scored: [(hit: SearchHit, fingerprint: Bool,
+                      effectiveCover: Int, stemDensity: Double,
+                      idfScore: Double, cover: Int, stemLen: Int)] = []
+        let atomSet = Set(atoms)
+        // The atom a covered token claims: its own form if it is an
+        // atom, else its singular ("issues" → "issue"). One token = one
+        // match — a "status" token covered by atoms {status, statu}
+        // counts once.
+        func claimedAtom(_ token: String) -> String? {
+            if atomSet.contains(token) { return token }
+            if let s = singularAtom(token), atomSet.contains(s) {
+                return s
+            }
+            return nil
+        }
+        func idf(_ atom: String) -> Double {
+            let df = pathDF[atom] ?? 0
+            return df > 0 ? 1.0 / Double(df) : 0
+        }
         for h in raw where seenFiles.insert(h.path).inserted {
-            // Coverage counts atoms that are exact TOKENS anywhere in
-            // the path — substring matching would credit junk ("con"
-            // inside "content"). DIRECTORY tokens count too, and they
-            // are the stronger signal: "docs-fleet/doi-ngu.md" covers
-            // {doi, fleet} — the dir literally names the concept the
-            // question asked about.
+            // Coverage = distinct path TOKENS the query explains, IDF-
+            // weighted: a rare atom ("doi", DF 20) outweighs a common
+            // one ("worker", DF 49). Directory tokens count at half
+            // weight — inherited context, not the file's own name.
             let pathTokens = Set(pathTokenString(h.path)
                 .components(separatedBy: " ").filter { !$0.isEmpty })
-            let matched = atoms.filter { pathTokens.contains($0) }
+            let stemTokens = Set(
+                foldText(((h.path as NSString).lastPathComponent
+                    as NSString).deletingPathExtension)
+                .components(separatedBy: CharacterSet.alphanumerics.inverted)
+                .filter { !$0.isEmpty })
+            var idfScore = 0.0
+            var stemCover = 0
+            var dirCovered = false
+            var matchedAtoms: [String] = []
+            for t in pathTokens {
+                guard let a = claimedAtom(t) else { continue }
+                matchedAtoms.append(a)
+                if stemTokens.contains(t) {
+                    idfScore += idf(a)
+                    stemCover += 1
+                } else {
+                    idfScore += 0.5 * idf(a)
+                    dirCovered = true
+                }
+            }
             // The path_tokens prefix probe can return files that never
             // name the atom ("blockquote" for "block") — a hit with
             // zero token coverage is noise, not a filename intent.
-            guard !matched.isEmpty else { continue }
+            guard stemCover > 0 || !matchedAtoms.isEmpty else { continue }
             // A fingerprint atom is one only a handful of files carry
             // (path-DF ≤ 2): "brain" names exactly p8_brain.py, so its
             // hit outranks plausible multi-atom matches like a
             // gsc-ga4 playbook whose atoms are merely uncommon.
-            let fingerprint = matched.contains {
+            let fingerprint = matchedAtoms.contains {
                 let df = pathDF[$0] ?? 0
                 return df >= 1 && df <= 2
             }
-            // Filename conciseness: concept-named files are short —
-            // "doi-ngu.md" (2 atoms) vs "post_2167_chuyen-doi-so-…"
-            // (12+).
-            let stemLen = Set(
-                foldText(((h.path as NSString).lastPathComponent
-                    as NSString).deletingPathExtension)
-                .components(separatedBy: CharacterSet.alphanumerics.inverted)
-                .filter { !$0.isEmpty }).count
-            scored.append((h, fingerprint, matched.count, stemLen))
+            // Effective coverage = distinct stem tokens explained, plus
+            // ONE bonus for any directory-level agreement: doi-ngu.md
+            // ({doi} stem + {fleet} dir = 2) beats every one-token
+            // decoy, while a backup slug can't stack dir atoms to pass
+            // ghost_link_builder_apply.py's own two-stem-token name.
+            let effectiveCover = stemCover + (dirCovered ? 1 : 0)
+            // Stem density — the fraction of the filename's own tokens
+            // the query explains — breaks near-ties toward the file
+            // whose name IS the concept (ghost_link_builder_apply
+            // {link,apply}/4 = 0.5 vs 2150-pre-apply-stage-a 1/5 = 0.2).
+            let stemDensity = stemTokens.isEmpty ? 0.0
+                : Double(stemCover) / Double(stemTokens.count)
+            scored.append((h, fingerprint, effectiveCover, stemDensity,
+                           idfScore, matchedAtoms.count,
+                           stemTokens.count))
         }
         scored.sort {
             if $0.fingerprint != $1.fingerprint { return $0.fingerprint }
+            if $0.effectiveCover != $1.effectiveCover {
+                return $0.effectiveCover > $1.effectiveCover
+            }
+            if $0.stemDensity != $1.stemDensity {
+                return $0.stemDensity > $1.stemDensity
+            }
+            if $0.idfScore != $1.idfScore {
+                return $0.idfScore > $1.idfScore
+            }
             if $0.cover != $1.cover { return $0.cover > $1.cover }
             if $0.stemLen != $1.stemLen { return $0.stemLen < $1.stemLen }
             return $0.hit.score > $1.hit.score
@@ -331,18 +380,22 @@ public enum Search {
         if ProcessInfo.processInfo.environment["SWCTX_PROBE_DEBUG"] == "1" {
             FileHandle.standardError.write(
                 ("probe ranked: " + scored.map {
-                    "\($0.hit.path) fp=\($0.fingerprint) cov=\($0.cover) sl=\($0.stemLen) s=\(String(format: "%.1f", $0.hit.score))"
+                    "\($0.hit.path) fp=\($0.fingerprint) ec=\($0.effectiveCover) sd=\(String(format: "%.2f", $0.stemDensity)) idf=\(String(format: "%.3f", $0.idfScore)) sl=\($0.stemLen)"
                 }.joined(separator: " | ") + "\n").data(using: .utf8)!)
         }
-        // Per-directory cap: generated backup/manifest dirs hold dozens
-        // of near-identical slugs ("2150-pre-apply-stage-a.json"…) that
-        // all inherit the same dir tokens and would otherwise fill the
-        // window. Two per directory keeps one representative.
+        // Per-directory cap + basename dedup: generated backup/manifest
+        // dirs hold dozens of near-identical slugs that all inherit the
+        // same dir tokens, and verify/report pipelines scatter copies of
+        // one artifact under per-item dirs (internal-link-check.json ×N).
+        // Two per directory and one per basename keep representatives.
         var dirCount: [String: Int] = [:]
+        var seenBasenames: Set<String> = []
         var out: [SearchHit] = []
         for s in scored {
             let dir = (s.hit.path as NSString).deletingLastPathComponent
+            let base = (s.hit.path as NSString).lastPathComponent
             if (dirCount[dir] ?? 0) >= 2 { continue }
+            guard seenBasenames.insert(base).inserted else { continue }
             dirCount[dir] = (dirCount[dir] ?? 0) + 1
             out.append(s.hit)
             if out.count >= limit { break }

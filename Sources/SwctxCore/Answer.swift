@@ -209,7 +209,7 @@ public enum Answer {
         let probe = try pathProbe(store: store, query: query,
                                   pathFilter: pathFilter)
         _ = try? acc.addSearchHits(store: store, hits: probe,
-                                   why: "path-probe", cap: 4)
+                                   why: "path-probe", cap: 6)
 
         let hits = try Search.hybrid(store: store, embedder: store.embedder,
                                      query: query, limit: 16,
@@ -273,8 +273,8 @@ public enum Answer {
         let atoms = Search.plannerProbeAtoms(query: query,
                                              extraTerms: terms)
         guard !atoms.isEmpty else { return [] }
-        return (try? Search.plannerPathProbe(store: store, atoms: atoms,
-                                             pathFilter: pathFilter)) ?? []
+        return (try? Search.plannerPathProbe(
+            store: store, atoms: atoms, pathFilter: pathFilter)) ?? []
     }
 
     /// One planner search: the filename probe runs FIRST (`why=
@@ -292,7 +292,7 @@ public enum Answer {
                                   pathFilter: pathFilter,
                                   extraAtoms: probeAtoms)
         added += try acc.addSearchHits(store: store, hits: probe,
-                                       why: "planner-path", cap: 4)
+                                       why: "planner-path", cap: 6)
         let hits = try Search.hybrid(store: store, embedder: store.embedder,
                                      query: query, limit: 16,
                                      pathFilter: pathFilter)
