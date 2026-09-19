@@ -596,3 +596,29 @@ bge-m3/XLM-R-class models when the embedder spike lands.
   Qwopus-27B already pulled), W13 fast_understand synthesize mode,
   W14 find_definitions latency, W15 reranker revisit gated by
   telemetry, W16 packaging+corruption gates.
+
+## 2026-09-19 tối — plan v2 (Codex-hardened) + W11/W12/W16 landed
+
+- **Plan v2 (`4ced2b5`)**: Codex plan-review verdict RISKY → hardened.
+  F3 blocker resolved by contract: W12 = answer-on-verified-evidence,
+  planner loop separated as follow-up. Exit gate locked: 22/22
+  local-only on frozen probe + holdout, citation-valid, zero-network.
+- **W16 (`84eed70`)**: `scripts/release.sh` (build→selftest→install
+  check→--tag, all PASS) + `bench/corruption_gate.py` wired into
+  nightly — 6/6 injections graceful (truncate/zero sidecar, DB tail
+  garbage, missing model).
+- **W12 (`be689d2`)**: `swctx answer` — evidence pack with `[E01]`
+  handles → Ollama qwen2.5:3b (process-group spawn, format-retry×1) →
+  citation validator (rejects out-of-pack) → `kind=ask` record.
+  160/160 tests. Smoke: record 8+13, citation_valid, ~3.5s.
+- **W11 (`1caa199`)**: VN→EN translation leg — structured Ollama
+  output, 800ms result deadline (never on first-result path), lexical/
+  path leg only, weight 0.7, LRU cache outside index. Probe: 13/22 →
+  13/22, 0 regressions, but **vn_to_en still 0/5** — gold files have
+  VN-derived identifiers; EN translation drifts away from target.
+  Landed as low-weight opt-in leg (occasional single-query rescues).
+- **Measured decision**: `swctx answer` single-shot on the 9 misses →
+  **1/9 rescue** (seo-10 via 1-hop neighbor). Confirms Codex F3:
+  evidence-level rescue needs planner loop → W12b dispatched.
+- Release binary rebuilt — `answer` + translation leg now live in
+  ~/.local/bin/swctx.
