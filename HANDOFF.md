@@ -642,3 +642,38 @@ bge-m3/XLM-R-class models when the embedder spike lands.
   find_defs latency, W15 reranker (telemetry-gated), exit-gate chase
   for the 3 residual misses (deeper planner / 27B route / better
   variant seeds).
+
+## 2026-09-20 — Filename probe lands: deterministic union 20/22
+
+The residual gap was not synthesis depth — it was filename intent.
+`plannerPathProbe` (Search.swift) + `pathProbe` (Answer.swift):
+
+- **Rare-atom solo probes**: each query atom with path-DF ≤60 gets a
+  `path_tokens:"a"* AND folded:(discriminators)` pass; mid-DF (≤200)
+  atoms get the AND form only. Fixes "seo brain" burying p8_brain.py.
+- **VN lexicon** (Translation.swift): deterministic folded-phrase →
+  EN term map ("bo nao"→brain, "nhat ky"→log, "doi ham"→fleet) — the
+  3B translator was nondeterministic; the lexicon removes it from the
+  path-discovery critical path. VN stopword list keeps function words
+  out of the atom cap.
+- **File-level probe** (`ftsFileProbe`): GROUP BY file_id with bm25
+  materialized via `LIMIT -1` inner query (bm25 throws inside GROUP
+  BY on this SQLite).
+- **Ranking**: fingerprint atom (path-DF≤2) → effectiveCover (stem
+  tokens + ≤1 dir bonus) → stem density → IDF → stemLen. Exact-token
+  coverage with singular expansion ("issue" credits "issues"); dir
+  tokens capped at one bonus point so backup slugs can't inflate via
+  inherited dir names; basename dedup + per-dir cap=2.
+- **Probe runs BEFORE hybrid** in both `fillInitialPack` and
+  `collectPlannerEvidence` — surgical filename matches no longer get
+  crowded out by broad hits. Translation cache is warmed once in
+  `run()` for VN-diacritic queries (bounded, silent-fail).
+
+**Measured** (`.build/debug`, answer --format json, no --plan —
+deterministic, no LLM): all six former misses hit —
+seo-06 r1, seo-09 r1, seo-10 r4, seo-04 r3, crm-10 r1, crm-11 r1.
+**Deterministic union (search ∨ answer): 20/22** (search 13, answer
+17). crm-08 still resolves via find_definitions (`ghi_quyet_dinh` →
+ghi_so.py) → MCP-surface union 21/22. Sole remaining: seo-05
+(`sitectl.py` — no filename-token signal; planner-dependent).
+Artifact: `bench/union_results.json`. 183 tests, 0 failures.
