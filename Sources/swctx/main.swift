@@ -771,15 +771,22 @@ struct AskCmd: AsyncParsableCommand {
         DispatchQueue.global().async { p.waitUntilExit(); sem.signal() }
         if sem.wait(timeout: .now() + .seconds(timeout)) == .timedOut {
             p.terminate()
-            // A child ignoring SIGTERM (or a descendant holding the pipes)
-            // would leave readDataToEndOfFile blocked forever — bounded wait,
-            // then give up and report the timeout either way.
-            _ = drain.wait(timeout: .now() + .seconds(5))
+            // SIGTERM-ignoring children still die under SIGKILL; closing our
+            // read ends unblocks drain workers stuck in readDataToEndOfFile
+            // (a descendant holding the pipe would otherwise keep it open).
+            kill(p.processIdentifier, SIGKILL)
+            try? out.fileHandleForReading.close()
+            try? err.fileHandleForReading.close()
+            _ = drain.wait(timeout: .now() + .seconds(2))
             throw ValidationError("agent timed out after \(timeout)s")
         }
         // Same bound on the success path: an exited child whose descendants
-        // keep a pipe write-end open must not hang `ask`.
-        _ = drain.wait(timeout: .now() + .seconds(5))
+        // keep a pipe write-end open must not hang `ask` or leak the drains.
+        if drain.wait(timeout: .now() + .seconds(5)) == .timedOut {
+            try? out.fileHandleForReading.close()
+            try? err.fileHandleForReading.close()
+            _ = drain.wait(timeout: .now() + .seconds(2))
+        }
         let text = String(decoding: outData as Data, as: UTF8.self)
         guard p.terminationStatus == 0 else {
             let e = String(decoding: errData as Data, as: UTF8.self)

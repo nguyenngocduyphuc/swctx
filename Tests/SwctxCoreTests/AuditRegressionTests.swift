@@ -190,5 +190,12 @@ final class AuditRegressionTests: XCTestCase {
         // Run twice: any residual join-order nondeterminism would flip it.
         XCTAssertEqual(try Search.symbolHits(store: store, query: "alpha", limit: 10)
                         .map(\.chunkID), [1, 2, 3])
+        // Multi-term: chunk 2 joins 'alpha' rows (non-def, rank 1) AND its
+        // own 'beta' def row (rank 0) — MIN must pick 0 across mixed rows
+        // on ONE chunk, promoting it to def-rank.
+        let multi = try Search.symbolHits(store: store, query: "alpha beta",
+                                          limit: 10).map(\.chunkID)
+        XCTAssertEqual(multi, [1, 2, 3],
+                       "MIN across mixed def/non-def rows promotes the def row")
     }
 }

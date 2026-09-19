@@ -206,8 +206,9 @@ public final class Embedder: @unchecked Sendable {
         // 4-byte alignment that a Data buffer (e.g. a subdata slice
         // sharing a parent allocation at an offset) does not guarantee.
         // A blob that is not exactly dim*4 bytes is corrupt — reject it
-        // rather than silently zero-padding a short read.
-        guard dim > 0, blob.count == dim * 4 else { return nil }
+        // rather than silently zero-padding a short read. Compare via
+        // division: `dim * 4` itself would overflow on a hostile dim.
+        guard dim > 0, blob.count % 4 == 0, blob.count / 4 == dim else { return nil }
         var vec = [Float](repeating: 0, count: dim)
         vec.withUnsafeMutableBytes { dst in
             blob.copyBytes(to: dst, from: 0..<dim * 4)

@@ -128,7 +128,14 @@ public struct SPTokenizer: @unchecked Sendable {
                 var tr = ProtoReader(sub)
                 while let t = tr.tag() {
                     switch (t.field, t.wire) {
-                    case (3, 0): modelType = tr.varint().flatMap(Int.init(exactly:)) ?? 1
+                    case (3, 0):
+                        // A truncated or non-representable modelType means a
+                        // corrupt spec — fail loud, never silently tokenize
+                        // as the wrong model type.
+                        guard let tv = tr.varint(), let m = Int(exactly: tv) else {
+                            throw SPError.malformedModel("bad modelType varint")
+                        }
+                        modelType = m
                     case (24, 0): treatWhitespaceAsSuffix = (tr.varint() ?? 0) != 0
                     case (35, 0): byteFallback = (tr.varint() ?? 0) != 0
                     case (40, 0): specUnkID = Self.int32(tr.varint() ?? 0)
