@@ -201,13 +201,16 @@ public final class Embedder: @unchecked Sendable {
         vec.withUnsafeBufferPointer { Data(buffer: $0) }
     }
 
-    public static func vector(from blob: Data, dim: Int) -> [Float] {
+    public static func vector(from blob: Data, dim: Int) -> [Float]? {
         // copyBytes into the array's own storage: `bindMemory` requires
         // 4-byte alignment that a Data buffer (e.g. a subdata slice
         // sharing a parent allocation at an offset) does not guarantee.
+        // A blob that is not exactly dim*4 bytes is corrupt — reject it
+        // rather than silently zero-padding a short read.
+        guard dim > 0, blob.count == dim * 4 else { return nil }
         var vec = [Float](repeating: 0, count: dim)
         vec.withUnsafeMutableBytes { dst in
-            blob.copyBytes(to: dst, from: 0..<min(blob.count, dim * 4))
+            blob.copyBytes(to: dst, from: 0..<dim * 4)
         }
         return vec
     }

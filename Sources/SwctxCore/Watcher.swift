@@ -98,12 +98,32 @@ public final class IndexWatcher: @unchecked Sendable {
             FSEventStreamEventId(kFSEventStreamEventIdSinceNow),
             0.5, createFlags)
         else {
+            // Balance the passRetained above — the stream never existed,
+            // so no callback can still arrive; safe to release directly.
+            if let info = context.info {
+                streamInfo = nil
+                Unmanaged<IndexWatcher>.fromOpaque(info).release()
+            }
             throw NSError(domain: "swctx", code: 1,
                           userInfo: [NSLocalizedDescriptionKey: "FSEventStreamCreate failed"])
         }
         self.stream = stream
         FSEventStreamSetDispatchQueue(stream, queue)
-        FSEventStreamStart(stream)
+        guard FSEventStreamStart(stream) else {
+            // Start failed: no events will ever arrive. Tear the stream
+            // down and release the retained context instead of looping
+            // forever with a dead watcher.
+            FSEventStreamStop(stream)
+            FSEventStreamInvalidate(stream)
+            FSEventStreamRelease(stream)
+            self.stream = nil
+            if let info = streamInfo {
+                streamInfo = nil
+                Unmanaged<IndexWatcher>.fromOpaque(info).release()
+            }
+            throw NSError(domain: "swctx", code: 2,
+                          userInfo: [NSLocalizedDescriptionKey: "FSEventStreamStart failed"])
+        }
         note("watch: streaming FSEvents on \(store.workspaceRoot.path) (debounce \(debounce)s)")
 
         while true { try await Task.sleep(nanoseconds: 3_600_000_000_000) }

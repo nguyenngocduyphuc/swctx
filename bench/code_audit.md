@@ -164,3 +164,27 @@ Fix: enforce an absolute depth cap (e.g. 64) on the transparent path too.
   (standard GCD pattern; dispatched legs never depend on the caller thread).
 
 Gate: `swift test` 123/123 green (115 + 8 new audit regressions).
+
+## Independent verification — Codex `gpt-5.6-luna max` via Orca IPC
+
+Dispatched a review of `cf1659a` through the Orca-managed Codex terminal
+(`terminal send` → `read --screen`; brief at `/tmp/codex-review-brief.md`).
+Codex verified `swift test` 123/123 + release build itself and returned
+**VERDICT: ISSUES 8** — all eight were confirmed and fixed in this pass:
+
+| # | Codex finding | Fix |
+|---|---|---|
+| 1 | `AskCmd.spawn` timeout path: `terminate()` + unbounded `drain.wait()` — child ignoring SIGTERM or a descendant holding pipes hangs `ask` | bounded `drain.wait(timeout: 5s)` on BOTH timeout and success paths |
+| 2 | `semanticFiltered` still `bindMemory` on SQLite Data — the aligned-copy fix missed this adjacent path | decodes via `Embedder.vector(from:)` + `vDSP_dotpr` on aligned array |
+| 3 | `resolveExecutableOnPATH` fabricated `cwd/argv0` when argv0 is bare and not on PATH | falls back to `_NSGetExecutablePath` (the real binary) before cwd |
+| 4 | Watcher: `passRetained` not balanced on `FSEventStreamCreate` failure; `FSEventStreamStart` Bool ignored — dead watcher loops forever | release retained context on create-fail; check Start, teardown + release + throw on fail |
+| 5 | SPTokenizer `tag()`/`modelType` still `Int(varint)` — oversized varints trap | `Int(exactly:)` in `tag()`; `flatMap(Int.init(exactly:))` for modelType |
+| 6 | `Embedder.vector(from:)` silently zero-pads wrong-size blobs | failable — returns nil unless `blob.count == dim*4` |
+| 7 | symbol-leg ties ordered by path only; test didn't exercise multi-match | `ORDER BY …, c.id` final tiebreak; test now uses a chunk with two matching symbol rows + asserts full ordering twice |
+| 8 | `subdata` unaligned test could return aligned storage | `bytesNoCopy` over `malloc+1` — guaranteed odd base address |
+
+Test additions: `testVectorRejectsWrongSizeBlob`, `testSPTokenizerRejectsGiantTag`,
+strengthened `testVectorFromUnalignedBlobDecodes` and
+`testSymbolHitsRankDeterministicWithMultiMatch` (true multi-match + full order).
+
+Gate after Codex pass: `swift test` **125/125** green.

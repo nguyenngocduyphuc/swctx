@@ -399,14 +399,12 @@ public enum Search {
         scored.reserveCapacity(rows.count)
         var byID: [Int64: Row] = [:]
         for row in rows {
-            guard let blob = row["vec"] as? Data, let dim = row["dim"] as? Int64 else { continue }
-            let s: Float = blob.withUnsafeBytes { raw in
-                let floats = raw.bindMemory(to: Float.self)
-                let n = min(Int(dim), floats.count)
-                guard n == qv.count, let base = floats.baseAddress else { return 0 }
-                var result: Float = 0
-                vDSP_dotpr(qv, 1, base, 1, &result, vDSP_Length(n))
-                return result
+            guard let blob = row["vec"] as? Data, let dim = row["dim"] as? Int64,
+                  let floats = Embedder.vector(from: blob, dim: Int(dim)),
+                  floats.count == qv.count else { continue }
+            var s: Float = 0
+            floats.withUnsafeBufferPointer { f in
+                vDSP_dotpr(qv, 1, f.baseAddress!, 1, &s, vDSP_Length(f.count))
             }
             if s > 0.05, let cid = row["chunk_id"] as? Int64 {
                 scored.append((cid, s))
@@ -501,7 +499,7 @@ public enum Search {
             // non-deterministically — GROUP BY + MIN picks the best rank.
             sql += """
                  GROUP BY c.id, f.path, c.start_line, c.end_line, c.kind, c.symbol
-                 ORDER BY MIN(CASE WHEN lower(c.symbol) = lower(s.name) THEN 0 ELSE 1 END), f.path
+                 ORDER BY MIN(CASE WHEN lower(c.symbol) = lower(s.name) THEN 0 ELSE 1 END), f.path, c.id
                  LIMIT ?
                 """
             args.append(limit)

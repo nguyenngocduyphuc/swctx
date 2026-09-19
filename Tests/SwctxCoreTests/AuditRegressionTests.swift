@@ -75,15 +75,31 @@ final class AuditRegressionTests: XCTestCase {
 
     // MARK: - Alignment: vector(from:) on an unaligned Data slice
 
-    func testVectorFromUnalignedBlobDecodes() {
-        // A Data slice sharing a parent buffer at a 2-byte offset is not
-        // 4-byte aligned — bindMemory would trap; copyBytes decodes fine.
+    func testVectorFromUnalignedBlobDecodes() throws {
+        // Guaranteed-misaligned storage: bytesNoCopy over a malloc'd
+        // pointer +1 — `bindMemory` on this address would trap outright.
         let floats: [Float] = [3.5, -1.25]
-        var raw = Data([0xAA, 0xBB])               // 2-byte pad
-        floats.withUnsafeBufferPointer { raw.append(contentsOf: UnsafeRawBufferPointer($0)) }
-        let slice = raw.subdata(in: 2..<raw.count) // unaligned view
-        let v = Embedder.vector(from: slice, dim: 2)
-        XCTAssertEqual(v, [3.5, -1.25])
+        let n = floats.count * 4
+        let buf = UnsafeMutableRawPointer.allocate(byteCount: n + 1, alignment: 16)
+        defer { buf.deallocate() }
+        floats.withUnsafeBufferPointer { f in
+            buf.advanced(by: 1).copyMemory(
+                from: UnsafeRawPointer(f.baseAddress!), byteCount: n)
+        }
+        let slice = Data(bytesNoCopy: buf.advanced(by: 1), count: n,
+                         deallocator: .none)
+        let v = try XCTUnwrap(Embedder.vector(from: slice, dim: 2))
+        XCTAssertEqual(v, floats)
+    }
+
+    func testVectorRejectsWrongSizeBlob() {
+        // A blob whose byte count is not dim*4 is corrupt — reject,
+        // never zero-pad a short read into a plausible-looking vector.
+        let floats: [Float] = [1.0, 2.0, 3.0]
+        let full = floats.withUnsafeBufferPointer { Data(buffer: $0) }
+        XCTAssertNil(Embedder.vector(from: full.dropLast(2), dim: 3))
+        XCTAssertNil(Embedder.vector(from: full, dim: 4))
+        XCTAssertNil(Embedder.vector(from: Data(), dim: 0))
     }
 
     // MARK: - F5: malformed SentencePiece model must throw, not trap
@@ -94,6 +110,18 @@ final class AuditRegressionTests: XCTestCase {
         var bytes: [UInt8] = [0x0A]                 // tag(1,2)
         bytes += Array(repeating: 0xFF, count: 9)   // varint continuation
         bytes += [0x7F]                              // varint terminator
+        XCTAssertThrowsError(try SPTokenizer(modelData: Data(bytes))) { e in
+            guard case SPTokenizer.SPError.malformedModel = e else {
+                return XCTFail("expected malformedModel, got \(e)")
+            }
+        }
+    }
+
+    func testSPTokenizerRejectsGiantTag() {
+        // A tag varint encoding field >> Int.max: `Int(t >> 3)` trapped;
+        // now tag() returns nil → parse ends → malformedModel thrown.
+        var bytes: [UInt8] = Array(repeating: 0xFF, count: 9) + [0x7F]
+        bytes += [0x0A, 0x01, 0x61]   // a valid (pieces,len=1,"a") after
         XCTAssertThrowsError(try SPTokenizer(modelData: Data(bytes))) { e in
             guard case SPTokenizer.SPError.malformedModel = e else {
                 return XCTFail("expected malformedModel, got \(e)")
@@ -136,23 +164,31 @@ final class AuditRegressionTests: XCTestCase {
                 INSERT INTO files(id, path, lang, sha, size, mtime, indexed_at)
                 VALUES(1, 'a.py', 'python', 'x', 1, 0, 0)
                 """)
-            // chunk 1 is the definition of `alpha`; chunk 2 merely mentions
-            // it via another symbol row. Both join the query term.
+            // chunk 1 is the definition of `alpha`; chunk 2 joins the term
+            // through MULTIPLE symbol rows — the shape the old DISTINCT +
+            // ORDER BY s.name ranked non-deterministically.
             try db.execute(sql: """
                 INSERT INTO chunks(id, file_id, idx, start_line, end_line, kind, symbol, content)
                 VALUES(1, 1, 0, 1, 5, 'function', 'alpha', 'def alpha(): pass'),
-                      (2, 1, 1, 6, 10, 'function', 'beta', 'def beta(): pass')
+                      (2, 1, 1, 6, 10, 'function', 'beta', 'def beta(): pass'),
+                      (3, 1, 2, 11, 15, 'function', 'gamma', 'def gamma(): pass')
                 """)
             try db.execute(sql: """
                 INSERT INTO symbols(file_id, chunk_id, name, kind, line)
                 VALUES(1, 1, 'alpha', 'function', 1),
                       (1, 2, 'alpha', 'reference', 6),
-                      (1, 2, 'beta', 'function', 6)
+                      (1, 2, 'alpha', 'call', 8),
+                      (1, 2, 'beta', 'function', 6),
+                      (1, 3, 'alpha', 'reference', 12)
                 """)
         }
         let hits = try Search.symbolHits(store: store, query: "alpha", limit: 10)
-        XCTAssertEqual(hits.map(\.chunkID).prefix(1), [1],
-                       "def-chunk must rank first regardless of join order")
-        XCTAssertEqual(hits.count, 2)
+        // def-chunk first; remaining chunks in stable c.id order — the
+        // full ordering is pinned, not just the winner.
+        XCTAssertEqual(hits.map(\.chunkID), [1, 2, 3],
+                       "def-first + deterministic tiebreak by chunk id")
+        // Run twice: any residual join-order nondeterminism would flip it.
+        XCTAssertEqual(try Search.symbolHits(store: store, query: "alpha", limit: 10)
+                        .map(\.chunkID), [1, 2, 3])
     }
 }

@@ -128,7 +128,7 @@ public struct SPTokenizer: @unchecked Sendable {
                 var tr = ProtoReader(sub)
                 while let t = tr.tag() {
                     switch (t.field, t.wire) {
-                    case (3, 0): modelType = Int(tr.varint() ?? 1)
+                    case (3, 0): modelType = tr.varint().flatMap(Int.init(exactly:)) ?? 1
                     case (24, 0): treatWhitespaceAsSuffix = (tr.varint() ?? 0) != 0
                     case (35, 0): byteFallback = (tr.varint() ?? 0) != 0
                     case (40, 0): specUnkID = Self.int32(tr.varint() ?? 0)
@@ -656,9 +656,11 @@ private struct ProtoReader {
     init(_ data: ArraySlice<UInt8>) { self.data = data }
 
     /// Returns (fieldNumber, wireType); nil at end or on tag 0.
+    /// A giant varint tag must not trap `Int(...)` — treat as unreadable.
     mutating func tag() -> (field: Int, wire: Int)? {
-        guard let t = varint(), t != 0 else { return nil }
-        return (Int(t >> 3), Int(t & 7))
+        guard let t = varint(), t != 0,
+              let field = Int(exactly: t >> 3) else { return nil }
+        return (field, Int(t & 7))
     }
 
     mutating func varint() -> UInt64? {

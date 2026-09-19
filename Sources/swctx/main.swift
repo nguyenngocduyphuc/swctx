@@ -771,10 +771,15 @@ struct AskCmd: AsyncParsableCommand {
         DispatchQueue.global().async { p.waitUntilExit(); sem.signal() }
         if sem.wait(timeout: .now() + .seconds(timeout)) == .timedOut {
             p.terminate()
-            drain.wait()
+            // A child ignoring SIGTERM (or a descendant holding the pipes)
+            // would leave readDataToEndOfFile blocked forever — bounded wait,
+            // then give up and report the timeout either way.
+            _ = drain.wait(timeout: .now() + .seconds(5))
             throw ValidationError("agent timed out after \(timeout)s")
         }
-        drain.wait()
+        // Same bound on the success path: an exited child whose descendants
+        // keep a pipe write-end open must not hang `ask`.
+        _ = drain.wait(timeout: .now() + .seconds(5))
         let text = String(decoding: outData as Data, as: UTF8.self)
         guard p.terminationStatus == 0 else {
             let e = String(decoding: errData as Data, as: UTF8.self)
@@ -811,7 +816,18 @@ private func resolveExecutableOnPATH(_ argv0: String) -> String {
             }
         }
         if !resolved.hasPrefix("/") {
-            resolved = FileManager.default.currentDirectoryPath + "/" + resolved
+            // argv0 told us nothing usable — ask the kernel for the real
+            // binary path rather than fabricating cwd/argv0 (which may not
+            // exist when argv0 was customized).
+            var buf = [CChar](repeating: 0, count: Int(MAXPATHLEN))
+            var size = UInt32(buf.count)
+            if _NSGetExecutablePath(&buf, &size) == 0 {
+                let path = String(decoding: buf.prefix(while: { $0 != 0 })
+                    .map { UInt8(bitPattern: $0) }, as: UTF8.self)
+                resolved = (path as NSString).standardizingPath
+            } else {
+                resolved = FileManager.default.currentDirectoryPath + "/" + resolved
+            }
         }
     }
     return resolved
