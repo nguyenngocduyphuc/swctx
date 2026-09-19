@@ -13,7 +13,7 @@ struct Swctx: AsyncParsableCommand {
         commandName: "swctx",
         abstract: "Local semantic code index + MCP server (Swift reimplementation of the ctxe model).",
         version: "0.1.0",
-        subcommands: [IndexCmd.self, StatusCmd.self, PrimeCmd.self, SearchCmd.self, RerankCmd.self, Rerank2Cmd.self, Rerank3Cmd.self, TreeCmd.self, EmbedCmd.self, DiscoverCmd.self, WatchCmd.self, AskCmd.self, ModelCmd.self, McpCmd.self, McpConfigCmd.self, InstallAgentCmd.self, GcCmd.self, StatsCmd.self],
+        subcommands: [IndexCmd.self, StatusCmd.self, PrimeCmd.self, SearchCmd.self, RerankCmd.self, Rerank2Cmd.self, Rerank3Cmd.self, TreeCmd.self, EmbedCmd.self, DiscoverCmd.self, WatchCmd.self, AskCmd.self, AnswerCmd.self, ModelCmd.self, McpCmd.self, McpConfigCmd.self, InstallAgentCmd.self, GcCmd.self, StatsCmd.self],
         defaultSubcommand: nil)
 }
 
@@ -888,6 +888,51 @@ struct AskCmd: AsyncParsableCommand {
             throw ValidationError("\(bin) \(statusDesc): \(e.prefix(400))")
         }
         return text.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+}
+
+/// `swctx answer` (W12): thin wrapper over the same SwctxTools `answer`
+/// path the MCP tool uses — evidence pack → local Ollama JSON synthesis
+/// → server-side citation validation → durable `kind=ask` record.
+/// `--expected-path` is an eval-harness oracle: recorded for scoring,
+/// never shown to the model.
+struct AnswerCmd: AsyncParsableCommand {
+    static let configuration = CommandConfiguration(commandName: "answer",
+        abstract: "Answer a question with a local LLM (Ollama) over indexed evidence — cited JSON, no cloud, no credits.")
+    @Option(name: .long, help: "Workspace path (default: current directory)") var workspace: String = "."
+    @Option(name: .long, help: "Question to answer") var query: String
+    @Option(name: .long, help: "Ollama model (default qwen2.5:3b; env SWCTX_ANSWER_MODEL)") var model: String?
+    @Option(name: .long, help: "Per-attempt Ollama timeout seconds (one format-retry allowed)") var timeout: Int = Answer.defaultTimeoutSeconds
+    @Option(name: .long, help: "Eval oracle path — recorded only, never shown to the model") var expectedPath: String?
+    @Option(name: .long, help: "Output format: json | human") var format: String = "json"
+
+    func run() async throws {
+        var args: [String: MCPValue] = [
+            "workspace": .string(workspace),
+            "query": .string(query),
+            "timeout": .int(timeout),
+            "source": .string("cli"),
+        ]
+        if let model { args["model"] = .string(model) }
+        if let expectedPath { args["expected_path"] = .string(expectedPath) }
+        let out = try await SwctxTools.call(name: "answer", arguments: args)
+        if format == "json" {
+            print(out)
+            return
+        }
+        guard let d = try? JSONSerialization.jsonObject(with: Data(out.utf8))
+                as? [String: Any] else {
+            print(out)
+            return
+        }
+        if let a = d["answer"] as? String { print(a) }
+        else { print("(no answer — \(d["limitations"] as? String ?? "unknown"))") }
+        for c in (d["citations"] as? [[String: Any]]) ?? [] {
+            print("  [\(c["evidence_id"] ?? "")] \(c["path"] ?? ""):\(c["start_line"] ?? "")-\(c["end_line"] ?? "")")
+        }
+        if let lim = d["limitations"] as? String, !lim.isEmpty {
+            FileHandle.standardError.write("limitations: \(lim)\n".data(using: .utf8)!)
+        }
     }
 }
 

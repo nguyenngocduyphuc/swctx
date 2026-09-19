@@ -846,6 +846,31 @@ public enum SwctxTools {
         return json(result)
     }
 
+    /// `answer` (W12): evidence pack → local Ollama synthesis → cited JSON
+    /// + durable `kind=ask` record. Ollama absent/model missing degrades to
+    /// the deterministic pack with a structured limitation — never throws,
+    /// never auto-pulls. `expected_path` is a harness oracle that is only
+    /// echoed into the response/record for scoring — it never reaches the
+    /// prompt. `source` is internal: the CLI passes "cli" so the ledger
+    /// reflects the real caller (not in the MCP schema).
+    static func answer(_ args: [String: Value]) throws -> String {
+        let store = try store(args)
+        guard let q = args["query"]?.str,
+              !q.trimmingCharacters(in: .whitespaces).isEmpty else {
+            throw ToolError.missingArg("query")
+        }
+        let source = ["cli", "mcp"].contains(args["source"]?.str ?? "")
+            ? args["source"]?.str ?? "mcp" : "mcp"
+        let result = try Answer.run(
+            store: store, query: q,
+            model: args["model"]?.str,
+            timeout: args["timeout"]?.int ?? Answer.defaultTimeoutSeconds,
+            expectedPath: args["expected_path"]?.str,
+            source: source,
+            pathFilter: args["path"]?.str)
+        return json(result)
+    }
+
     // MARK: - graph_expand / fast_understand / records
 
     /// BFS from all seed chunk_ids (depth ≤ 2) over resolved edges. Each result
@@ -1576,6 +1601,7 @@ public enum SwctxTools {
     private static func callRaw(name: String, arguments: [String: Value]) async throws -> String {
         switch name {
         case "context_pack": return try contextPack(arguments)
+        case "answer": return try answer(arguments)
         case "get_status": return try getStatus(arguments)
         case "index_workspace": return try indexWorkspace(arguments)
         case "list_workspaces": return try listWorkspaces(arguments)

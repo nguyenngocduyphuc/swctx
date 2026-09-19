@@ -179,6 +179,18 @@ public enum MCPServer {
                                   ("required", .array([.string("query")]))]),
                 annotations: .init(readOnlyHint: true)),
             Tool(
+                name: "answer",
+                description: "Local synthesis over verified evidence (W12): packs cited chunks [E01]…, then asks a local Ollama model (default qwen2.5:3b) for STRICT JSON {answer, citations, limitations}. Server-side citation validation rejects ids outside the pack. Ollama absent/model missing → deterministic evidence pack + limitation, never an error. Writes a durable kind=ask record.",
+                inputSchema: obj([wsProp,
+                                  ("query", prop("string", "Natural-language question about the codebase")),
+                                  ("model", prop("string", "Ollama model override (default qwen2.5:3b; env SWCTX_ANSWER_MODEL)")),
+                                  ("timeout", prop("integer", "Per-attempt Ollama seconds, default 60 (one format-retry allowed)")),
+                                  ("path", prop("string", "Optional relative path prefix filter for retrieval")),
+                                  ("expected_path", prop("string", "Eval-harness oracle path — recorded for scoring only, never shown to the model")),
+                                  budgetProp, ("type", .string("object")),
+                                  ("required", .array([.string("query")]))]),
+                annotations: .init(readOnlyHint: true)),
+            Tool(
                 name: "get_impact",
                 description: "Transitive dependents of a chunk — 'if I change this, what breaks?'.",
                 inputSchema: obj([wsProp,
@@ -254,6 +266,8 @@ public enum MCPServer {
     static let defaultDeadline: Duration = .seconds(60)
     static let toolDeadlines: [String: Duration] = [
         "index_workspace": .seconds(1800),
+        // Local LLM inference: default 60s/attempt + one format-retry.
+        "answer": .seconds(120),
     ]
 
     /// Thrown when a tool exceeds its deadline; the CallTool handler maps
@@ -360,6 +374,7 @@ public enum MCPServer {
         "graph_paths": "paths",
         "get_impact": "dependents",
         "context_pack": "evidence",
+        "answer": "evidence",
         "get_workspace_tree": "files",
         "list_workspaces": "workspaces",
         "list_records": "records",
