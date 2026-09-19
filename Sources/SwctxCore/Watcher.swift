@@ -1,5 +1,6 @@
 import CoreServices
 import Foundation
+import GRDB
 
 /// Watches a workspace root with FSEvents and re-runs the incremental indexer
 /// after a debounce window. Lightweight in-process equivalent of ctxe's
@@ -50,6 +51,7 @@ public final class IndexWatcher: @unchecked Sendable {
     /// One incremental indexing pass; prints the summary to stderr.
     @discardableResult
     public func indexOnce() throws -> IndexReport {
+        exitIfIndexSchemaDrifted()
         let report = try indexer.run(force: false) { msg in self.note(msg) }
         note("watch: indexed \(report.filesIndexed) files (\(report.filesUnchanged) unchanged, \(report.filesDeleted) deleted) chunks=\(report.chunks) symbols=\(report.symbols) edges=\(report.edges) resolved=\(report.edgesResolved) in \(report.durationMs)ms")
         if !report.errors.isEmpty {
@@ -197,6 +199,70 @@ public final class IndexWatcher: @unchecked Sendable {
     static func isGitLocked(root: URL) -> Bool {
         guard let lock = gitLockPath(forRoot: root) else { return false }
         return FileManager.default.fileExists(atPath: lock.path)
+    }
+
+    // MARK: - Schema drift
+    //
+    // A newer binary migrates the live index in place (Store.migrate), so
+    // an outdated watcher must not keep running: it would keep writing
+    // rows in the stale layout — the pre-v6 watchers appended chunks with
+    // an empty `folded` column after the v6 migration, silently weakening
+    // folded rescue per file. GRDB's migrator *tolerates* applied
+    // migrations it does not know: an older binary opening a newer index
+    // no-ops every migration, then Store.migrate rewrites
+    // meta.schema_version down to its own Store.schemaVersion. The
+    // durable drift evidence is therefore the grdb_migrations ledger
+    // (its rows are never deleted), read together with the meta row.
+
+    /// Pure decision: exit only when the on-disk index schema is
+    /// strictly NEWER than this binary's `Store.schemaVersion`. Equal is
+    /// the normal case; older needs no action — Store.init migrates it
+    /// forward at open.
+    static func shouldExitForSchema(indexVersion: Int, binaryVersion: Int) -> Bool {
+        indexVersion > binaryVersion
+    }
+
+    /// Highest schema version the live index was migrated to: the max of
+    /// `meta.schema_version` and every applied GRDB migration's `v<N>`
+    /// number. An applied identifier this binary never registered (any
+    /// non-"v<N>" id can only come from a newer binary) counts as one
+    /// version beyond `Store.schemaVersion` — even when an older binary's
+    /// migrate() already rewrote the meta row down. nil when the DB
+    /// cannot be read; callers must not treat a read failure as drift.
+    func indexSchemaVersion() -> Int? {
+        try? store.pool.read { db in
+            var version = try String.fetchOne(db,
+                sql: "SELECT value FROM meta WHERE key = 'schema_version'")
+                .flatMap(Int.init) ?? 0
+            let known = Set((1...Store.schemaVersion).map { "v\($0)" })
+            for id in try String.fetchSet(db, sql: "SELECT identifier FROM grdb_migrations") {
+                if id.hasPrefix("v"), let n = Int(id.dropFirst()) {
+                    version = max(version, n)
+                } else if !known.contains(id) {
+                    version = max(version, Store.schemaVersion + 1)
+                }
+            }
+            return version
+        }
+    }
+
+    /// Runs at watcher start (indexOnce is start()'s first act) and
+    /// before every Indexer.run — one meta+ledger read per batch. On
+    /// forward drift it logs and self-terminates so launchd respawns the
+    /// watcher into the current on-disk binary. Termination must be a
+    /// crash-signal death, not a clean exit: the com.swctx.watch.* plists
+    /// split KeepAlive — cms/crm/qr use {Crashed:true} (respawn only on
+    /// signal death, launchd.plist(5)) while linkeldn/p8/sitem use
+    /// {SuccessfulExit:false} (respawn on any non-clean termination).
+    /// SIGABRT satisfies both policies; exit() would leave the Crashed
+    /// group permanently dead.
+    private func exitIfIndexSchemaDrifted() {
+        guard let indexVersion = indexSchemaVersion(),
+              IndexWatcher.shouldExitForSchema(indexVersion: indexVersion,
+                                               binaryVersion: Store.schemaVersion)
+        else { return }
+        note("watch: index schema v\(indexVersion) newer than binary v\(Store.schemaVersion) — exiting for launchd restart")
+        abort()
     }
 
     // MARK: - Debounce (runs on `queue`)
