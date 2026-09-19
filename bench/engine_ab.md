@@ -251,3 +251,32 @@ python3 bench/engine_ab.py --out bench/engine_ab_results.json   # full run
 python3 bench/engine_ab.py --no-ask                             # zero credits
 python3 bench/engine_ab.py --ask-sample seo-01,crm-04           # custom sample (cap 4)
 ```
+
+## Full-surface parity probe (parity_probe.py, 2026-09-19)
+
+engine_ab.py scored the 4 contested retrieval surfaces. The remaining
+shared tools were probed head-to-head for shape + correctness on the same
+CRM workspace targets — coverage of the full ctxe tool list (18 tools):
+
+| surface | swctx | ctxe | verdict |
+|---|---|---|---|
+| get_status | files/chunks/edges/vectors + freshness | indexed/files/schema_version + capabilities | parity (different key layout) |
+| list_workspaces | n=23 (all indexed dirs) | n=9 (accepted catalog) | different semantics, both correct |
+| find_usages tom_tat | n=3 | n=3 | parity |
+| find_usages format_fragment | n=2 | n=1 | swctx finds one more use site |
+| find_usages ghi_quyet_dinh | n=0 | n=0 | parity (unused symbol) |
+| inspect_path dir | chunks=50 | chunks=50 | parity |
+| fetch_chunks | round-trip ok (chunk 3230) | round-trip ok (chunk 394) | parity |
+| graph_neighbors | neighbors w/ resolved dst_name + edge_kind | n=9 neighbors | parity (swctx names resolved symbols) |
+| graph_expand | no results | no results | parity-empty for the probed chunk |
+| get_impact | dependents w/ full chunk info | 3 items (hop+score, thin) | swctx payload more hydrated |
+| list/search/get records | 0 records for CRM ws (none written) | items work (ask records present) | parity; content differs by usage |
+| fast_understand | deterministic card: chunks/files/hot_files/hub_symbols/languages | server answer + planner + record_id | different natures — swctx free local card, ctxe synthesized answer |
+
+Not probed individually: graph_paths (mechanical parity surface),
+swctx get_workspace_tree (swctx callers use `search` instead),
+compose_answer (ctxe-only; operates on an ask record — same synthesis
+family as ask_context, which was sampled).
+
+swctx-only tools (no ctxe counterpart): search, context_pack,
+put_record, prime. ctxe-only: ask_context, compose_answer.
