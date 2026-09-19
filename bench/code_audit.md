@@ -205,3 +205,20 @@ to reproduce the residual `ask` hang. Round-2 findings and resolutions:
 | 5 | Coverage gaps: AskCmd timeout, PATH fallback, FSEvents failure branches have no direct test | Acknowledged honestly — `main.swift` is the executable target (not `@testable`) and FSEvents failure injection needs a harness seam. Code-reviewed; noted as residual risk, not claimed as tested |
 
 Gate: `swift test` **125/125** green on the fix commit.
+
+### Codex round-3 re-verification of `00f542d` → ISSUES 1, fixed
+
+Codex's adversarial probe (fake `claude` = `trap '' TERM` + forked pipe-holding
+descendant) proved the last residual: `kill(pid, SIGKILL)` leaves group members
+orphaned under PPID 1. Resolution — `AskCmd.spawn` rewritten on `posix_spawnp`
+with `POSIX_SPAWN_SETPGROUP` (pgid assigned at spawn, no setpgid-after-exec
+race); timeout path now `kill(-pgid, SIGTERM)` → 300ms grace →
+`kill(-pgid, SIGKILL)` → close pipe read ends → bounded drain.
+
+**Verified on the release binary against Codex's own repro shape:**
+`swctx ask` returned `agent timed out after 2s` promptly and `ps` showed
+**zero survivors** — neither the TERM-ignoring child nor its `sleep 300`
+descendant. Success path re-verified with a fast-exit fake agent.
+
+Residual honest gap (unchanged): the exec-target code path has no XCTest seam —
+verified by manual adversarial repro, not a unit test.

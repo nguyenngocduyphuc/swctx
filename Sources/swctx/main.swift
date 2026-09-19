@@ -1,4 +1,5 @@
 import ArgumentParser
+import Darwin
 import Foundation
 import GRDB
 import MCP
@@ -738,22 +739,59 @@ struct AskCmd: AsyncParsableCommand {
         throw ValidationError("no agent CLI found on PATH (tried: \(order.joined(separator: ", ")))")
     }
 
-    /// Run `bin argv`, prompt as last argv element; timeout kills the child.
-    /// Both pipes are drained CONCURRENTLY with the wait: a child writing
-    /// more than the ~64KB pipe buffer blocks in write() and never exits,
-    /// so reading after waitUntilExit would deadlock until the timeout
-    /// fires and the answer is lost.
+    /// Run `bin argv`, prompt as last argv element; timeout kills the
+    /// child's whole process group. posix_spawn + POSIX_SPAWN_SETPGROUP is
+    /// used instead of Process because a forking agent hides descendants
+    /// from kill(pid) — kill(-pgid) reaches the entire tree, and the group
+    /// is assigned at spawn time so there is no setpgid-after-exec race.
+    /// Both pipes drain CONCURRENTLY with the wait: a child writing more
+    /// than the ~64KB pipe buffer blocks in write() and never exits.
     static func spawn(_ bin: String, argv: [String], timeout: Int) throws -> String {
-        let p = Process()
-        p.executableURL = URL(fileURLWithPath: bin)
-        p.arguments = argv
         let out = Pipe()
         let err = Pipe()
-        p.standardOutput = out
-        p.standardError = err
-        try p.run()
+
+        var actions: posix_spawn_file_actions_t?
+        posix_spawn_file_actions_init(&actions)
+        defer { posix_spawn_file_actions_destroy(&actions) }
+        posix_spawn_file_actions_adddup2(&actions,
+            out.fileHandleForWriting.fileDescriptor, 1)
+        posix_spawn_file_actions_adddup2(&actions,
+            err.fileHandleForWriting.fileDescriptor, 2)
+        for h in [out.fileHandleForReading, out.fileHandleForWriting,
+                  err.fileHandleForReading, err.fileHandleForWriting] {
+            posix_spawn_file_actions_addclose(&actions, h.fileDescriptor)
+        }
+
+        var attr: posix_spawnattr_t?
+        posix_spawnattr_init(&attr)
+        defer { posix_spawnattr_destroy(&attr) }
+        var sflags: Int16 = 0
+        posix_spawnattr_getflags(&attr, &sflags)
+        posix_spawnattr_setflags(&attr, sflags | Int16(POSIX_SPAWN_SETPGROUP))
+        posix_spawnattr_setpgroup(&attr, 0)   // own group: pgid == child pid
+
+        var pid: pid_t = 0
+        var cargs = ([bin] + argv).map { strdup($0) }
+            + [nil as UnsafeMutablePointer<CChar>?]
+        defer { cargs.forEach { free($0) } }
+        let rc = cargs.withUnsafeMutableBufferPointer { cargv in
+            posix_spawnp(&pid, bin, &actions, &attr, cargv.baseAddress,
+                         environ)
+        }
+        // Parent drops its write ends so read sees EOF when the last
+        // child-side writer (direct or descendant) closes.
+        try? out.fileHandleForWriting.close()
+        try? err.fileHandleForWriting.close()
+        guard rc == 0 else {
+            try? out.fileHandleForReading.close()
+            try? err.fileHandleForReading.close()
+            throw ValidationError("cannot spawn \(bin): errno \(rc)")
+        }
+
         // NSMutableData: a class reference, so the drain closures mutate
         // through it without capturing a var (keeps Sendable checks quiet).
+        final class WaitStatus { var raw: Int32 = -1 }
+        let wstatus = WaitStatus()
         let outData = NSMutableData()
         let errData = NSMutableData()
         let drain = DispatchGroup()
@@ -768,13 +806,20 @@ struct AskCmd: AsyncParsableCommand {
             drain.leave()
         }
         let sem = DispatchSemaphore(value: 0)
-        DispatchQueue.global().async { p.waitUntilExit(); sem.signal() }
+        DispatchQueue.global().async {
+            var st: Int32 = 0
+            _ = waitpid(pid, &st, 0)
+            wstatus.raw = st
+            sem.signal()
+        }
         if sem.wait(timeout: .now() + .seconds(timeout)) == .timedOut {
-            p.terminate()
-            // SIGTERM-ignoring children still die under SIGKILL; closing our
-            // read ends unblocks drain workers stuck in readDataToEndOfFile
-            // (a descendant holding the pipe would otherwise keep it open).
-            kill(p.processIdentifier, SIGKILL)
+            // Whole-group SIGTERM, short grace, then whole-group SIGKILL —
+            // TERM-ignoring children AND their descendants all die.
+            kill(-pid, SIGTERM)
+            _ = sem.wait(timeout: .now() + .milliseconds(300))
+            kill(-pid, SIGKILL)
+            // Closing our read ends unblocks drain workers stuck in
+            // readDataToEndOfFile if any survivor still held the pipe.
             try? out.fileHandleForReading.close()
             try? err.fileHandleForReading.close()
             _ = drain.wait(timeout: .now() + .seconds(2))
@@ -788,9 +833,12 @@ struct AskCmd: AsyncParsableCommand {
             _ = drain.wait(timeout: .now() + .seconds(2))
         }
         let text = String(decoding: outData as Data, as: UTF8.self)
-        guard p.terminationStatus == 0 else {
+        let st = wstatus.raw
+        let statusDesc = (st & 0x7f == 0)
+            ? "exited \(Int((st >> 8) & 0xff))" : "killed by signal \(st & 0x7f)"
+        guard st & 0x7f == 0, (st >> 8) & 0xff == 0 else {
             let e = String(decoding: errData as Data, as: UTF8.self)
-            throw ValidationError("\(bin) exited \(p.terminationStatus): \(e.prefix(400))")
+            throw ValidationError("\(bin) \(statusDesc): \(e.prefix(400))")
         }
         return text.trimmingCharacters(in: .whitespacesAndNewlines)
     }
