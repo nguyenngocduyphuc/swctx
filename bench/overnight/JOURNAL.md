@@ -355,3 +355,71 @@ nhanh xuất hiện (ví dụ distill bge-m3 → 12L/768H).
 Verdict chain đêm nay: adopt 6 (folded col, phrase leg, parallel legs,
 sidecar, LegBag, engine_eval) — reject 8 (3 rerankers, bge-m3, e5-base,
 3 folded variants + weight tuning) — đúng tinh thần đo-trước-quyết-sau.
+
+## SWE-2 wave (~07:30–13:00): parallel workers đóng 4 gaps — 3 landed, 1 in flight
+
+Sau review độ hoàn thiện (~85% scope), CEO giao spawn song song 4 việc
+còn lại. Write domain tách biệt: W7 Indexer, W8 Watcher, W9 bench/e5,
+W10 bench/A-B.
+
+### W7 — embed reindex kill-safe (commit `2a80b14`) — ADOPTED
+
+Incident đêm qua: `embed --reindex` DELETE hết vectors trước, batch
+~19 phút, SIGTERM giữa chừng → CRM index 0 vectors. Worker chọn
+**persistent `vec_snapshot`** thay vì incremental commit: bảng thật
+(sống sót process death — TEMP không), snapshot trước wipe thành một
+committed unit, `embedAll()` entry restore phần chưa re-embed (dim
+guard giữ model-switch fresh), clean exit DROP. ~35 dòng net, tái dùng
+đúng cơ chế force-reindex đã proven; text-key còn tốt hơn chunk_id-key
+vì sống qua force reindex recycle ids. 5 tests, suite 115/115.
+
+### W8 — watcher schema-drift exit (commit `09c1978` + `90087a3`) — ADOPTED
+
+Vấn đề vận hành đêm qua: 6 watchers binary v5 ghi `folded` rỗng sau
+migration v6, phải restart tay. Fix:
+
+- `indexOnce()` (single funnel: start + FSEvents batch + --once) gọi
+  `exitIfIndexSchemaDrifted()` trước mọi `indexer.run`.
+- Detection đọc **grdb_migrations ledger** + meta — ledger rows không
+  bao giờ bị xóa nên drift sống sót cả khi binary cũ stamp meta xuống
+  (unknown migration id = schemaVersion+1, đúng GRDB superseded
+  semantics). Meta-only check sẽ miss drift sau bất kỳ restart nào.
+- Exit bằng **`abort()`** — phát hiện evidence-driven: 6 plist chia 2
+  KeepAlive policy (`{Crashed:true}` × 3, `{SuccessfulExit:false}` × 3);
+  crash-signal là cái chết duy nhất respawn được cả hai, và relaunch
+  exec binary hiện tại tại `.build/release/swctx`.
+- Companion fix (lead, `90087a3`): `Store.migrate` không còn stamp
+  schema_version xuống khi mở index mới hơn — trước đây mọi `swctx
+  status` của binary cũ đều xóa evidence drift. 4 WatcherDriftTests.
+
+### W10 — swctx↔ctxe A/B harness (commit `9be4b95`) — LANDED, thesis confirmed
+
+`bench/engine_ab.py` chạy 22-query vn probe qua cả hai MCP stdio
+server, score file-recall@5 per surface. Comparability map trung thực:
+
+| surface | n | recall@5 | p50 |
+|---|---|---|---|
+| swctx:search | 22 | 0.59 | 101ms |
+| swctx:find_definitions | 4 | 0.75 | 12ms |
+| ctxe:find_definitions | 4 | 0.75 | 7ms |
+| ctxe:workspace_tree(token-sweep) | 11 | 0.27 | 424ms |
+| ctxe:workspace_tree(raw) | 11 | 0.0 | 41ms |
+| ctxe:ask_context(min,nocompose) live | 4 | 0/4 | 20.3s |
+| ctxe:ask_context durable-record view | 4 | **4/4** | 20-64s |
+
+- Parity thật duy nhất: find_definitions (hit set giống hệt, ctxe
+  nhanh hơn chút). `inspect_path` không search được workspace-wide;
+  `workspace_tree.query` chỉ là path-substring filter.
+- 7/22 query `in_body_only` **không có free ctxe surface nào**.
+- L2 cứu đúng chỗ L1 yếu: ask_context record-view hit cả 3 sampled
+  swctx misses kể cả 2 vn_to_en — nhưng 200-600× latency + credits +
+  phải qua record hop (live wire không enumerate evidence paths).
+- Union coverage **17/22** vs swctx-only 14/22. Kết luận kiến trúc
+  L1-reflex/L2-oracle giờ có paired data, không còn là giả thuyết.
+- Chi phí: đúng 4 ask_context calls (cap honored), mọi thứ khác free.
+
+### W9 — e5-large-instruct eval — IN FLIGHT khi ghi journal
+
+MPS latency đã đo: **median 21.6ms** (trong gate ~150ms nếu CoreML
+tương đương). CRM corpus xong; P8 32.7K chunks đang embed. Quality
+verdict chờ corpus xong — cùng gate ≥2 misses rescued + no regressions.

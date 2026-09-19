@@ -1,7 +1,9 @@
-# swctx overnight master plan — 2026-09-19 00:52 → 07:00
+# swctx overnight master plan — 2026-09-19 00:52 → 07:00 (+ SWE-2 wave ~13:00)
 
 CEO directive: autonomous loop — implement, test with evidence, self-improve
 each iteration, spawn subagents, research GitHub/Reddit. Stop at 07:00.
+SWE-2 wave (post-review): 4 parallel workers close the remaining gaps —
+embed kill-safety, watcher drift, e5-large eval, swctx↔ctxe A/B.
 
 ## Objective
 
@@ -11,8 +13,8 @@ vn-probe + recall ratchet + test evidence — never on intuition.
 
 ## Fixed gates (must stay green)
 
-- `swift test` — all tests
-- `bench/vn_probe.py` — no regression vs current auto **11/16** (VN 10/14)
+- `swift test` — all tests (115)
+- `bench/vn_probe.py --gate 12` — no regression vs current auto **13/22**
 - `bench/recall_mcp.py --ratchet` — recall@5 ≥0.95, p95 ≤150ms, schema golden
 - `bench/cold_cwd.py` — PASS
 
@@ -22,9 +24,10 @@ vn-probe + recall ratchet + test evidence — never on intuition.
 start of night:        auto 8/16  (VN 7/14)
 ITER-1 folded fill:    auto 10/16 (VN 9/14)
 ITER-4 path-phrase:    auto 11/16 (VN 10/14)
-semantic leg health:   sem=1/16 — near-dead on VN, main ceiling
-remaining misses:      seo-04/05/06 (vocab gap), crm-04 (competition),
-                       crm-08 (EN→VN symbol)
+probe n=22 (ITER-6):   auto 13/22 (VN 12/19, in_path 9/11, vn_to_en 0/5)
+semantic leg health:   sem=1/22 — near-dead on VN, main ceiling
+A/B paired (W10):      union swctx+ctxe 17/22; ask_context record-view
+                       rescued all sampled swctx misses incl. vn_to_en
 ```
 
 ## Iteration ledger
@@ -46,16 +49,23 @@ they are evidence, not waste.
 | Q12 | mmap vector matrix beside index.db | cold latency | DONE — sidecar vectors.v1.bin, cold 3.2→0.9s |
 | Q13 | CodeRankEmbed-137M spike | semantic gap | backlog — e5-base tried first (bigger, proven multilingual) |
 | Q14 | **jina-reranker-v2 spike** (W5) | rerank ceiling | DONE — REJECTED (13/22 neutral, 1567ms/pair). 3/3 rerankers out |
-| Q15 | **multilingual-e5-base eval** (W6) | THE semantic gap | IN FLIGHT — quality near bge-m3 at ~52ms CPU torch (~fits gate) |
-| Q16 | e5 prefix plumbing (embedQuery/embedDocument) | e5 adoption | ready-if-GO |
+| Q15 | **multilingual-e5-base eval** (W6) | THE semantic gap | DONE — REJECTED (1/9 rescued, 5 regressions, cosine nén 0.78-0.89) |
+| Q16 | e5 prefix plumbing (embedQuery/embedDocument) | e5 adoption | ready-if-GO (e5-large still candidate) |
+| Q17 | **embed --reindex kill-safety** (W7) | ops | DONE `2a80b14` — persistent vec_snapshot, restore-on-entry |
+| Q18 | **watcher schema-drift exit** (W8) | ops | DONE `09c1978`+`90087a3` — ledger check + abort(), Store meta guard |
+| Q19 | **e5-large-instruct eval** (W9) | THE semantic gap | IN FLIGHT — MPS 21.6ms measured; P8 corpus embedding |
+| Q20 | **swctx↔ctxe A/B harness** (W10) | dual-engine goal | DONE `9be4b95` — union 17/22, L1/L2 thesis confirmed by paired data |
 | Q9 | Merkle-tree sync | freshness | backlog |
 | Q10 | per-intent recall reporting | eval depth | DONE — vn_probe splits by query_intent/path_signal |
 
 ## Worker assignments
 
-- **W4:** bge-m3 offline eval — DONE, GO-quality/NO-GO-latency verdict.
-- **W5:** jina reranker spike — DONE, REJECTED (artifacts committed).
-- **W6:** e5-base offline eval — IN FLIGHT, same harness + gate.
+- **W7:** embed kill-safety — DONE, persistent snapshot adopted (`2a80b14`).
+- **W8:** watcher drift — DONE, ledger+abort adopted (`09c1978`); lead Store guard `90087a3`.
+- **W9:** e5-large-instruct eval — IN FLIGHT, same harness + gate.
+- **W10:** A/B harness — DONE (`9be4b95`): parity only at find_definitions;
+  ctxe no NL-retrieval surface; L2 rescues L1 misses at 200-600× cost.
+- **W4/W5/W6:** complete (bge-m3 NO-GO latency; jina REJECTED; e5-base REJECTED).
 - **W1/W2/W3:** complete (SentencePiece byte-exact; research; v2m3 rejected).
 
 ## Self-improvement loop

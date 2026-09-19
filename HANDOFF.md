@@ -1,11 +1,37 @@
 # swctx — Handoff & Status
 
-Date: 2026-09-19 (overnight loop) · Status: **working, verified end-to-end on 6 workspaces**
+Date: 2026-09-19 (overnight loop + SWE-2 wave) · Status: **working, verified end-to-end on 6 workspaces**
 
-## 2026-09-19 — Overnight retrieval loop (ITER-1 → ITER-7)
+## 2026-09-19 — SWE-2 wave (4 worker song song, ~13:00)
+
+Bốn gap còn lại sau review → 3 landed, 1 in flight (e5-large):
+
+- **`embed --reindex` kill-safe** (`2a80b14`): `vec_snapshot` thành bảng
+  thật (sống sót process death), snapshot-trước-wipe một committed unit,
+  `embedAll()` entry restore phần chưa re-embed (dim guard giữ
+  model-switch fresh). All-or-nothing incident đêm qua đã đóng.
+  5 EmbedResilienceTests. Residual: same-dim kill → vectors cũ restore
+  (index usable ngay, re-embed cần `swctx embed --reindex` mới);
+  restore chỉ chạy khi có embed pass.
+- **Watcher schema-drift** (`09c1978` + `90087a3`): `indexOnce()` exit
+  qua `abort()` khi index schema mới hơn binary — detection đọc
+  grdb_migrations ledger (sống sót meta-downgrade); `abort()` là cái
+  chết duy nhất respawn được cả 2 KeepAlive policy của 6 plist.
+  `Store.migrate` không còn stamp version xuống trên superseded index.
+- **swctx↔ctxe A/B** (`9be4b95`): `bench/engine_ab.py` — paired run
+  22-query probe qua cả hai MCP. Kết quả: parity chỉ ở
+  `find_definitions` (3/4=3/4); ctxe **không có NL retrieval surface**
+  (tree raw 0/11, token-sweep 3/11); 7 query không có ctxe surface nào;
+  `ask_context` record-view hit 4/4 gồm cả vn_to_en misses của swctx —
+  L2 rescue đúng chỗ L1 yếu, giá 200-600× latency + credits + record
+  hop. Union 17/22 vs swctx-only 14/22. **L1/L2 thesis có paired data.**
+- **e5-large-instruct** (W9): MPS 21.6ms (trong gate); quality eval
+  đang chạy trên P8 corpus.
+
+## 2026-09-19 — Overnight retrieval loop (ITER-1 → ITER-8)
 
 **Scoreboard**: vn probe 16→22 queries; auto recall **8/16 → 13/22**
-(baseline mới). Gates xanh: 106/106 tests · ratchet 0.9722 · p95 102.5ms ·
+(baseline mới). Gates xanh: 115/115 tests · ratchet 0.9722 · p95 ~102-116ms ·
 schema golden 20 tools · cold_cwd PASS · vn gate `--gate 12`.
 
 **Adopted** (chi tiết `bench/overnight/JOURNAL.md`):
@@ -38,18 +64,17 @@ schema golden 20 tools · cold_cwd PASS · vn gate `--gate 12`.
 - 5 folded-rescue variants khác (merged OR, appended, dedicated leg,
   dedup, no-double-dip) — zero-sum displacement ở n=16.
 
-**In flight**: `intfloat/multilingual-e5-base` offline eval (W6) —
-278M, prefixes+mean-pool; MPS ~10ms/query. Gate: ≥2 misses→top-30.
-Nếu GO → convert+adopt path giống bge-m3 nhưng latency-viable.
+**e5-base verdict (ITER-8)**: REJECTED — 1/9 rescued + 5 regressions,
+cosine nén 0.78-0.89. Latency đẹp (MPS 10ms) nhưng recall không qua.
 
 **Miss map (13/22)**: in_path 9/11 (phrase leg owns) · in_body_only
 4/11 (semantic-bound) · vn_to_en 0/5 (needs real multilingual vectors)
 · symbol_lookup 2/4.
 
-**Ops notes**: watchers restart ~02:55 sau v6 migration (binary cũ
-đang chạy sẽ ghi folded rỗng). `embed --reindex` là all-or-nothing
-under SIGKILL — backup index.db trước khi đổi model (CRM đã restore
-thành công). `.worktrees/` ignored.
+**Ops notes**: watcher drift + all-or-nothing reindex ĐÃ FIX ở SWE-2
+wave (xem section trên) — binary cũ giờ tự abort() cho launchd
+respawn; reindex bị kill thì `swctx embed` tiếp theo tự restore.
+`.worktrees/` ignored.
 
 ## 2026-09-18 — Dual-engine + Phase B/C/D
 
