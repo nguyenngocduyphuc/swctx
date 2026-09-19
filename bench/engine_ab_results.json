@@ -1,0 +1,1339 @@
+{
+ "timestamp": "2026-09-19T05:50:51+00:00",
+ "probe": "vn_queries.json",
+ "limit": 5,
+ "ask_sample": [
+  "seo-01",
+  "seo-09",
+  "crm-04",
+  "crm-11"
+ ],
+ "session_notes": {},
+ "ctxe_index": {
+  "/Users/phuongnam/02.AI/NP_AI_macos/8.P8_SEO_Clean": {
+   "indexed": true,
+   "files": 3098
+  },
+  "/Users/phuongnam/02.AI/NP_AI_macos/18.CRM-Nam-Pham": {
+   "indexed": true,
+   "files": 83
+  }
+ },
+ "latency_ms": {
+  "ctxe:ask_context(min,nocompose)": {
+   "p50": 20335.9,
+   "p95": 60229.3,
+   "n_calls": 4
+  },
+  "ctxe:find_definitions": {
+   "p50": 6.7,
+   "p95": 7.3,
+   "n_calls": 4
+  },
+  "ctxe:workspace_tree(raw)": {
+   "p50": 41.2,
+   "p95": 208.7,
+   "n_calls": 11
+  },
+  "ctxe:workspace_tree(token-sweep)": {
+   "p50": 424.2,
+   "p95": 1717.1,
+   "n_calls": 11
+  },
+  "swctx:find_definitions": {
+   "p50": 12.2,
+   "p95": 14.8,
+   "n_calls": 4
+  },
+  "swctx:search": {
+   "p50": 101.4,
+   "p95": 621.4,
+   "n_calls": 22
+  }
+ },
+ "ctxe_no_surface_queries": [
+  "seo-05",
+  "seo-06",
+  "seo-07",
+  "crm-05",
+  "seo-10"
+ ],
+ "ctxe_index_missing_expected": [],
+ "aggregate": {
+  "ctxe:ask_context(min,nocompose)": {
+   "ALL": {
+    "n": 4,
+    "hits": 0,
+    "recall_at_5": 0.0
+   },
+   "concept_flow": {
+    "n": 4,
+    "hits": 0,
+    "recall_at_5": 0.0
+   },
+   "symbol_lookup": {
+    "n": 0,
+    "hits": 0,
+    "recall_at_5": null
+   },
+   "in_path": {
+    "n": 2,
+    "hits": 0,
+    "recall_at_5": 0.0
+   },
+   "in_body_only": {
+    "n": 2,
+    "hits": 0,
+    "recall_at_5": 0.0
+   }
+  },
+  "ctxe:find_definitions": {
+   "ALL": {
+    "n": 4,
+    "hits": 3,
+    "recall_at_5": 0.75
+   },
+   "concept_flow": {
+    "n": 0,
+    "hits": 0,
+    "recall_at_5": null
+   },
+   "symbol_lookup": {
+    "n": 4,
+    "hits": 3,
+    "recall_at_5": 0.75
+   },
+   "in_path": {
+    "n": 0,
+    "hits": 0,
+    "recall_at_5": null
+   },
+   "in_body_only": {
+    "n": 4,
+    "hits": 3,
+    "recall_at_5": 0.75
+   }
+  },
+  "ctxe:none": {
+   "ALL": {
+    "n": 0,
+    "hits": 0,
+    "recall_at_5": null
+   },
+   "concept_flow": {
+    "n": 0,
+    "hits": 0,
+    "recall_at_5": null
+   },
+   "symbol_lookup": {
+    "n": 0,
+    "hits": 0,
+    "recall_at_5": null
+   },
+   "in_path": {
+    "n": 0,
+    "hits": 0,
+    "recall_at_5": null
+   },
+   "in_body_only": {
+    "n": 0,
+    "hits": 0,
+    "recall_at_5": null
+   }
+  },
+  "ctxe:workspace_tree(raw)": {
+   "ALL": {
+    "n": 11,
+    "hits": 0,
+    "recall_at_5": 0.0
+   },
+   "concept_flow": {
+    "n": 11,
+    "hits": 0,
+    "recall_at_5": 0.0
+   },
+   "symbol_lookup": {
+    "n": 0,
+    "hits": 0,
+    "recall_at_5": null
+   },
+   "in_path": {
+    "n": 11,
+    "hits": 0,
+    "recall_at_5": 0.0
+   },
+   "in_body_only": {
+    "n": 0,
+    "hits": 0,
+    "recall_at_5": null
+   }
+  },
+  "ctxe:workspace_tree(token-sweep)": {
+   "ALL": {
+    "n": 11,
+    "hits": 3,
+    "recall_at_5": 0.2727
+   },
+   "concept_flow": {
+    "n": 11,
+    "hits": 3,
+    "recall_at_5": 0.2727
+   },
+   "symbol_lookup": {
+    "n": 0,
+    "hits": 0,
+    "recall_at_5": null
+   },
+   "in_path": {
+    "n": 11,
+    "hits": 3,
+    "recall_at_5": 0.2727
+   },
+   "in_body_only": {
+    "n": 0,
+    "hits": 0,
+    "recall_at_5": null
+   }
+  },
+  "swctx:find_definitions": {
+   "ALL": {
+    "n": 4,
+    "hits": 3,
+    "recall_at_5": 0.75
+   },
+   "concept_flow": {
+    "n": 0,
+    "hits": 0,
+    "recall_at_5": null
+   },
+   "symbol_lookup": {
+    "n": 4,
+    "hits": 3,
+    "recall_at_5": 0.75
+   },
+   "in_path": {
+    "n": 0,
+    "hits": 0,
+    "recall_at_5": null
+   },
+   "in_body_only": {
+    "n": 4,
+    "hits": 3,
+    "recall_at_5": 0.75
+   }
+  },
+  "swctx:search": {
+   "ALL": {
+    "n": 22,
+    "hits": 13,
+    "recall_at_5": 0.5909
+   },
+   "concept_flow": {
+    "n": 18,
+    "hits": 11,
+    "recall_at_5": 0.6111
+   },
+   "symbol_lookup": {
+    "n": 4,
+    "hits": 2,
+    "recall_at_5": 0.5
+   },
+   "in_path": {
+    "n": 11,
+    "hits": 9,
+    "recall_at_5": 0.8182
+   },
+   "in_body_only": {
+    "n": 11,
+    "hits": 4,
+    "recall_at_5": 0.3636
+   }
+  }
+ },
+ "queries": [
+  {
+   "id": "seo-01",
+   "workspace": "/Users/phuongnam/02.AI/NP_AI_macos/8.P8_SEO_Clean",
+   "lang": "vi",
+   "tags": [
+    "vn_to_vn"
+   ],
+   "query_intent": "concept_flow",
+   "path_signal": "in_path",
+   "query": "script kiểm tra google có đang chọn canonical khác với url mình khai báo không",
+   "expected_path": "scripts/p8_canonical_check.py",
+   "results": {
+    "swctx:search": {
+     "paths": [
+      "docs/references/seo/google-seo-starter-guide.md",
+      "scripts/p8_canonical_check.py",
+      "docs/plans/PLAN_SEO_AUTOMATION_GOOGLE_FIRST_2026-09-15.md",
+      "docs/plans/PLAN_SEO_AUTOMATION_GOOGLE_FIRST_2026-09-15.md",
+      "docs/plans/PLAN_SEO_AUTOMATION_GOOGLE_FIRST_2026-09-15.md"
+     ],
+     "rank": 2,
+     "latency_ms": 379.9,
+     "status": "ok"
+    },
+    "ctxe:workspace_tree(raw)": {
+     "paths": [],
+     "rank": 0,
+     "latency_ms": 77.5,
+     "status": "ok",
+     "n_files": 0
+    },
+    "ctxe:workspace_tree(token-sweep)": {
+     "paths": [
+      "scripts/_legacy/p8_canonical_normalizer.py",
+      "scripts/_legacy/2026-05-08/extract_metrics.py",
+      "scripts/_legacy/2026-05-08/extract_prompts.py",
+      "scripts/_legacy/2026-05-08/extract_prompts_b3.py",
+      "scripts/_legacy/2026-05-08/extract_prompts_b4.py"
+     ],
+     "rank": 0,
+     "latency_ms": 980.1,
+     "status": "ok",
+     "n_candidates": 367
+    },
+    "ctxe:ask_context(min,nocompose)": {
+     "paths": [
+      "artifacts/team/ket-audit/url_inspection_caller.py",
+      "docs/references/seo/meta-tags-schema.md"
+     ],
+     "rank": 0,
+     "latency_ms": 23892.1,
+     "status": "ok",
+     "payload_keys": [
+      "answer",
+      "diagnostics",
+      "meta",
+      "outcome",
+      "planner",
+      "record_id",
+      "schema_version"
+     ],
+     "record_evidence": {
+      "id": 16,
+      "status": "completed",
+      "paths": [
+       "scripts/p8_canonical_check.py",
+       "artifacts/team/ket-audit/url_inspection_caller.py",
+       "scripts/p8_daily_report.py",
+       "scripts/p8_publish_gate.py",
+       "docs/plans/REVIEW_INDEX_BRAND_GROWTH_2026-07-18.md"
+      ],
+      "rank": 1,
+      "direct_paths": [
+       "scripts/p8_canonical_check.py",
+       "artifacts/team/ket-audit/url_inspection_caller.py",
+       "scripts/p8_daily_report.py"
+      ],
+      "direct_rank": 1,
+      "n_direct": 10,
+      "n_related": 5,
+      "duration_ms": 23879,
+      "failure_code": null
+     }
+    }
+   },
+   "ctxe_index_has_expected": true
+  },
+  {
+   "id": "seo-02",
+   "workspace": "/Users/phuongnam/02.AI/NP_AI_macos/8.P8_SEO_Clean",
+   "lang": "vi",
+   "tags": [
+    "vn_to_vn"
+   ],
+   "query_intent": "concept_flow",
+   "path_signal": "in_path",
+   "query": "gate phát hiện link nội bộ bị gãy 404 trong bài trước khi publish",
+   "expected_path": "scripts/p8_link_health.py",
+   "results": {
+    "swctx:search": {
+     "paths": [
+      "scripts/p8_link_health.py",
+      "docs/handoffs/HANDOFF_20260819_ca8-ci-gate-repair-telegram-audit.md",
+      "docs/handoffs/HANDOFF_20260807_bay-cua-noi-doi.md",
+      "docs/NEXT_ACTIONS.md",
+      "docs/00_governance/DRIFT_LOG.md"
+     ],
+     "rank": 1,
+     "latency_ms": 282.3,
+     "status": "ok"
+    },
+    "ctxe:workspace_tree(raw)": {
+     "paths": [],
+     "rank": 0,
+     "latency_ms": 187.6,
+     "status": "ok",
+     "n_files": 0
+    },
+    "ctxe:workspace_tree(token-sweep)": {
+     "paths": [
+      "archive/legacy-audits/audits/audit-report/publish-gate-dry-run-v2.md",
+      "archive/legacy-audits/audits/audit-report/publish-gate-dry-run-v4.md",
+      "archive/legacy-audits/audits/audit-report/publish-gate-dry-run.md",
+      "docs/handoffs/HANDOFF_20260814_gate100-phien-1dev2.md",
+      "scripts/p8_content_publish_gate_check.py"
+     ],
+     "rank": 0,
+     "latency_ms": 1717.1,
+     "status": "ok",
+     "n_candidates": 201
+    }
+   },
+   "ctxe_index_has_expected": true
+  },
+  {
+   "id": "seo-03",
+   "workspace": "/Users/phuongnam/02.AI/NP_AI_macos/8.P8_SEO_Clean",
+   "lang": "vi",
+   "tags": [
+    "vn_to_vn"
+   ],
+   "query_intent": "concept_flow",
+   "path_signal": "in_path",
+   "query": "script tạo file excel để sinh link utm cho chiến dịch zalo linkedin",
+   "expected_path": "scripts/p8_utm_builder.py",
+   "results": {
+    "swctx:search": {
+     "paths": [
+      "scripts/p8_link_injector.py",
+      "scripts/p8_utm_builder.py",
+      "docs/00_governance/LEGACY_SCRIPT_INDEX.md",
+      "docs/00_governance/SCRIPT_REGISTRY_P8.md",
+      "docs/seo/campaigns/1MKT_VAN_PHONG_VA_HANG_CHO.md"
+     ],
+     "rank": 2,
+     "latency_ms": 621.4,
+     "status": "ok"
+    },
+    "ctxe:workspace_tree(raw)": {
+     "paths": [],
+     "rank": 0,
+     "latency_ms": 41.2,
+     "status": "ok",
+     "n_files": 0
+    },
+    "ctxe:workspace_tree(token-sweep)": {
+     "paths": [
+      "docs/archive/legacy-2026/ai_sessions/nampham_net_scaffold_2026-05-24/scripts/check-internal-links.js",
+      "docs/archive/phamducphuongnam-seo/phase-2/T7-anchor/script.py",
+      "docs/archive/phamducphuongnam-seo/phase-2/T9-internal-link/script.py",
+      "scripts/_legacy/fix_xem_them_anchors.py",
+      "scripts/_legacy/2026-05-08/_gen_excel.py"
+     ],
+     "rank": 0,
+     "latency_ms": 1716.6,
+     "status": "ok",
+     "n_candidates": 352
+    }
+   },
+   "ctxe_index_has_expected": true
+  },
+  {
+   "id": "seo-04",
+   "workspace": "/Users/phuongnam/02.AI/NP_AI_macos/8.P8_SEO_Clean",
+   "lang": "vi",
+   "tags": [
+    "vn_to_en"
+   ],
+   "query_intent": "concept_flow",
+   "path_signal": "in_path",
+   "query": "worker tự sinh ảnh minh họa cho các mục h2 còn thiếu ảnh",
+   "expected_path": "scripts/p8_image_worker.py",
+   "results": {
+    "swctx:search": {
+     "paths": [
+      "docs/handoffs/HANDOFF_20260729_PHIEN_DEM_pipeline-anh-giam-sat.md",
+      "docs/references/visual-identity-guidelines.md",
+      "docs/00_governance/PENDING_ACTIONS_REGISTRY.md",
+      "docs/handoffs/HANDOFF_20260731_nampham-std-ops-e2e.md",
+      "content/images/C2.8/huong_dan_chen_anh.md"
+     ],
+     "rank": 0,
+     "latency_ms": 210.9,
+     "status": "ok"
+    },
+    "ctxe:workspace_tree(raw)": {
+     "paths": [],
+     "rank": 0,
+     "latency_ms": 208.7,
+     "status": "ok",
+     "n_files": 0
+    },
+    "ctxe:workspace_tree(token-sweep)": {
+     "paths": [
+      "docs/resources/ska_mining/converted/EBOOK_Augmented_Worker.md",
+      "scripts/p8_content_depth_worker.py",
+      "scripts/_legacy/2026-05-28_worker_sprawl/batch_fix_minh_bach.py",
+      "scripts/_legacy/2026-05-28_worker_sprawl/convert_intro_blockquotes.py",
+      "scripts/_legacy/2026-05-28_worker_sprawl/fix_p1_content_issues.py"
+     ],
+     "rank": 0,
+     "latency_ms": 1377.2,
+     "status": "ok",
+     "n_candidates": 312
+    }
+   },
+   "ctxe_index_has_expected": true
+  },
+  {
+   "id": "seo-05",
+   "workspace": "/Users/phuongnam/02.AI/NP_AI_macos/8.P8_SEO_Clean",
+   "lang": "vi",
+   "tags": [
+    "vn_to_en"
+   ],
+   "query_intent": "concept_flow",
+   "path_signal": "in_body_only",
+   "query": "lệnh đồng bộ thông tin của từng site thành một file entity mesh chung",
+   "expected_path": "factory/sitectl.py",
+   "results": {
+    "swctx:search": {
+     "paths": [
+      "docs/handoffs/HANDOFF_20260814_site-title-cache-va-cua-gac.md",
+      "docs/handoffs/HANDOFF_20260729_SANG_crm-dong-bo-va-goc-benh.md",
+      "docs/handoffs/HANDOFF_20260813_cf_access_credential_audit.md",
+      "docs/handoffs/HANDOFF_20260813_cau-noi-cmux-1dev.md",
+      "docs/handoffs/HANDOFF_20260819_ca8-ci-gate-repair-telegram-audit.md"
+     ],
+     "rank": 0,
+     "latency_ms": 124.8,
+     "status": "ok"
+    },
+    "ctxe:none": {
+     "paths": [],
+     "rank": 0,
+     "latency_ms": null,
+     "status": "no-surface",
+     "note": "no free workspace-wide NL retrieval; inspect_path needs a dir scope, ask_context costs credits"
+    }
+   },
+   "ctxe_index_has_expected": true
+  },
+  {
+   "id": "seo-06",
+   "workspace": "/Users/phuongnam/02.AI/NP_AI_macos/8.P8_SEO_Clean",
+   "lang": "vi",
+   "tags": [
+    "vn_to_vn"
+   ],
+   "query_intent": "concept_flow",
+   "path_signal": "in_body_only",
+   "query": "trang liệt kê tình trạng các worker trong đội hạm con nào đang bị block",
+   "expected_path": "docs-fleet/doi-ngu.md",
+   "results": {
+    "swctx:search": {
+     "paths": [
+      "scripts/_legacy/2026-05-28_worker_sprawl/pdpn_docs_governance_refresh.py",
+      "docs-fleet/ship-log/reports/worker-integration-formula.md",
+      "docs-fleet/onboarding.md",
+      "docs/fleet/ROLES.md",
+      "docs/handoffs/HANDOFF_20260820_asana-opc-tach-cong-ty.md"
+     ],
+     "rank": 0,
+     "latency_ms": 149.1,
+     "status": "ok"
+    },
+    "ctxe:none": {
+     "paths": [],
+     "rank": 0,
+     "latency_ms": null,
+     "status": "no-surface",
+     "note": "no free workspace-wide NL retrieval; inspect_path needs a dir scope, ask_context costs credits"
+    }
+   },
+   "ctxe_index_has_expected": true
+  },
+  {
+   "id": "seo-07",
+   "workspace": "/Users/phuongnam/02.AI/NP_AI_macos/8.P8_SEO_Clean",
+   "lang": "vi",
+   "tags": [
+    "vn_to_vn"
+   ],
+   "query_intent": "concept_flow",
+   "path_signal": "in_body_only",
+   "query": "tài liệu quy trình chuẩn để push nội dung bài viết lên site",
+   "expected_path": "WORKFLOW.md",
+   "results": {
+    "swctx:search": {
+     "paths": [
+      "docs/handoffs/HANDOFF_20260727_chuan-hoa-quy-trinh.md",
+      "docs/handoffs/HANDOFF_20260727_dinh-dang-noi-dung.md",
+      "scripts/_legacy/pdpn_phase4_sentence_manual5.py",
+      "scripts/_legacy/pdpn_phase4_yoast_intro_remediate_from_backup.py",
+      "WORKFLOW.md"
+     ],
+     "rank": 5,
+     "latency_ms": 108.6,
+     "status": "ok"
+    },
+    "ctxe:none": {
+     "paths": [],
+     "rank": 0,
+     "latency_ms": null,
+     "status": "no-surface",
+     "note": "no free workspace-wide NL retrieval; inspect_path needs a dir scope, ask_context costs credits"
+    }
+   },
+   "ctxe_index_has_expected": true
+  },
+  {
+   "id": "seo-08",
+   "workspace": "/Users/phuongnam/02.AI/NP_AI_macos/8.P8_SEO_Clean",
+   "lang": "en",
+   "tags": [
+    "en_control"
+   ],
+   "query_intent": "concept_flow",
+   "path_signal": "in_path",
+   "query": "generate hero image and set featured image for articles missing one",
+   "expected_path": "scripts/p8_fix_featured_images.py",
+   "results": {
+    "swctx:search": {
+     "paths": [
+      "scripts/p8_format_remediation.py",
+      "scripts/_legacy/p8_format_remediation.py",
+      "scripts/p8_fix_featured_images.py",
+      "scripts/_legacy/c1_schema_generate.py",
+      "scripts/_legacy/2026-06-18-reconcile/c1_pipeline_common.py"
+     ],
+     "rank": 3,
+     "latency_ms": 129.5,
+     "status": "ok"
+    },
+    "ctxe:workspace_tree(raw)": {
+     "paths": [],
+     "rank": 0,
+     "latency_ms": 204.0,
+     "status": "ok",
+     "n_files": 0
+    },
+    "ctxe:workspace_tree(token-sweep)": {
+     "paths": [
+      "docs/archive/phamducphuongnam-seo/phase-2/T3-favicon-og/generate_brand_kit_v2.py",
+      "archive/theme/phamducphuongnam-v2_STALE_2026-05-28/template-parts/hero-image.php",
+      "docs/archive/legacy-2026/ai_sessions/nampham_net_scaffold_2026-05-24/components/case-study/MetricsHero.tsx",
+      "docs/archive/legacy-2026/themes/2026-05-25_phamducphuongnam_legacy/template-parts/hero-image.php",
+      "content/images/manifest/reports/20260511_genspark_handoff.md"
+     ],
+     "rank": 0,
+     "latency_ms": 1364.6,
+     "status": "ok",
+     "n_candidates": 538
+    }
+   },
+   "ctxe_index_has_expected": true
+  },
+  {
+   "id": "crm-01",
+   "workspace": "/Users/phuongnam/02.AI/NP_AI_macos/18.CRM-Nam-Pham",
+   "lang": "vi",
+   "tags": [
+    "vn_to_vn"
+   ],
+   "query_intent": "concept_flow",
+   "path_signal": "in_path",
+   "query": "script tính chấm công của nhân viên từ nhật ký hoạt động",
+   "expected_path": "crm-nam-pham/09-build/cham_cong.py",
+   "results": {
+    "swctx:search": {
+     "paths": [
+      "crm-nam-pham/04-app-frontend/nhat-ky.html",
+      "crm-nam-pham/09-build/cham_cong.py",
+      "crm-nam-pham/07-docs/AUDIT_TONG_KIEM_20260806_grok.md",
+      "crm-nam-pham/07-docs/AUDIT_FULL_20260811_cowork.html",
+      "crm-nam-pham/04-app-frontend/van-hanh.html"
+     ],
+     "rank": 2,
+     "latency_ms": 94.3,
+     "status": "ok"
+    },
+    "ctxe:workspace_tree(raw)": {
+     "paths": [],
+     "rank": 0,
+     "latency_ms": 8.0,
+     "status": "ok",
+     "n_files": 0
+    },
+    "ctxe:workspace_tree(token-sweep)": {
+     "paths": [
+      "crm-nam-pham/09-build/cham_cong.py",
+      "crm-nam-pham/08-scripts/pull-crm-weekly.MOCK.py",
+      "crm-nam-pham/08-scripts/test-backend-local.MOCK.py",
+      "crm-nam-pham/_archive-genspark/06-import-scripts/import_csv_nampham_landing.py",
+      "crm-nam-pham/_archive-genspark/06-import-scripts/import_csv_pdpn.py"
+     ],
+     "rank": 1,
+     "latency_ms": 76.0,
+     "status": "ok",
+     "n_candidates": 5
+    }
+   },
+   "ctxe_index_has_expected": true
+  },
+  {
+   "id": "crm-02",
+   "workspace": "/Users/phuongnam/02.AI/NP_AI_macos/18.CRM-Nam-Pham",
+   "lang": "vi",
+   "tags": [
+    "vn_to_vn"
+   ],
+   "query_intent": "symbol_lookup",
+   "path_signal": "in_body_only",
+   "query": "đoạn code tóm tắt hôm qua làm gì và việc nào sắp tới hạn chấm cho CEO",
+   "expected_path": "crm-nam-pham/09-build/so_tay.py",
+   "results": {
+    "swctx:search": {
+     "paths": [
+      "HANDOFF-CRM-20260724.md",
+      "0-MASTER-PLAN-AUDIT.md",
+      "crm-nam-pham/09-build/so_tay.py",
+      "crm-nam-pham/07-docs/COWORK_AUDIT.md",
+      "crm-nam-pham/04-app-frontend/van-hanh.html"
+     ],
+     "rank": 3,
+     "latency_ms": 51.9,
+     "status": "ok"
+    },
+    "swctx:find_definitions": {
+     "paths": [
+      "crm-nam-pham/09-build/so_tay.py"
+     ],
+     "rank": 1,
+     "latency_ms": 9.8,
+     "status": "ok",
+     "symbols": [
+      "tom_tat"
+     ]
+    },
+    "ctxe:find_definitions": {
+     "paths": [
+      "crm-nam-pham/09-build/so_tay.py"
+     ],
+     "rank": 1,
+     "latency_ms": 6.6,
+     "status": "ok",
+     "symbols": [
+      "tom_tat"
+     ]
+    }
+   },
+   "ctxe_index_has_expected": true
+  },
+  {
+   "id": "crm-03",
+   "workspace": "/Users/phuongnam/02.AI/NP_AI_macos/18.CRM-Nam-Pham",
+   "lang": "vi",
+   "tags": [
+    "vn_to_vn"
+   ],
+   "query_intent": "symbol_lookup",
+   "path_signal": "in_body_only",
+   "query": "hàm tạo mảnh tin telegram báo có lead mới hôm qua",
+   "expected_path": "crm-nam-pham/09-build/tin_lead.py",
+   "results": {
+    "swctx:search": {
+     "paths": [
+      "crm-nam-pham/09-build/so_tay.py",
+      "crm-nam-pham/09-build/tin_lead.py",
+      "crm-nam-pham/09-build/tin_lead.py",
+      "crm-nam-pham/09-build/tin_lead.py",
+      "crm-nam-pham/07-docs/WORK_ORDER_20260812.md"
+     ],
+     "rank": 2,
+     "latency_ms": 45.0,
+     "status": "ok"
+    },
+    "swctx:find_definitions": {
+     "paths": [
+      "crm-nam-pham/09-build/tin_lead.py"
+     ],
+     "rank": 1,
+     "latency_ms": 14.6,
+     "status": "ok",
+     "symbols": [
+      "format_fragment"
+     ]
+    },
+    "ctxe:find_definitions": {
+     "paths": [
+      "crm-nam-pham/09-build/tin_lead.py"
+     ],
+     "rank": 1,
+     "latency_ms": 6.7,
+     "status": "ok",
+     "symbols": [
+      "format_fragment"
+     ]
+    }
+   },
+   "ctxe_index_has_expected": true
+  },
+  {
+   "id": "crm-04",
+   "workspace": "/Users/phuongnam/02.AI/NP_AI_macos/18.CRM-Nam-Pham",
+   "lang": "vi",
+   "tags": [
+    "vn_to_vn"
+   ],
+   "query_intent": "concept_flow",
+   "path_signal": "in_path",
+   "query": "script đối soát quyết định của CEO với trạng thái việc thật để đóng vòng",
+   "expected_path": "crm-nam-pham/09-build/dong_vong.py",
+   "results": {
+    "swctx:search": {
+     "paths": [
+      "crm-nam-pham/04-app-frontend/bang-quyet-dinh.html",
+      "crm-nam-pham/07-docs/RESEARCH_CEO_ADMIN_UI_20260820.md",
+      "crm-nam-pham/07-docs/RESEARCH_CEO_ADMIN_UI_20260820.md",
+      "crm-nam-pham/07-docs/RESEARCH_CEO_ADMIN_UI_20260820.md",
+      "crm-nam-pham/07-docs/PLAN_UI_QUANTRI_CEO_20260820.md"
+     ],
+     "rank": 0,
+     "latency_ms": 54.4,
+     "status": "ok"
+    },
+    "ctxe:workspace_tree(raw)": {
+     "paths": [],
+     "rank": 0,
+     "latency_ms": 7.7,
+     "status": "ok",
+     "n_files": 0
+    },
+    "ctxe:workspace_tree(token-sweep)": {
+     "paths": [
+      "crm-nam-pham/08-scripts/pull-crm-weekly.MOCK.py",
+      "crm-nam-pham/08-scripts/test-backend-local.MOCK.py",
+      "crm-nam-pham/_archive-genspark/06-import-scripts/import_csv_nampham_landing.py",
+      "crm-nam-pham/_archive-genspark/06-import-scripts/import_csv_pdpn.py",
+      "PLAN-ceo-nampham-net.md"
+     ],
+     "rank": 0,
+     "latency_ms": 84.9,
+     "status": "ok",
+     "n_candidates": 10
+    },
+    "ctxe:ask_context(min,nocompose)": {
+     "paths": [],
+     "rank": 0,
+     "latency_ms": 12574.1,
+     "status": "ok",
+     "payload_keys": [
+      "answer",
+      "diagnostics",
+      "meta",
+      "outcome",
+      "planner",
+      "record_id",
+      "schema_version"
+     ],
+     "record_evidence": {
+      "id": 1,
+      "status": "completed",
+      "paths": [
+       "crm-nam-pham/09-build/dong_vong.py",
+       "crm-nam-pham/07-docs/PLAN_TASK_UI_SITE_20260820.md",
+       "HANDOFF-CRM-20260724.md",
+       "crm-nam-pham/07-docs/WORK_ORDER_20260812.md"
+      ],
+      "rank": 1,
+      "direct_paths": [
+       "crm-nam-pham/09-build/dong_vong.py"
+      ],
+      "direct_rank": 1,
+      "n_direct": 6,
+      "n_related": 3,
+      "duration_ms": 12565,
+      "failure_code": null
+     }
+    }
+   },
+   "ctxe_index_has_expected": true
+  },
+  {
+   "id": "crm-05",
+   "workspace": "/Users/phuongnam/02.AI/NP_AI_macos/18.CRM-Nam-Pham",
+   "lang": "vi",
+   "tags": [
+    "vn_to_vn"
+   ],
+   "query_intent": "concept_flow",
+   "path_signal": "in_body_only",
+   "query": "middleware gác cửa kiểm tra đăng nhập bằng vân tay passkey",
+   "expected_path": "crm-nam-pham/functions/_middleware.js",
+   "results": {
+    "swctx:search": {
+     "paths": [
+      "crm-nam-pham/functions/_middleware.js",
+      "crm-nam-pham/functions/_middleware.js",
+      "crm-nam-pham/07-docs/DANG_NHAP.md",
+      "crm-nam-pham/07-docs/DANG_NHAP.md",
+      "crm-nam-pham/07-docs/DANG_NHAP.md"
+     ],
+     "rank": 1,
+     "latency_ms": 76.4,
+     "status": "ok"
+    },
+    "ctxe:none": {
+     "paths": [],
+     "rank": 0,
+     "latency_ms": null,
+     "status": "no-surface",
+     "note": "no free workspace-wide NL retrieval; inspect_path needs a dir scope, ask_context costs credits"
+    }
+   },
+   "ctxe_index_has_expected": true
+  },
+  {
+   "id": "crm-06",
+   "workspace": "/Users/phuongnam/02.AI/NP_AI_macos/18.CRM-Nam-Pham",
+   "lang": "vi",
+   "tags": [
+    "vn_to_vn"
+   ],
+   "query_intent": "concept_flow",
+   "path_signal": "in_path",
+   "query": "tài liệu giải thích CEO đăng nhập bằng google qua cloudflare access",
+   "expected_path": "crm-nam-pham/07-docs/DANG_NHAP.md",
+   "results": {
+    "swctx:search": {
+     "paths": [
+      "crm-nam-pham/07-docs/DANG_NHAP.md",
+      "crm-nam-pham/07-docs/DANG_NHAP.md",
+      "PLAN-ceo-nampham-net.md",
+      "PLAN-ceo-nampham-net.md",
+      "crm-nam-pham/07-docs/AUDIT_3_SURFACE_CEO_20260820_agy.md"
+     ],
+     "rank": 1,
+     "latency_ms": 42.9,
+     "status": "ok"
+    },
+    "ctxe:workspace_tree(raw)": {
+     "paths": [],
+     "rank": 0,
+     "latency_ms": 8.2,
+     "status": "ok",
+     "n_files": 0
+    },
+    "ctxe:workspace_tree(token-sweep)": {
+     "paths": [
+      "crm-nam-pham/07-docs/PLAN_UI_QUANTRI_CEO_20260820.md",
+      "crm-nam-pham/07-docs/CUNGUNG_DULIEU_CRM_20260820.md",
+      "crm-nam-pham/07-docs/THAMCHIEU_1MKT_DULIEU_20260820.md",
+      "crm-nam-pham/09-build/test_tra_lai_khong_mat_du_lieu.py",
+      "PLAN-ceo-nampham-net.md"
+     ],
+     "rank": 0,
+     "latency_ms": 93.9,
+     "status": "ok",
+     "n_candidates": 10
+    }
+   },
+   "ctxe_index_has_expected": true
+  },
+  {
+   "id": "crm-07",
+   "workspace": "/Users/phuongnam/02.AI/NP_AI_macos/18.CRM-Nam-Pham",
+   "lang": "vi",
+   "tags": [
+    "vn_to_vn"
+   ],
+   "query_intent": "concept_flow",
+   "path_signal": "in_path",
+   "query": "script nạp file csv export từ serpupdate vào lịch sử từ khóa",
+   "expected_path": "crm-nam-pham/09-build/nap_serp.py",
+   "results": {
+    "swctx:search": {
+     "paths": [
+      "crm-nam-pham/09-build/nap_serp.py",
+      "crm-nam-pham/04-app-frontend/lich-su-hang.html",
+      "crm-nam-pham/09-build/init_db.py",
+      "0-MASTER-PLAN-AUDIT.md",
+      "0-MASTER-PLAN-AUDIT.md"
+     ],
+     "rank": 1,
+     "latency_ms": 61.9,
+     "status": "ok"
+    },
+    "ctxe:workspace_tree(raw)": {
+     "paths": [],
+     "rank": 0,
+     "latency_ms": 7.7,
+     "status": "ok",
+     "n_files": 0
+    },
+    "ctxe:workspace_tree(token-sweep)": {
+     "paths": [
+      "crm-nam-pham/_archive-genspark/06-import-scripts/import_csv_nampham_landing.py",
+      "crm-nam-pham/_archive-genspark/06-import-scripts/import_csv_pdpn.py",
+      "crm-nam-pham/08-scripts/pull-crm-weekly.MOCK.py",
+      "crm-nam-pham/08-scripts/test-backend-local.MOCK.py",
+      "crm-nam-pham/07-docs/PIPELINE_BUOC_DDL_snapshot.md"
+     ],
+     "rank": 0,
+     "latency_ms": 68.0,
+     "status": "ok",
+     "n_candidates": 9
+    }
+   },
+   "ctxe_index_has_expected": true
+  },
+  {
+   "id": "crm-08",
+   "workspace": "/Users/phuongnam/02.AI/NP_AI_macos/18.CRM-Nam-Pham",
+   "lang": "en",
+   "tags": [
+    "en_control"
+   ],
+   "query_intent": "symbol_lookup",
+   "path_signal": "in_body_only",
+   "query": "shared helper writing one decision row into the operations ledger",
+   "expected_path": "crm-nam-pham/09-build/ghi_so.py",
+   "results": {
+    "swctx:search": {
+     "paths": [
+      "crm-nam-pham/09-build/daily.sh",
+      "crm-nam-pham/09-build/push_d1.py",
+      "crm-nam-pham/09-build/push_d1.py",
+      "crm-nam-pham/07-docs/SECURITY_THREAT_MODEL_codex-security_20260729.md",
+      "crm-nam-pham/09-build/daily.sh"
+     ],
+     "rank": 0,
+     "latency_ms": 54.3,
+     "status": "ok"
+    },
+    "swctx:find_definitions": {
+     "paths": [
+      "crm-nam-pham/09-build/ghi_so.py"
+     ],
+     "rank": 1,
+     "latency_ms": 6.3,
+     "status": "ok",
+     "symbols": [
+      "ghi_quyet_dinh"
+     ]
+    },
+    "ctxe:find_definitions": {
+     "paths": [
+      "crm-nam-pham/09-build/ghi_so.py"
+     ],
+     "rank": 1,
+     "latency_ms": 6.7,
+     "status": "ok",
+     "symbols": [
+      "ghi_quyet_dinh"
+     ]
+    }
+   },
+   "ctxe_index_has_expected": true
+  },
+  {
+   "id": "seo-09",
+   "workspace": "/Users/phuongnam/02.AI/NP_AI_macos/8.P8_SEO_Clean",
+   "lang": "vi",
+   "tags": [
+    "vn_to_en"
+   ],
+   "query_intent": "concept_flow",
+   "path_signal": "in_body_only",
+   "query": "bộ não phân tích SEO đọc dữ liệu GSC GA4 thật rồi gọi DeepSeek sinh hành động kèm bằng chứng",
+   "expected_path": "scripts/p8_brain.py",
+   "results": {
+    "swctx:search": {
+     "paths": [
+      "docs/references/seo/gsc-ga4-mcp-operating-playbook.md",
+      "docs/references/seo/gsc-ga4-mcp-operating-playbook.md",
+      "docs/archive/phamducphuongnam-seo/prod-fix-heading-level-report-kien-truc-du-lieu-ems-nang-cao-isa95-historian-iec62443-20260521-180948.json",
+      "docs/handoffs/awgs_mcp_ga4_gsc_foreman_2026-07-21.md",
+      "docs/handoffs/awgs_mcp_ga4_gsc_foreman_2026-07-21.md"
+     ],
+     "rank": 0,
+     "latency_ms": 245.8,
+     "status": "ok"
+    },
+    "ctxe:ask_context(min,nocompose)": {
+     "rank": 0,
+     "paths": [],
+     "latency_ms": 60229.3,
+     "status": "timeout-recovered",
+     "record_recovery": {
+      "id": 17,
+      "status": "running",
+      "list_err": null,
+      "get_err": null
+     },
+     "record_evidence": {
+      "id": 17,
+      "status": "completed",
+      "paths": [
+       "scripts/p8_analytics_pull.py",
+       "scripts/p8_brain.py",
+       "scripts/p8_daily.py",
+       "scripts/p8_auto_optimizer.py",
+       "artifacts/team/sda-brain/constitution_draft.md"
+      ],
+      "rank": 2,
+      "direct_paths": [
+       "scripts/p8_analytics_pull.py",
+       "scripts/p8_brain.py",
+       "scripts/p8_daily.py",
+       "scripts/p8_auto_optimizer.py"
+      ],
+      "direct_rank": 2,
+      "n_direct": 19,
+      "n_related": 0,
+      "duration_ms": 64574,
+      "failure_code": null
+     }
+    }
+   },
+   "ctxe_index_has_expected": true
+  },
+  {
+   "id": "seo-10",
+   "workspace": "/Users/phuongnam/02.AI/NP_AI_macos/8.P8_SEO_Clean",
+   "lang": "vi",
+   "tags": [
+    "vn_to_en"
+   ],
+   "query_intent": "concept_flow",
+   "path_signal": "in_body_only",
+   "query": "script áp dụng các gợi ý link nội bộ vào bài viết trên site",
+   "expected_path": "scripts/ghost_link_builder_apply.py",
+   "results": {
+    "swctx:search": {
+     "paths": [
+      "scripts/internal_link_builder.py",
+      "docs/00_governance/CHUAN_BO_CUC_TRANG_BAI_VIET.md",
+      "docs/handoffs/HANDOFF_20260729_ui-bo-cuc-trang-bai-viet.md",
+      "scripts/p8_link_injector.py",
+      "scripts/p8_content_depth_worker.py"
+     ],
+     "rank": 0,
+     "latency_ms": 1262.1,
+     "status": "ok"
+    },
+    "ctxe:none": {
+     "paths": [],
+     "rank": 0,
+     "latency_ms": null,
+     "status": "no-surface",
+     "note": "no free workspace-wide NL retrieval; inspect_path needs a dir scope, ask_context costs credits"
+    }
+   },
+   "ctxe_index_has_expected": true
+  },
+  {
+   "id": "seo-11",
+   "workspace": "/Users/phuongnam/02.AI/NP_AI_macos/8.P8_SEO_Clean",
+   "lang": "vi",
+   "tags": [
+    "vn_to_vn"
+   ],
+   "query_intent": "concept_flow",
+   "path_signal": "in_path",
+   "query": "tài liệu kế hoạch công việc của đội trong docs-fleet",
+   "expected_path": "docs-fleet/ke-hoach.md",
+   "results": {
+    "swctx:search": {
+     "paths": [
+      "docs-fleet/ke-hoach.md",
+      "docs-fleet/ke-hoach.md",
+      "docs-fleet/ke-hoach.md",
+      "docs/handoffs/HANDOFF_20260820_ke-hoach-9-viec-va-luat-dong-main.md",
+      "docs-fleet/index.md"
+     ],
+     "rank": 1,
+     "latency_ms": 166.5,
+     "status": "ok"
+    },
+    "ctxe:workspace_tree(raw)": {
+     "paths": [],
+     "rank": 0,
+     "latency_ms": 43.3,
+     "status": "ok",
+     "n_files": 0
+    },
+    "ctxe:workspace_tree(token-sweep)": {
+     "paths": [
+      "docs-fleet/ke-hoach.md",
+      "docs/handoffs/HANDOFF_20260820_ke-hoach-9-viec-va-luat-dong-main.md",
+      "docs/archive/legacy-2026/ai_sessions/nampham_net_scaffold_2026-05-24/tailwind.config.js",
+      "docs/archive/session-reports/P8_BLUEMOUNTAIN_COMPETITOR_MAPPING_2026-05-27.md",
+      "docs/archive/session-reports/P8_BLUEMOUNTAIN_FORMAT_MAPPING_2026-05-27.md"
+     ],
+     "rank": 1,
+     "latency_ms": 424.2,
+     "status": "ok",
+     "n_candidates": 278
+    }
+   },
+   "ctxe_index_has_expected": true
+  },
+  {
+   "id": "crm-09",
+   "workspace": "/Users/phuongnam/02.AI/NP_AI_macos/18.CRM-Nam-Pham",
+   "lang": "vi",
+   "tags": [
+    "vn_to_vn"
+   ],
+   "query_intent": "concept_flow",
+   "path_signal": "in_path",
+   "query": "script kiểm tra hệ thiết kế, bắt lỗi ai viết mã màu thẳng vào trang",
+   "expected_path": "crm-nam-pham/09-build/kiem_he_thiet_ke.py",
+   "results": {
+    "swctx:search": {
+     "paths": [
+      "crm-nam-pham/09-build/kiem_he_thiet_ke.py",
+      "crm-nam-pham/04-app-frontend/he-thiet-ke.css",
+      "crm-nam-pham/04-app-frontend/he-thiet-ke.css",
+      "crm-nam-pham/07-docs/THAMCHIEU_1MKT_UI_20260820.md",
+      "crm-nam-pham/07-docs/THAMCHIEU_1MKT_20260820.html"
+     ],
+     "rank": 1,
+     "latency_ms": 86.2,
+     "status": "ok"
+    },
+    "ctxe:workspace_tree(raw)": {
+     "paths": [],
+     "rank": 0,
+     "latency_ms": 9.5,
+     "status": "ok",
+     "n_files": 0
+    },
+    "ctxe:workspace_tree(token-sweep)": {
+     "paths": [
+      "crm-nam-pham/09-build/kiem_he_thiet_ke.py",
+      "crm-nam-pham/09-build/test_bundle_khong_bo_sot_trang.py",
+      "crm-nam-pham/08-scripts/pull-crm-weekly.MOCK.py",
+      "crm-nam-pham/08-scripts/test-backend-local.MOCK.py",
+      "crm-nam-pham/_archive-genspark/06-import-scripts/import_csv_nampham_landing.py"
+     ],
+     "rank": 1,
+     "latency_ms": 87.3,
+     "status": "ok",
+     "n_candidates": 11
+    }
+   },
+   "ctxe_index_has_expected": true
+  },
+  {
+   "id": "crm-10",
+   "workspace": "/Users/phuongnam/02.AI/NP_AI_macos/18.CRM-Nam-Pham",
+   "lang": "en",
+   "tags": [
+    "en_control"
+   ],
+   "query_intent": "symbol_lookup",
+   "path_signal": "in_body_only",
+   "query": "realign local issue ids with the D1 database when fingerprints match but ids differ",
+   "expected_path": "crm-nam-pham/09-build/vaid_issues.py",
+   "results": {
+    "swctx:search": {
+     "paths": [
+      "crm-nam-pham/09-build/push_d1.py",
+      "crm-nam-pham/09-build/pull_d1.py",
+      "crm-nam-pham/09-build/push_d1.py",
+      "crm-nam-pham/09-build/push_d1.py",
+      "crm-nam-pham/09-build/push_d1.py"
+     ],
+     "rank": 0,
+     "latency_ms": 83.2,
+     "status": "ok"
+    },
+    "swctx:find_definitions": {
+     "paths": [],
+     "rank": 0,
+     "latency_ms": 14.8,
+     "status": "ok",
+     "symbols": [
+      "realign",
+      "realign_issue_ids",
+      "realign_issues"
+     ]
+    },
+    "ctxe:find_definitions": {
+     "paths": [],
+     "rank": 0,
+     "latency_ms": 7.3,
+     "status": "ok",
+     "symbols": [
+      "realign",
+      "realign_issue_ids",
+      "realign_issues"
+     ],
+     "not_found": [
+      "realign",
+      "realign_issue_ids",
+      "realign_issues"
+     ]
+    }
+   },
+   "ctxe_index_has_expected": true
+  },
+  {
+   "id": "crm-11",
+   "workspace": "/Users/phuongnam/02.AI/NP_AI_macos/18.CRM-Nam-Pham",
+   "lang": "vi",
+   "tags": [
+    "vn_to_en"
+   ],
+   "query_intent": "concept_flow",
+   "path_signal": "in_body_only",
+   "query": "script ghi nhật ký hoạt động của người dùng theo thời gian thực",
+   "expected_path": "crm-nam-pham/09-build/log_activity_live.py",
+   "results": {
+    "swctx:search": {
+     "paths": [
+      "crm-nam-pham/04-app-frontend/nhat-ky.html",
+      "crm-nam-pham/07-docs/THAMCHIEU_1MKT_DULIEU_20260820.md",
+      "crm-nam-pham/08-scripts/test-backend-local.MOCK.py",
+      "HANDOFF-CRM-20260724.md",
+      "PLAN-ceo-nampham-net.md"
+     ],
+     "rank": 0,
+     "latency_ms": 41.7,
+     "status": "ok"
+    },
+    "ctxe:ask_context(min,nocompose)": {
+     "paths": [],
+     "rank": 0,
+     "latency_ms": 16779.8,
+     "status": "ok",
+     "payload_keys": [
+      "answer",
+      "diagnostics",
+      "meta",
+      "outcome",
+      "planner",
+      "record_id",
+      "schema_version"
+     ],
+     "record_evidence": {
+      "id": 2,
+      "status": "completed",
+      "paths": [
+       "crm-nam-pham/09-build/log_activity_live.py",
+       "crm-nam-pham/09-build/build_activity.py",
+       "crm-nam-pham/09-build/cham_cong.py"
+      ],
+      "rank": 1,
+      "direct_paths": [
+       "crm-nam-pham/09-build/log_activity_live.py"
+      ],
+      "direct_rank": 1,
+      "n_direct": 4,
+      "n_related": 5,
+      "duration_ms": 16770,
+      "failure_code": null
+     }
+    }
+   },
+   "ctxe_index_has_expected": true
+  }
+ ]
+}
