@@ -1,20 +1,27 @@
 # Kế hoạch tối ưu — mục tiêu: swctx tốt hơn ctxe trên mọi trục đo được
 
 > Nền: `06-SO-SANH-CTXE.md` + `bench/engine_ab.md` + `parity_probe`.
-> Quy tắc: mọi hạng mục đều phải có gate đo được; không đoán, không thêm
-> feature không có bằng chứng cần. Cập nhật 2026-09-19 sau khi đo full
-> surface (22 tool) + full miss coverage (9/9 ask rescue).
+> Đã qua 1 vòng Codex review (`/tmp/codex-plan-result.md`, verdict RISKY)
+> — bản này là v2 đã khóa gates theo findings F1-F7.
+> Quy tắc: mọi hạng mục phải có gate đo được; không đoán.
+
+## Decision record (trả lời F7 — supersede boundary cũ)
+
+`docs/05-GIOI-HAN.md` trước ghi "không build synthesis/planner trong
+swctx". **Quyết định mới (CEO, 2026-09-19): ctxe tốn credits → swctx
+phải tự đủ L2 local-only.** W12 là product decision đã duyệt; cập nhật
+05-GIOI-HAN.md khi W12 land. Win condition: ctxe trở thành optional
+fallback, không còn required.
 
 ## Bảng điểm hiện tại — đo thật
 
 | Trục | swctx | ctxe | Trạng thái |
 |---|---|---|---|
 | NL retrieval | search 13/22 @ ~100ms, $0 | không có surface free | **swctx thắng** |
-| find_definitions | 3/4 @ 12ms | 3/4 @ 7ms | hòa chất lượng, **thua 5ms** |
+| find_definitions | 3/4 @ 12ms | 3/4 @ 7ms | hòa chất lượng, thua 5ms |
 | find_usages | 3/2/0 | 3/1/0 | **swctx ≥** |
 | inspect_path / fetch_chunks / graph | parity | parity | hòa |
 | get_impact | dependents hydrated | chỉ hop+score | **swctx thắng** |
-| list_workspaces | 23 (mọi index) | 9 (catalog) | khác semantics |
 | Telemetry adoption | usage_events + `swctx stats` | không có | **swctx thắng** |
 | Privacy/cost/ops | local-only, $0, 1 binary | server + credits + daemon | **swctx thắng** |
 | **Synthesis** | context_pack deterministic | ask_context cứu **9/9 miss** | **ctxe thắng — gap lớn nhất** |
@@ -22,73 +29,81 @@
 | fast_understand | card deterministic | answer + planner LLM | **ctxe sâu hơn** |
 | compose_answer | không có | verified live 10.5s | **ctxe-only** |
 
-**Union 22/22** — nhưng mục tiêu mới: swctx một mình phải đạt coverage
-đó local-only, ctxe chỉ còn là optional fallback.
+## Exit gate (chốt theo F6 — milestone ≠ exit)
 
-## Workstreams — xếp theo expected value
+**Exit thật**: 22/22 evidence-level coverage **local-only** trên frozen
+vn_probe + holdout mới (không dùng holdout để tune); mọi answer có
+citation-valid; không regression trên pass set; zero-network proof.
+Baseline giữ riêng: search-only · search+find_defs · +W11 · +W12-3B ·
++W12-27B — không gộp quality 27B với latency 3B.
 
-### W11 · vn_to_en translation leg (retrieval gap lớn nhất, rẻ nhất)
+Milestone: W11 ≥16/22 search-only · W12 rescue ≥6/9.
 
-- **Vấn đề đo được**: 5/22 miss toàn bộ là `vn_to_en` — query tiếng Việt,
-  code tiếng Anh. 4 embedder multilingual đã chứng minh không cứu được
-  (e5-large net 0, bge-m3 quality GO nhưng 410ms/embed vượt gate).
-- **Phương án**: leg retrieval thứ 5 — dịch query VN→EN qua **Ollama
-  local** (`qwen2.5:3b` đã pull sẵn, ~1-2s) → FTS/semantic trên bản dịch
-  → RRF merge với leg gốc. Chỉ chạy khi query có dấu VN (phát hiện rẻ).
-  Cache bản dịch vào `meta` để query lặp không trả giá.
-- **Gate**: vn_probe ≥16/22 search-only (hiện 13/22, target cứu ≥3/5
-  miss), p95 hybrid không vượt ~700ms warm (dịch async song song legs,
-  hoặc pre-translate ngoài critical path), không regression câu có sẵn.
-- **Fallback nếu probe fail**: từ điển thuật ngữ VN→EN curated cho domain
-  (seo/crm/code) — thô nhưng deterministic, 0 latency.
+## W11 · vn_to_en translation leg (hardened F1+F2)
 
-### W12 · Local synthesis — `swctx answer` (beat ctxe ở sân nhà)
+- Ollama `qwen2.5:3b`, output **structured**: `{english_terms: [...],
+  protected_tokens: [...], confidence}` — không prose; giữ nguyên
+  identifier/path/acronym; reject bản dịch rỗng/quá dài/đổi protected.
+- **Hard deadline** cho translation (default ~800ms); quá deadline → trả
+  kết quả gốc, leg dịch bị hủy — translation KHÔNG nằm trên critical
+  path của kết quả đầu tiên.
+- Bản dịch chỉ feed **lexical/path candidate leg** (FTS trên
+  english_terms + path_tokens), file-deduped, top-K bounded, weight
+  riêng đã tune — KHÔNG chạy translated semantic leg, không uniform
+  weight. Query rewrite toàn bộ chỉ là ablation, không phải default.
+- Gating: chỉ fire khi query có dấu VN (phát hiện rẻ, deterministic).
+- Cache: LRU bounded **ngoài index** (file riêng dưới .swctx/ hoặc
+  process cache), key = hash(normalized query + model digest + prompt
+  version + mode), TTL + quota rõ — không ghi vô hạn vào `meta`.
+- **Gates tách**: `search-original` p95 giữ nguyên ~100-700ms;
+  `translation-assisted` đo p50/p95 riêng cold/warm; Ollama down/absent
+  → degrade về baseline, không lỗi.
+- **Ablation bắt buộc** trên all-22 + holdout: original ·
+  +translation-FTS · +translation-hybrid — đo recall@5, per-query
+  regression, rank shift.
 
-- **Vấn đề**: ctxe ask_context cứu 9/9 miss mà retrieval thuần không với
-  tới. Đây là lý do duy nhất còn cần ctxe. swctx cần L2 của riêng mình.
-- **Phương án**: tool `answer` mới —
-  `search(expand)` + `graph_neighbors` + `fetch_chunks` → evidence pack
-  → **Ollama local** (`qwen2.5:3b` mặc định ~1.9GB; `Qwopus 27B Q4` có
-  sẵn cho quality mode) → answer kèm file citations → persist thành
-  record (`put_record kind=ask`, đúng pattern durable-record của ctxe).
-- **Gate**: chạy 9 miss hiện tại qua `swctx answer`, rescue ≥6/9 ở
-  evidence level; answer phải cite đúng expected_path. Latency target
-  <30s cho 3B model. Zero credits, zero network.
-- **Rủi ro**: chất lượng 3B << server LLM — nếu rescue <6/9 thì thử
-  Qwopus 27B (chậm hơn nhưng vẫn local), hoặc chấp nhận ctxe làm
-  fallback đúng thiết kế L2.
+## W12 · `swctx answer` — local synthesis (hardened F3+F4+F5)
 
-### W13 · fast_understand nâng cấp (parity ctxe synthesis)
+- Contract: **answer trên evidence đã verified** (Codex option 1 —
+  planner loop là follow-up riêng nếu W11+W12 không đủ coverage).
+- Evidence pack: handle bất biến `[E01] path=… start_line=… end_line=…`
+  + content; budget theo item VÀ token (4-8 direct chunks, 2-4 related,
+  file-deduped, line window quanh hit); con số chọn bằng đo trên
+  context window model.
+- Output schema bắt buộc: `{answer, citations:[{evidence_id}],
+  limitations}` — claim thiếu evidence phải nói insufficient.
+- **Citation validator server-side**: mọi evidence_id phải tồn tại trong
+  pack, path/line khớp; citation ngoài pack = invalid; retry đúng 1 lần
+  prompt sửa format; không tự chữa path model bịa.
+- Metrics tách: (a) target file có vào evidence không (retrieval),
+  (b) citation validity, (c) answer đáp intent. `expected_path` không
+  bao giờ vào prompt.
+- Model policy: 3B default warm; 27B route khi validator fail / answer
+  coverage thấp / hard-class query — đo riêng quality+latency từng model.
+- Ops: preflight `ollama version` + model digest + memory; semaphore
+  concurrency; timeout/kill rõ; **không auto-pull model trong response
+  path**; Ollama absent → deterministic pack + structured limitation.
+- Record `kind=ask`: query, model/digest, prompt version, legs, evidence
+  ids+paths+lines, citations, validator result, latency, limitations;
+  record failure không được mất answer.
+- Tests: Ollama unavailable, timeout, malformed output, invalid
+  citation, cancellation, record-write failure.
 
-- Card deterministic hiện tại → optional `--synthesize` pipe qua Ollama
-  → prose orientation như ctxe. Rẻ vì W12 đã có plumbing LLM.
-- **Gate**: cùng query, output phải chứa ≥ cùng facts với card
-  deterministic (không mất độ chính xác khi thêm prose).
+## W13 · fast_understand --synthesize (sau W12, tái dùng plumbing)
 
-### W14 · find_definitions latency parity (12ms → <8ms)
+Card deterministic → optional LLM prose. Gate: output chứa ≥ cùng facts
+với card, zero-network.
 
-- Nhỏ nhưng là chỗ duy nhất ctxe nhanh hơn ở retrieval. Profile call
-  path (index open? PRAGMA? symbol lookup join?) → trim. Chỉ làm khi
-  profile chỉ ra headroom rõ; 12ms đã đủ nhanh cho agent.
+## W14 · find_definitions latency (12ms → <8ms)
 
-### W15 · Reranker revisit — gated by telemetry
+Chỉ làm khi profile chỉ headroom rõ; 12ms đã đủ dùng được.
 
-- usage_events đang thu. Khi đủ data (vài ngày), nhóm zero-hit queries
-  theo class → nếu là "đúng file có trong top-10 nhưng rank thấp" thì
-  reranker local (nhẹ, code-aware) mới có nghĩa. Không re-open trước
-  khi có evidence — 3 cross-encoder đã bị loại bằng đo.
+## W15 · Reranker revisit — gated by usage_events telemetry
 
-### W16 · Packaging + corruption gates (đã có trong plan cũ)
+Chờ data thật chỉ query class nào fail; 3 cross-encoder đã bị loại.
 
-- `release.sh`: build → install → selftest → tag.
-- Nightly inject corrupt sidecar/model → expect graceful, không crash.
-- Giữ nguyên, làm sau W11/W12.
+## W16 · Packaging + corruption gates
 
-## Nguyên tắc không phá
-
-1. Local-only: mọi thành phần mới chạy on-device (Ollama là local).
-2. Telemetry không bao giờ nằm trên response path.
-3. Không đụng index schema trừ khi migration có kế hoạch drift-safe.
-4. Mọi claim "tốt hơn ctxe" phải kèm số đo trên probe/harness hiện có.
-5. ctxe vẫn được giữ làm L2 fallback — win condition là "không cần",
-   không phải "xóa".
+`release.sh` build→install→selftest→tag; nightly inject corrupt
+sidecar/model expect graceful; **model-availability + Ollama-disabled
+fallback là release gate của W12** (kéo sớm, không để cuối).
