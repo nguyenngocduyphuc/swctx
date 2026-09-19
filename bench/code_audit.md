@@ -135,19 +135,32 @@ Fix: enforce an absolute depth cap (e.g. 64) on the transparent path too.
   (graphemes) vs SQL `substr(…,1800)` (code points) — restore-key mismatch
   only on combining-mark boundaries; rare, noted.
 
-## Fix priority
+## Resolution — all findings fixed (2026-09-19, same day)
 
-| # | Finding | Effort | Why first |
-|---|---|---|---|
-| F4 | ask pipe deadlock | ~10 lines | real user-facing hang, pattern exists in-repo |
-| F2 | sidecar overflow | ~10 lines | crash-on-corrupt-input, MCP server kills |
-| F5 | SP length trap | ~3 lines | same class as F2 |
-| F1 | install-agent path | ~15 lines | breaks all client registrations in common usage |
-| F3 | model binding | design + ~40 lines | latent; needs per-store binding decision |
-| F6 | fp32 guard | ~5 lines | fail-loud on future model swap |
-| F7 | FSEvents UAF | ~10 lines | narrow but cheap to fix with passRetained |
-| F8 | depth cap | ~5 lines | pathological input only |
+| # | Fix | Test evidence |
+|---|---|---|
+| F1 | `resolveExecutableOnPATH` shared by `mcp-config` + `install-agent` | manual: PATH-invoked `install-agent` now writes real absolute path |
+| F2 | `Int(exactly:)` + division-first bound before any multiply | `testSidecarRejectsCountBeyondIntMax`, `…OverflowingCount`, `…TruncatedPayload`, `…RoundTripsValidData` |
+| F3 | `Store.embedder` → `Embedder.instance(forModelID:)` — per-model pinned instance via shared backend cache; all ~20 `Embedder.shared` call sites migrated (`shared`/`bindModel` kept for compat, no longer on any query path) | `testStoreEmbedderPinsIndexModel` |
+| F4 | `AskCmd.spawn` drains stdout+stderr concurrently via DispatchGroup before waiting | code-reviewed; pattern now matches `Prime.probe` |
+| F5 | `fieldData`: `Int(exactly:)` + `n <= data.count - pos` | `testSPTokenizerRejectsGiantFieldLength` |
+| F6 | `guard hidden.dataType == .float32` before `withMemoryRebound` | covered by existing embed tests (fp32 path unchanged) |
+| F7 | `passRetained(self)` + release in `stopOnQueue` after invalidate on the same serial queue | code-reviewed (no FSEvents test harness) |
+| F8 | absolute `depth > 64` cap at `emitChunks` entry — covers transparent-type bypass AND oversized-split recursion | existing analyzer tests unchanged/pass |
 
-Recommendation: land F4, F2, F5, F1 in one "hardening" pass with focused
-regression tests (corrupt sidecar/model fixtures are trivially writable);
-F3 deserves its own change with a mixed-model test; F6-F8 are cheap guards.
+**LLM second pass** (ocr scan via agy-CLI shim, Search.swift pilot):
+
+- CONFIRMED F2 (independent re-derivation).
+- NEW REAL BUG fixed: `raw.bindMemory(to: Float.self)` on SQLite BLOB /
+  `Embedder.vector(from:)` — `bindMemory` requires 4-byte alignment a `Data`
+  buffer does not guarantee → both sites now `copyBytes` into aligned array
+  storage (`testVectorFromUnalignedBlobDecodes`).
+- PARTIALLY REAL: `SELECT DISTINCT … ORDER BY lower(s.name)` — does not
+  error on SQLite 3.43 (verified live), but multi-symbol joins made
+  def-first ranking non-deterministic → `GROUP BY` + `MIN(CASE…)`
+  (`testSymbolHitsRankDeterministicWithMultiMatch`).
+- REJECTED: `SQLITE_LIMIT_VARIABLE_NUMBER` (SQLite ≥3.32 allows 32766 vars;
+  RRF candidate set is bounded far below), `group.wait()` thread starvation
+  (standard GCD pattern; dispatched legs never depend on the caller thread).
+
+Gate: `swift test` 123/123 green (115 + 8 new audit regressions).

@@ -54,6 +54,8 @@ public final class Embedder: @unchecked Sendable {
     nonisolated(unsafe) private static var boundID: String?
     /// Lazily-constructed backends, one per model id (nil cached on failure).
     nonisolated(unsafe) private static var backends: [String: BGEEmbedder?] = [:]
+    /// Per-model Embedder instances for `Embedder.instance(forModelID:)`.
+    nonisolated(unsafe) private static var instances: [String: Embedder] = [:]
     nonisolated(unsafe) private static var envChecked = false
     nonisolated(unsafe) private static var envID: String?
 
@@ -93,6 +95,20 @@ public final class Embedder: @unchecked Sendable {
             envChecked = true
         }
         return explicitID ?? envID ?? defaultModelID
+    }
+
+    /// Process-wide instance pinned to one explicit model id — unlike
+    /// `shared`, it never follows `bindModel`, so two Stores bound to
+    /// different models in one MCP process each keep their own vector
+    /// space. Backends still come from the shared cache (no per-instance
+    /// MLModel reload). `Store.embedder` is built on this.
+    public static func instance(forModelID id: String?) -> Embedder {
+        lock.lock(); defer { lock.unlock() }
+        let key = spec(for: id)?.id ?? defaultModelID
+        if let e = instances[key] { return e }
+        let e = Embedder(fixedShared: key)
+        instances[key] = e
+        return e
     }
 
     /// Shared-cache backend lookup — used by `Embedder.shared` so query paths
@@ -143,11 +159,23 @@ public final class Embedder: @unchecked Sendable {
         nl = NLEmbedding.sentenceEmbedding(for: .english)
     }
 
-    private var backend: BGEEmbedder? {
-        fixedModelID == nil
-            ? Embedder.backend(for: Embedder.activeModelID)
-            : ownBackend
+    /// Fixed-model instance whose backend comes from the shared cache —
+    /// `instance(forModelID:)` only.
+    private init(fixedShared id: String) {
+        fixedModelID = id
+        ownBackend = nil
+        nl = NLEmbedding.sentenceEmbedding(for: .english)
     }
+
+    private var backend: BGEEmbedder? {
+        if let b = ownBackend { return b }
+        return Embedder.backend(for: fixedModelID ?? Embedder.activeModelID)
+    }
+
+    /// The model id this instance embeds with — fixed/shared binding for
+    /// store-pinned instances, process `activeModelID` for `shared`.
+    /// Internal: exposed for tests asserting per-store model isolation.
+    var resolvedModelID: String { fixedModelID ?? Embedder.activeModelID }
 
     public var isAvailable: Bool { backend != nil || nl != nil }
     public var dimension: Int { backend?.dimension ?? nl?.dimension ?? 0 }
@@ -174,9 +202,14 @@ public final class Embedder: @unchecked Sendable {
     }
 
     public static func vector(from blob: Data, dim: Int) -> [Float] {
-        blob.withUnsafeBytes { buf in
-            Array(buf.bindMemory(to: Float.self).prefix(dim))
+        // copyBytes into the array's own storage: `bindMemory` requires
+        // 4-byte alignment that a Data buffer (e.g. a subdata slice
+        // sharing a parent allocation at an offset) does not guarantee.
+        var vec = [Float](repeating: 0, count: dim)
+        vec.withUnsafeMutableBytes { dst in
+            blob.copyBytes(to: dst, from: 0..<min(blob.count, dim * 4))
         }
+        return vec
     }
 
     public static func dot(_ a: [Float], _ b: [Float]) -> Float {

@@ -124,7 +124,7 @@ public enum Prime {
         out["stale_records"] = staleRecords
         // Freshness: the same shallow stat probe get_status runs by default
         // (indexed rows only — no directory walk).
-        let indexer = Indexer(store: store, embedder: Embedder.shared)
+        let indexer = Indexer(store: store, embedder: store.embedder)
         if let f = try? indexer.freshness(deep: false) {
             out["stale_files"] = f.staleCount
             out["changed_files"] = f.changedPaths.count

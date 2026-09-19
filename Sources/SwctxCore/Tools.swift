@@ -155,7 +155,7 @@ public enum SwctxTools {
         out["counts"] = counts
         out["languages"] = langs
         if let t = lastIndexed { out["last_indexed_at"] = t }
-        let vecAvail = Embedder.shared.isAvailable
+        let vecAvail = store.embedder.isAvailable
         out["capabilities"] = [
             "fts": true, "vector_search": vecAvail,
             "graph": true, "semantic": vecAvail,
@@ -165,7 +165,7 @@ public enum SwctxTools {
         // runs the directory walk to report new_files (seconds on a large
         // tree). Agents should treat stale_files > 0 as "run index_workspace
         // before trusting".
-        let indexer = Indexer(store: store, embedder: Embedder.shared)
+        let indexer = Indexer(store: store, embedder: store.embedder)
         let deep = args["freshness"]?.str == "deep"
         if let f = try? indexer.freshness(deep: deep) {
             var freshness: [String: Any] = [
@@ -233,19 +233,19 @@ public enum SwctxTools {
         var hits: [SearchHit]
         switch mode {
         case "fts": hits = try Search.fts(store: store, query: q, limit: limit, pathFilter: pathFilter)
-        case "semantic": hits = try Search.semantic(store: store, embedder: Embedder.shared, query: q, limit: limit, pathFilter: pathFilter)
+        case "semantic": hits = try Search.semantic(store: store, embedder: store.embedder, query: q, limit: limit, pathFilter: pathFilter)
         case "identifier":
-            var h = try Search.hybrid(store: store, embedder: Embedder.shared,
+            var h = try Search.hybrid(store: store, embedder: store.embedder,
                                       query: q, limit: limit, pathFilter: pathFilter,
                                       includeVector: false)
             // The name may live outside FTS/symbol reach (e.g. `authToken`
             // vs `auth_token`) — fall back to the full fusion once.
             if h.isEmpty {
-                h = try Search.hybrid(store: store, embedder: Embedder.shared,
+                h = try Search.hybrid(store: store, embedder: store.embedder,
                                       query: q, limit: limit, pathFilter: pathFilter)
             }
             hits = h
-        default: hits = try Search.hybrid(store: store, embedder: Embedder.shared, query: q, limit: limit, pathFilter: pathFilter)
+        default: hits = try Search.hybrid(store: store, embedder: store.embedder, query: q, limit: limit, pathFilter: pathFilter)
         }
         // Optional cross-encoder stage (`rerank: true`): pin the top-3
         // fused hits, rescore the rest of a 30-candidate pool with the
@@ -260,12 +260,12 @@ public enum SwctxTools {
             let baselineTop = hits.prefix(5).map { $0.path }
             let identifier = mode == "identifier"
             var pool = try Search.hybridCandidates(
-                store: store, embedder: Embedder.shared, query: q,
+                store: store, embedder: store.embedder, query: q,
                 limit: limit, poolLimit: 30, pathFilter: pathFilter,
                 includeVector: !identifier)
             if identifier && pool.isEmpty {
                 pool = try Search.hybridCandidates(
-                    store: store, embedder: Embedder.shared, query: q,
+                    store: store, embedder: store.embedder, query: q,
                     limit: limit, poolLimit: 30, pathFilter: pathFilter)
             }
             let pin = min(3, pool.count)
@@ -530,7 +530,7 @@ public enum SwctxTools {
         // candidate pool; `offset` slices the ranked pool (ctxe parity).
         if let query = args["query"]?.str, !query.isEmpty {
             let poolSize = min(args["rerank_pool_size"]?.int ?? 150, 500)
-            let hits = try Search.hybrid(store: store, embedder: Embedder.shared,
+            let hits = try Search.hybrid(store: store, embedder: store.embedder,
                                          query: query, limit: poolSize, pathFilter: path)
             let sliced = Array(hits.dropFirst(max(0, offset)).prefix(limit))
             var rowsById: [Int64: Row] = [:]
@@ -596,7 +596,7 @@ public enum SwctxTools {
             }
             // Tree only lists indexed rows, so the shallow scan (changed +
             // deleted) suffices — new-on-disk files have no row to filter.
-            let f = try Indexer(store: store, embedder: Embedder.shared).freshness(deep: false)
+            let f = try Indexer(store: store, embedder: store.embedder).freshness(deep: false)
             let stale = f.changedPaths.union(f.deletedPaths)
             let filtered = rows.filter {
                 let isStale = stale.contains(($0["path"] as? String) ?? "")
@@ -1445,7 +1445,7 @@ public enum SwctxTools {
         guard FileManager.default.fileExists(
                 atPath: Store.indexURL(forKey: key).path),
               let store = try? Store(workspaceRoot: url),
-              let f = try? Indexer(store: store, embedder: Embedder.shared)
+              let f = try? Indexer(store: store, embedder: store.embedder)
                     .freshness(deep: false)
         else { return nil }
         staleCacheLock.lock()

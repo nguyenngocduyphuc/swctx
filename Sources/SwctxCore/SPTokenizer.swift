@@ -676,8 +676,9 @@ private struct ProtoReader {
 
     mutating func fieldData() -> ArraySlice<UInt8>? {
         guard let len = varint() else { return nil }
-        let n = Int(len)
-        guard n >= 0, pos + n <= data.count else { return nil }
+        // `Int(len)` traps when the varint exceeds Int.max; a malformed
+        // model file must fail soft, not crash the parser.
+        guard let n = Int(exactly: len), n <= data.count - pos else { return nil }
         let r = data.dropFirst(pos).prefix(n)
         pos += n
         return r

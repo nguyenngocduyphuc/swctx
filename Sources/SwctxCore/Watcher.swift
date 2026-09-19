@@ -20,6 +20,10 @@ public final class IndexWatcher: @unchecked Sendable {
     private let queue = DispatchQueue(label: "swctx.watch.events")
     private let indexQueue = DispatchQueue(label: "swctx.watch.index")
     private var stream: FSEventStreamRef?
+    /// The callback context holds a retained self ref (see `start`); it is
+    /// released in `stopOnQueue` only after the stream is invalidated, so a
+    /// callback already queued on `queue` can never touch freed memory.
+    private var streamInfo: UnsafeMutableRawPointer?
     private var pendingItem: DispatchWorkItem?
     private var indexing = false
     private var rerunRequested = false
@@ -66,7 +70,8 @@ public final class IndexWatcher: @unchecked Sendable {
         _ = try indexOnce()
 
         var context = FSEventStreamContext()
-        context.info = Unmanaged.passUnretained(self).toOpaque()
+        context.info = Unmanaged.passRetained(self).toOpaque()
+        streamInfo = context.info
         let callback: FSEventStreamCallback = { _, info, numEvents, eventPaths, eventFlags, _ in
             guard let info else { return }
             let watcher = Unmanaged<IndexWatcher>.fromOpaque(info).takeUnretainedValue()
@@ -123,6 +128,13 @@ public final class IndexWatcher: @unchecked Sendable {
             FSEventStreamInvalidate(s)
             FSEventStreamRelease(s)
             stream = nil
+        }
+        // Callbacks dispatch on this serial `queue`, so once invalidate has
+        // run here no queued callback can still fire — safe to balance the
+        // passRetained from start().
+        if let info = streamInfo {
+            streamInfo = nil
+            Unmanaged<IndexWatcher>.fromOpaque(info).release()
         }
     }
 

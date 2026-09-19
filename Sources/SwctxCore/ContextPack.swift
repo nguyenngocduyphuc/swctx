@@ -11,7 +11,7 @@ public enum ContextPack {
     ///   (agent calls fetch_chunks for bodies it actually needs).
     public static func pack(store: Store, query: String, budget: Int,
                             expand: Bool, pathFilter: String?) throws -> [String: Any] {
-        let embedder = Embedder.shared
+        let embedder = store.embedder
         let hits = try Search.hybrid(store: store, embedder: embedder, query: query,
                                      limit: max(budget, 8), pathFilter: pathFilter)
         var evidence: [[String: Any]] = []

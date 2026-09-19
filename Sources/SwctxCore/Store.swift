@@ -12,6 +12,12 @@ public final class Store: @unchecked Sendable {
     /// read by search/embed paths so each index runs its own vector space.
     public private(set) var embeddingModel: String?
     public private(set) var embeddingDim: Int?
+    /// Embedder pinned to THIS index's model binding. Query/index paths must
+    /// use it rather than `Embedder.shared` — `shared` resolves the
+    /// process-global `bindModel` binding (last-opened Store wins), so in an
+    /// MCP process serving several workspaces it can silently embed queries
+    /// in another index's vector space.
+    public var embedder: Embedder { Embedder.instance(forModelID: embeddingModel) }
     /// `meta.trigram` — substring fallback leg opt-in (off by default).
     public private(set) var trigramEnabled = false
 

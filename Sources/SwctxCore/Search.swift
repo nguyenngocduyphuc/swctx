@@ -297,9 +297,13 @@ public enum Search {
                   let cid = row["chunk_id"] as? Int64,
                   blob.count == dim * 4 else { continue }
             ids.append(cid)
-            blob.withUnsafeBytes { raw in
-                matrix.append(contentsOf: raw.bindMemory(to: Float.self))
+            // copyBytes into aligned array storage: `bindMemory` requires
+            // 4-byte alignment a Data buffer does not guarantee.
+            var floats = [Float](repeating: 0, count: dim)
+            floats.withUnsafeMutableBytes { dst in
+                blob.copyBytes(to: dst, from: 0..<dim * 4)
             }
+            matrix.append(contentsOf: floats)
         }
         guard ids.count == matrix.count / dim else { return nil }
         let entry = CachedVectors(signature: signature, dim: dim, ids: ids,
@@ -343,8 +347,12 @@ public enum Search {
               String(decoding: data[off..<off + Int(sigLen)], as: UTF8.self) == signature
         else { return nil }
         off += Int(sigLen)
-        let cnt = Int(n)
-        guard off + cnt * 8 + cnt * dim * 4 == data.count else { return nil }
+        // `Int(n)` traps when n > Int.max, and `cnt*8 + cnt*dim*4` can
+        // overflow Int before the bounds check — division-first bound is
+        // safe: cnt*(8+dim*4) <= data.count-off implies no overflow.
+        guard let cnt = Int(exactly: n),
+              cnt <= (data.count - off) / (8 + dim * 4),
+              off + cnt * 8 + cnt * dim * 4 == data.count else { return nil }
         let ids = [Int64](unsafeUninitializedCapacity: cnt) { buf, done in
             data.copyBytes(to: buf, from: off..<off + cnt * 8)
             done = cnt
@@ -477,7 +485,7 @@ public enum Search {
         guard !terms.isEmpty else { return [] }
         return try store.pool.read { db in
             var sql = """
-                SELECT DISTINCT c.id, f.path, c.start_line, c.end_line, c.kind, c.symbol
+                SELECT c.id, f.path, c.start_line, c.end_line, c.kind, c.symbol
                 FROM symbols s
                 JOIN chunks c ON c.id = s.chunk_id
                 JOIN files f ON f.id = c.file_id
@@ -489,7 +497,13 @@ public enum Search {
                 args.append((p.hasSuffix("/") ? p + "%" : p + "/%") as DatabaseValueConvertible)
             }
             // Def-chunks (the chunk's own symbol is the match) rank first.
-            sql += " ORDER BY CASE WHEN lower(c.symbol) = lower(s.name) THEN 0 ELSE 1 END, f.path LIMIT ?"
+            // A chunk matching via several joined symbols must not rank
+            // non-deterministically — GROUP BY + MIN picks the best rank.
+            sql += """
+                 GROUP BY c.id, f.path, c.start_line, c.end_line, c.kind, c.symbol
+                 ORDER BY MIN(CASE WHEN lower(c.symbol) = lower(s.name) THEN 0 ELSE 1 END), f.path
+                 LIMIT ?
+                """
             args.append(limit)
             return try Row.fetchAll(db, sql: sql, arguments: StatementArguments(args)).map { row in
                 SearchHit(

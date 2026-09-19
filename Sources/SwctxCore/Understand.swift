@@ -140,7 +140,7 @@ public enum Understand {
         }
 
         if let q = query, !q.isEmpty {
-            let hits = try Search.hybrid(store: store, embedder: Embedder.shared, query: q, limit: 5)
+            let hits = try Search.hybrid(store: store, embedder: store.embedder, query: q, limit: 5)
             out["relevant"] = hits.map { h -> [String: Any] in
                 var d: [String: Any] = [
                     "chunk_id": h.chunkID,

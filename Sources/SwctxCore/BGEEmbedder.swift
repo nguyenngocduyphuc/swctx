@@ -308,6 +308,9 @@ public final class BGEEmbedder: @unchecked Sendable {
               let out = try? model.prediction(from: provider),
               let hidden = out.featureValue(for: outputName)?.multiArrayValue
         else { return nil }
+        // The decoders below rebind dataPointer as Float — an fp16/fp64
+        // output would silently produce garbage vectors instead of failing.
+        guard hidden.dataType == .float32 else { return nil }
 
         var vec: [Float]
         if hidden.shape.count <= 2 {

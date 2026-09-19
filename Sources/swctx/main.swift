@@ -214,12 +214,12 @@ struct RerankCmd: AsyncParsableCommand {
         // would deepen each leg to 90 and fuse a different ordering than
         // the one `search` produces (the limit*12 rejection pattern).
         var hits = try Search.hybridCandidates(
-            store: store, embedder: Embedder.shared, query: query,
+            store: store, embedder: store.embedder, query: query,
             limit: 5, poolLimit: limit,
             pathFilter: nil, includeVector: !identifier)
         if identifier && hits.isEmpty {
             hits = try Search.hybridCandidates(
-                store: store, embedder: Embedder.shared, query: query,
+                store: store, embedder: store.embedder, query: query,
                 limit: 5, poolLimit: limit)
         }
         guard !hits.isEmpty else {
@@ -311,12 +311,12 @@ struct Rerank2Cmd: AsyncParsableCommand {
         let store = try Store(workspaceRoot: root)
         let identifier = Search.identifierLike(query)
         var hits = try Search.hybridCandidates(
-            store: store, embedder: Embedder.shared, query: query,
+            store: store, embedder: store.embedder, query: query,
             limit: 5, poolLimit: limit,
             pathFilter: nil, includeVector: !identifier)
         if identifier && hits.isEmpty {
             hits = try Search.hybridCandidates(
-                store: store, embedder: Embedder.shared, query: query,
+                store: store, embedder: store.embedder, query: query,
                 limit: 5, poolLimit: limit)
         }
         guard !hits.isEmpty else {
@@ -408,12 +408,12 @@ struct Rerank3Cmd: AsyncParsableCommand {
         let store = try Store(workspaceRoot: root)
         let identifier = Search.identifierLike(query)
         var hits = try Search.hybridCandidates(
-            store: store, embedder: Embedder.shared, query: query,
+            store: store, embedder: store.embedder, query: query,
             limit: 5, poolLimit: limit,
             pathFilter: nil, includeVector: !identifier)
         if identifier && hits.isEmpty {
             hits = try Search.hybridCandidates(
-                store: store, embedder: Embedder.shared, query: query,
+                store: store, embedder: store.embedder, query: query,
                 limit: 5, poolLimit: limit)
         }
         guard !hits.isEmpty else {
@@ -739,6 +739,10 @@ struct AskCmd: AsyncParsableCommand {
     }
 
     /// Run `bin argv`, prompt as last argv element; timeout kills the child.
+    /// Both pipes are drained CONCURRENTLY with the wait: a child writing
+    /// more than the ~64KB pipe buffer blocks in write() and never exits,
+    /// so reading after waitUntilExit would deadlock until the timeout
+    /// fires and the answer is lost.
     static func spawn(_ bin: String, argv: [String], timeout: Int) throws -> String {
         let p = Process()
         p.executableURL = URL(fileURLWithPath: bin)
@@ -748,15 +752,32 @@ struct AskCmd: AsyncParsableCommand {
         p.standardOutput = out
         p.standardError = err
         try p.run()
+        // NSMutableData: a class reference, so the drain closures mutate
+        // through it without capturing a var (keeps Sendable checks quiet).
+        let outData = NSMutableData()
+        let errData = NSMutableData()
+        let drain = DispatchGroup()
+        drain.enter()
+        DispatchQueue.global().async {
+            outData.append(out.fileHandleForReading.readDataToEndOfFile())
+            drain.leave()
+        }
+        drain.enter()
+        DispatchQueue.global().async {
+            errData.append(err.fileHandleForReading.readDataToEndOfFile())
+            drain.leave()
+        }
         let sem = DispatchSemaphore(value: 0)
         DispatchQueue.global().async { p.waitUntilExit(); sem.signal() }
         if sem.wait(timeout: .now() + .seconds(timeout)) == .timedOut {
             p.terminate()
+            drain.wait()
             throw ValidationError("agent timed out after \(timeout)s")
         }
-        let text = String(decoding: out.fileHandleForReading.readDataToEndOfFile(), as: UTF8.self)
+        drain.wait()
+        let text = String(decoding: outData as Data, as: UTF8.self)
         guard p.terminationStatus == 0 else {
-            let e = String(decoding: err.fileHandleForReading.readDataToEndOfFile(), as: UTF8.self)
+            let e = String(decoding: errData as Data, as: UTF8.self)
             throw ValidationError("\(bin) exited \(p.terminationStatus): \(e.prefix(400))")
         }
         return text.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -772,29 +793,36 @@ struct McpCmd: AsyncParsableCommand {
     }
 }
 
+/// Resolve the running binary to an absolute path: a bare `swctx` invoked
+/// via PATH arrives as argv[0] with no slash, and a plain cwd fallback would
+/// point client configs at a file that does not exist. Shared by
+/// `mcp-config` and `install-agent` — both write `command:` paths.
+private func resolveExecutableOnPATH(_ argv0: String) -> String {
+    var resolved = (argv0 as NSString).standardizingPath
+    if !resolved.hasPrefix("/") {
+        if !argv0.contains("/") {
+            for dir in (ProcessInfo.processInfo.environment["PATH"] ?? "")
+                .split(separator: ":") {
+                let cand = "\(dir)/\(argv0)"
+                if FileManager.default.isExecutableFile(atPath: cand) {
+                    resolved = cand
+                    break
+                }
+            }
+        }
+        if !resolved.hasPrefix("/") {
+            resolved = FileManager.default.currentDirectoryPath + "/" + resolved
+        }
+    }
+    return resolved
+}
+
 struct McpConfigCmd: ParsableCommand {
     static let configuration = CommandConfiguration(commandName: "mcp-config",
         abstract: "Print MCP client config snippet for this binary.")
 
     func run() throws {
-        let bin = CommandLine.arguments[0]
-        var resolved = (bin as NSString).standardizingPath
-        if !resolved.hasPrefix("/") {
-            // Bare name invoked via PATH, or a relative path: resolve to absolute.
-            if !bin.contains("/") {
-                for dir in (ProcessInfo.processInfo.environment["PATH"] ?? "")
-                    .split(separator: ":") {
-                    let cand = "\(dir)/\(bin)"
-                    if FileManager.default.isExecutableFile(atPath: cand) {
-                        resolved = cand
-                        break
-                    }
-                }
-            }
-            if !resolved.hasPrefix("/") {
-                resolved = FileManager.default.currentDirectoryPath + "/" + resolved
-            }
-        }
+        let resolved = resolveExecutableOnPATH(CommandLine.arguments[0])
         print("""
         {
           "mcpServers": {
@@ -826,10 +854,7 @@ struct InstallAgentCmd: ParsableCommand {
     ]
 
     func run() throws {
-        var bin = (CommandLine.arguments[0] as NSString).standardizingPath
-        if !bin.hasPrefix("/") {
-            bin = FileManager.default.currentDirectoryPath + "/" + bin
-        }
+        let bin = resolveExecutableOnPATH(CommandLine.arguments[0])
         let entry: [String: Any] = ["command": bin, "args": ["mcp"]]
         for client in Self.jsonClients {
             let url = URL(fileURLWithPath: (client.path as NSString).expandingTildeInPath)

@@ -182,6 +182,10 @@ public enum Analyzer {
 
     private static func emitChunks(node: TSNode, bytes: [UInt8], profile: LanguageProfile,
                                    depth: Int, into out: inout [ChunkDraft]) {
+        // Absolute recursion cap: `transparentTypes` below deliberately
+        // bypasses the depth<3 descent limit, so pathologically deep
+        // (generated) input must not overflow the stack.
+        if depth > 64 { return }
         let t = node.typeName
         if profile.chunkTypes.contains(t) {
             let lineCount = node.endRow - node.startRow + 1
