@@ -4,6 +4,9 @@ Swift reimplementation of the [ctxe](https://ctxe.dev) model, without the cloud
 part: the "brain" is whatever agent CLI you already run (Devin / Claude Code /
 Codex / Cursor) connecting over MCP stdio. swctx only does retrieval.
 
+**Đọc cho người dùng / review (tiếng Việt): [`docs/00-BAT-DAU.md`](docs/00-BAT-DAU.md)**
+— 6 file hoàn chỉnh + Excel so sánh ctxe (`docs/swctx-vs-ctxe.xlsx`).
+
 ## What it does
 
 - **Incremental index** per workspace: file discovery, SHA-256 change detection,
