@@ -360,16 +360,19 @@ public final class Indexer {
         || char(10) || c.content, 1, 1800)
         """
 
-    /// Stage all stored vectors in a TEMP table keyed by `embedTextSQL` so
-    /// `restoreEmbeddings` can re-attach them after a force reindex
-    /// recreates the chunk rows. TEMP tables live on the pool's single
-    /// writer connection — visible to later `pool.write` calls — so no
-    /// vector blobs pass through memory. The PK on `k` doubles as the
-    /// restore join index and dedupes same-text rows.
-    private func snapshotEmbeddings() throws {
+    /// Stage all stored vectors in a persistent table keyed by `embedTextSQL`
+    /// so `restoreEmbeddings` can re-attach them after a force reindex
+    /// recreates the chunk rows — or after a killed `embed --reindex` left
+    /// its upfront `DELETE FROM embeddings` committed with no replacements.
+    /// A real (non-TEMP) table is deliberate: the snapshot must survive
+    /// process death to be any use, and `restoreEmbeddings` drops it once
+    /// evaluated. Staging via SQL — no vector blobs pass through memory.
+    /// The PK on `k` doubles as the restore join index and dedupes
+    /// same-text rows.
+    func snapshotEmbeddings() throws {
         try store.pool.write { db in
             try db.execute(sql: """
-                CREATE TEMP TABLE IF NOT EXISTS vec_snapshot(
+                CREATE TABLE IF NOT EXISTS vec_snapshot(
                     k TEXT PRIMARY KEY,
                     dim INTEGER NOT NULL,
                     vec BLOB NOT NULL)
@@ -388,14 +391,25 @@ public final class Indexer {
     /// Re-attach snapshotted vectors to chunks whose embedded text is
     /// unchanged, restoring only rows stored at the active model's dim —
     /// the same mixed-dim guard as `embedAll`. OR IGNORE keeps the count
-    /// honest for files that kept their rows (unreadable under --force).
-    /// Returns the count restored.
+    /// honest for files that kept their rows (unreadable under --force)
+    /// and preserves vectors a killed reindex managed to commit. No-op
+    /// when no snapshot is staged; a staged snapshot is dropped once
+    /// evaluated. Returns the count restored.
     @discardableResult
     private func restoreEmbeddings() throws -> Int {
         try store.pool.write { db in
-            defer { try? db.execute(sql: "DROP TABLE IF EXISTS vec_snapshot") }
+            let staged = try Int.fetchOne(db, sql: """
+                SELECT COUNT(*) FROM sqlite_master
+                WHERE type = 'table' AND name = 'vec_snapshot'
+                """) ?? 0
+            guard staged > 0 else { return 0 }
+            // Without a working model the same-dim guard can't be
+            // evaluated — keep the snapshot so a later run can restore it.
             let dim = embedder.dimension
             guard dim > 0 else { return 0 }
+            // Dropped even when the INSERT throws: a poisoned snapshot
+            // must not wedge every later embed pass.
+            defer { try? db.execute(sql: "DROP TABLE vec_snapshot") }
             try db.execute(sql: """
                 INSERT OR IGNORE INTO embeddings(chunk_id, dim, vec)
                 SELECT c.id, s.dim, s.vec
@@ -876,14 +890,27 @@ public final class Indexer {
     }
 
     /// Embed all remaining chunks, looping in bounded batches.
-    /// `reindex: true` drops every stored vector first (text format changed).
+    /// `reindex: true` snapshots every stored vector, then drops them all
+    /// (text format changed): a kill mid-run leaves the persistent snapshot
+    /// behind so the next call restores whatever never got re-embedded,
+    /// instead of stranding the index at zero vectors.
     /// `maxBatches > 0` caps the batch loop (index runs pass
     /// `embedMaxBatches`); `swctx embed` leaves it uncapped.
     /// Returns total embedded this call.
     @discardableResult
     public func embedAll(reindex: Bool = false, maxBatches: Int = 0,
                        progress: @escaping @Sendable (Int) -> Void = { _ in }) throws -> Int {
+        // Recover a reindex killed after its pre-wipe snapshot committed:
+        // re-attach snapshotted vectors to chunks still missing one (same
+        // dim only — a model-switch reindex falls through to fresh embeds).
+        // Restored chunks stop being pending, so they keep the old vector
+        // until an explicit --reindex rewrites them. No-op normally.
+        _ = try restoreEmbeddings()
         if reindex {
+            // Snapshot BEFORE the wipe, as one committed unit: a SIGTERM
+            // anywhere in the batch loop then leaves the old vectors
+            // restorable rather than committed-gone.
+            try snapshotEmbeddings()
             try store.pool.write { db in try db.execute(sql: "DELETE FROM embeddings") }
         }
         // Refuse to mix vector spaces: stored vectors under a different dim
@@ -921,6 +948,13 @@ public final class Indexer {
                 skip.removeAll()
                 embedder = Embedder()
             }
+        }
+        // Clean exit: any chunks still pending (batch cap, embedder
+        // failures) embed fresh next run, so the snapshot has nothing left
+        // to protect. Only a kill or a thrown batch leaves it in place
+        // for the next call's restore.
+        try? store.pool.write { db in
+            try db.execute(sql: "DROP TABLE IF EXISTS vec_snapshot")
         }
         try? store.bumpEmbeddingsEpoch()
         return total
