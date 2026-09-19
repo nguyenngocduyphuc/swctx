@@ -17,11 +17,20 @@ public final class GlobalRecords: @unchecked Sendable {
     }
 
     public init() throws {
+        pool = try Self.openPool(at: Self.dbURL())
+    }
+
+    /// Ledger at an explicit path — the test seam; production uses dbURL().
+    init(path: String) throws {
+        pool = try Self.openPool(at: URL(fileURLWithPath: path))
+    }
+
+    private static func openPool(at url: URL) throws -> DatabasePool {
         try FileManager.default.createDirectory(
-            at: Store.baseDir(), withIntermediateDirectories: true)
+            at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
         var config = Configuration()
         config.busyMode = .timeout(10)
-        pool = try DatabasePool(path: Self.dbURL().path, configuration: config)
+        let pool = try DatabasePool(path: url.path, configuration: config)
         try pool.write { db in
             try db.execute(sql: """
                 CREATE TABLE IF NOT EXISTS records(
@@ -53,7 +62,25 @@ public final class GlobalRecords: @unchecked Sendable {
                 t.column("payload")
                 t.synchronize(withTable: "records")
             }
+            // Fleet usage ledger: one row per MCP tools/call. Lives in the
+            // global DB (not per-workspace indexes) so all workspaces share
+            // it and no index schema bump is needed. `query` is truncated
+            // at insert (~200 chars) — local-only data.
+            try db.execute(sql: """
+                CREATE TABLE IF NOT EXISTS usage_events(
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    ts REAL NOT NULL,
+                    ws TEXT NOT NULL,
+                    tool TEXT NOT NULL,
+                    latency_ms INTEGER NOT NULL,
+                    hits INTEGER,
+                    ok INTEGER NOT NULL,
+                    query TEXT);
+                """)
+            try db.execute(sql:
+                "CREATE INDEX IF NOT EXISTS idx_usage_events_tool ON usage_events(tool)")
         }
+        return pool
     }
 
     /// Insert one shared record; the per-(ws, kind) quota mirrors Store's.
@@ -80,6 +107,81 @@ public final class GlobalRecords: @unchecked Sendable {
                 """, arguments: [ws, kind, ws, kind, Store.recordQuota(for: kind)])
             return id
         }
+    }
+
+    /// One MCP tools/call usage event. Callers wrap in try? — telemetry
+    /// must never break a tool response. `query` is capped at 200 chars.
+    public func insertUsage(ws: String, tool: String, latencyMs: Int,
+                            hits: Int?, ok: Bool, query: String?) throws {
+        try pool.write { db in
+            try db.execute(sql: """
+                INSERT INTO usage_events(ts, ws, tool, latency_ms, hits, ok, query)
+                VALUES(?,?,?,?,?,?,?)
+                """, arguments: [Date().timeIntervalSince1970, ws, tool, latencyMs,
+                                 hits, ok, query.map { String($0.prefix(200)) }])
+        }
+    }
+
+    /// `swctx stats` row: per-tool totals over usage_events.
+    public struct UsageStat: Sendable {
+        public let tool: String
+        public let calls: Int
+        public let errors: Int
+        public let avgMs: Double
+        public let p50Ms: Int
+        public let p95Ms: Int
+    }
+
+    /// One zero-hit `search` query and how often it returned nothing.
+    public struct ZeroHitQuery: Sendable {
+        public let query: String
+        public let count: Int
+    }
+
+    /// Per-tool usage aggregates, busiest first.
+    public func usageStats() throws -> [UsageStat] {
+        try pool.read { db in
+            let rows = try Row.fetchAll(db, sql: """
+                SELECT tool, COUNT(*) AS calls, SUM(1 - ok) AS errors,
+                       AVG(latency_ms) AS avg_ms
+                FROM usage_events GROUP BY tool ORDER BY calls DESC, tool
+                """)
+            return try rows.map { r in
+                let tool = (r["tool"] as? String) ?? ""
+                let lats = try Int.fetchAll(db, sql:
+                    "SELECT latency_ms FROM usage_events WHERE tool = ? ORDER BY latency_ms",
+                    arguments: [tool])
+                return UsageStat(
+                    tool: tool,
+                    calls: (r["calls"] as? Int64).map(Int.init) ?? 0,
+                    errors: (r["errors"] as? Int64).map(Int.init) ?? 0,
+                    avgMs: (r["avg_ms"] as? Double) ?? 0,
+                    p50Ms: Self.percentile(lats, 0.50),
+                    p95Ms: Self.percentile(lats, 0.95))
+            }
+        }
+    }
+
+    /// Zero-hit search queries, most frequent first — the "agents asked,
+    /// the index had nothing" list.
+    public func zeroHitQueries(limit: Int = 20) throws -> [ZeroHitQuery] {
+        try pool.read { db in
+            try Row.fetchAll(db, sql: """
+                SELECT query, COUNT(*) AS c FROM usage_events
+                WHERE tool = 'search' AND hits = 0 AND query IS NOT NULL
+                GROUP BY query ORDER BY c DESC, query LIMIT ?
+                """, arguments: [limit])
+                .map { ZeroHitQuery(query: ($0["query"] as? String) ?? "",
+                                    count: ($0["c"] as? Int64).map(Int.init) ?? 0) }
+        }
+    }
+
+    /// Nearest-rank percentile over an ascending-sorted list; 0 when empty.
+    static func percentile(_ sorted: [Int], _ p: Double) -> Int {
+        guard !sorted.isEmpty else { return 0 }
+        let idx = min(sorted.count - 1,
+                      max(0, Int((p * Double(sorted.count)).rounded(.up)) - 1))
+        return sorted[idx]
     }
 
     /// Repo identity for `ws`: the main checkout's Store.key. In a linked

@@ -346,6 +346,68 @@ public enum MCPServer {
         }
     }
 
+    // MARK: - usage telemetry
+
+    /// Top-level result-array key per tool, for the usage_events `hits`
+    /// column. Tools not listed (or without the array) record NULL.
+    static let hitsArrayKey: [String: String] = [
+        "search": "hits",
+        "fetch_chunks": "chunks",
+        "inspect_path": "chunks",
+        "find_usages": "usages",
+        "graph_neighbors": "neighbors",
+        "graph_expand": "results",
+        "graph_paths": "paths",
+        "get_impact": "dependents",
+        "context_pack": "evidence",
+        "get_workspace_tree": "files",
+        "list_workspaces": "workspaces",
+        "list_records": "records",
+        "search_records": "records",
+    ]
+
+    /// Pull the telemetry fields out of a finished call. `ok` flips false
+    /// when the call threw AND when the body carries an {"error": …}
+    /// envelope (E_OUTPUT_TOO_LARGE, "record not found", …). `hits` is the
+    /// result count where cheaply known — find_definitions sums the
+    /// per-symbol `definitions` arrays, the rest read one array key.
+    static func usageFields(tool: String, args: [String: Value], body: String,
+                            threw: Bool) -> (ok: Bool, hits: Int?, query: String?) {
+        let dict = (try? JSONSerialization.jsonObject(with: Data(body.utf8)))
+            as? [String: Any]
+        let ok = !threw && dict?["error"] == nil
+        var hits: Int? = nil
+        if let dict {
+            if tool == "find_definitions",
+               let groups = dict["results"] as? [[String: Any]] {
+                hits = groups
+                    .map { ($0["definitions"] as? [Any])?.count ?? 0 }
+                    .reduce(0, +)
+            } else if let key = hitsArrayKey[tool] {
+                hits = (dict[key] as? [Any])?.count
+            }
+        }
+        return (ok, hits, args["query"]?.str)
+    }
+
+    /// Fleet usage ledger: one row per tools/call in
+    /// ~/.swctx/records.db usage_events. Fire-and-forget off the response
+    /// path — a nil/unwritable ledger or a failed insert degrades
+    /// silently and must never break or delay a call.
+    static func recordUsage(tool: String, args: [String: Value], body: String,
+                            threw: Bool, latencyMs: Int) {
+        DispatchQueue.global().async {
+            guard let g = GlobalRecords.shared else { return }
+            let f = usageFields(tool: tool, args: args, body: body, threw: threw)
+            // ws mirrors records.ws: the repo key of the resolved
+            // workspace, "" when the call never resolved one.
+            let ws = (try? SwctxTools.workspace(args))
+                .map { GlobalRecords.repoKey(for: $0) } ?? ""
+            _ = try? g.insertUsage(ws: ws, tool: tool, latencyMs: latencyMs,
+                                   hits: f.hits, ok: f.ok, query: f.query)
+        }
+    }
+
     public static func run() async throws {
         let server = Server(
             name: "swctx",
@@ -359,13 +421,22 @@ public enum MCPServer {
         await server.withMethodHandler(CallTool.self) { params in
             let name = params.name
             let args = params.arguments ?? [:]
+            let t0 = CFAbsoluteTimeGetCurrent()
+            var body = ""
+            var threw = false
+            defer {
+                recordUsage(tool: name, args: args, body: body, threw: threw,
+                            latencyMs: Int((CFAbsoluteTimeGetCurrent() - t0) * 1000))
+            }
             do {
                 let out = try await withDeadline(
                     toolDeadlines[name] ?? defaultDeadline, tool: name) {
                     try await SwctxTools.call(name: name, arguments: args)
                 }
+                body = out
                 return CallTool.Result(content: [.text(text: out, annotations: nil, _meta: nil)])
             } catch let e as DeadlineError {
+                threw = true
                 let errJson = (try? JSONSerialization.data(
                     withJSONObject: ["error": [
                         "code": "E_DEADLINE_EXCEEDED",
@@ -377,6 +448,7 @@ public enum MCPServer {
                     content: [.text(text: errJson, annotations: nil, _meta: nil)],
                     isError: true)
             } catch {
+                threw = true
                 let errJson = (try? JSONSerialization.data(
                     withJSONObject: ["error": error.localizedDescription]))
                     .flatMap { String(data: $0, encoding: .utf8) }

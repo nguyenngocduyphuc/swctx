@@ -13,7 +13,7 @@ struct Swctx: AsyncParsableCommand {
         commandName: "swctx",
         abstract: "Local semantic code index + MCP server (Swift reimplementation of the ctxe model).",
         version: "0.1.0",
-        subcommands: [IndexCmd.self, StatusCmd.self, PrimeCmd.self, SearchCmd.self, RerankCmd.self, Rerank2Cmd.self, Rerank3Cmd.self, TreeCmd.self, EmbedCmd.self, DiscoverCmd.self, WatchCmd.self, AskCmd.self, ModelCmd.self, McpCmd.self, McpConfigCmd.self, InstallAgentCmd.self, GcCmd.self],
+        subcommands: [IndexCmd.self, StatusCmd.self, PrimeCmd.self, SearchCmd.self, RerankCmd.self, Rerank2Cmd.self, Rerank3Cmd.self, TreeCmd.self, EmbedCmd.self, DiscoverCmd.self, WatchCmd.self, AskCmd.self, ModelCmd.self, McpCmd.self, McpConfigCmd.self, InstallAgentCmd.self, GcCmd.self, StatsCmd.self],
         defaultSubcommand: nil)
 }
 
@@ -112,6 +112,53 @@ struct GcCmd: ParsableCommand {
             + "registry dead: \(report["registry_dead"] ?? 0), "
             + (yes ? "deleted \(report["deleted"] ?? 0), freed \(mb)MB"
                    : "collectable \(mb)MB — re-run with --yes to delete"))
+    }
+}
+
+struct StatsCmd: ParsableCommand {
+    static let configuration = CommandConfiguration(commandName: "stats",
+        abstract: "Usage telemetry from the fleet ledger (~/.swctx/records.db): per-tool calls, latency percentiles, zero-hit search queries.")
+    @Option(name: .long, help: "Output format: human | json") var format: String = "human"
+    @Option(name: .long, help: "Max zero-hit queries to list") var limit: Int = 20
+
+    func run() throws {
+        guard let g = GlobalRecords.shared else {
+            throw ValidationError("global ledger unavailable: ~/.swctx is not writable")
+        }
+        let stats = try g.usageStats()
+        let zeroHit = try g.zeroHitQueries(limit: limit)
+        if format == "json" {
+            let obj: [String: Any] = [
+                "tools": stats.map {
+                    ["tool": $0.tool, "calls": $0.calls, "errors": $0.errors,
+                     "avg_ms": $0.avgMs, "p50_ms": $0.p50Ms,
+                     "p95_ms": $0.p95Ms] as [String: Any]
+                },
+                "zero_hit_queries": zeroHit.map {
+                    ["query": $0.query, "count": $0.count]
+                },
+            ]
+            let data = try JSONSerialization.data(
+                withJSONObject: obj, options: [.prettyPrinted, .sortedKeys])
+            print(String(decoding: data, as: UTF8.self))
+            return
+        }
+        if stats.isEmpty {
+            print("no usage events recorded yet")
+            return
+        }
+        print("\(stats.reduce(0) { $0 + $1.calls }) calls, "
+            + "\(stats.reduce(0) { $0 + $1.errors }) errors")
+        for s in stats {
+            print("  \(s.tool): \(s.calls) calls, \(s.errors) errors, "
+                + "avg \(Int(s.avgMs))ms, p50 \(s.p50Ms)ms, p95 \(s.p95Ms)ms")
+        }
+        if !zeroHit.isEmpty {
+            print("zero-hit search queries:")
+            for z in zeroHit {
+                print("  \(z.count)x \(z.query)")
+            }
+        }
     }
 }
 
