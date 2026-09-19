@@ -280,3 +280,25 @@ family as ask_context, which was sampled).
 
 swctx-only tools (no ctxe counterpart): search, context_pack,
 put_record, prime. ctxe-only: ask_context, compose_answer.
+
+## ask_context full miss coverage (ask_full_misses.py, 2026-09-19)
+
+The 4-call sample extended to ALL 9 swctx-search misses (credit spend
+approved). Durable-record `direct_evidence` view:
+
+| miss | live rank | record rank | note |
+|---|---|---|---|
+| seo-04 | — | **1** | rescued |
+| seo-05 | 5 | **1** | rescued |
+| seo-06 | 2 | **3** | rescued |
+| seo-09 | timeout | **2** | rescued (earlier run) |
+| seo-10 | — | **2** | rescued |
+| crm-04 | — | **1** | rescued (earlier run) |
+| crm-08 | — | **1** | also rescued FREE by find_definitions |
+| crm-10 | — | **1** | rescued |
+| crm-11 | — | **1** | rescued (earlier run) |
+
+**Union coverage: 22/22 (100%).** swctx search alone 13/22 free ~100ms;
++1 via find_definitions (crm-08, free); the remaining 8 misses all
+recovered by ctxe ask_context records (paid, 12–65 s). compose_answer
+verified live: record 19 → answer+confidence+evidence in 10.5 s.

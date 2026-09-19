@@ -1,0 +1,191 @@
+{
+ "timestamp": "2026-09-19T21:30:59+0700",
+ "timeout": 90,
+ "misses": [
+  {
+   "id": "seo-04",
+   "workspace": "/Users/phuongnam/02.AI/NP_AI_macos/8.P8_SEO_Clean",
+   "query": "worker t\u1ef1 sinh \u1ea3nh minh h\u1ecda cho c\u00e1c m\u1ee5c h2 c\u00f2n thi\u1ebfu \u1ea3nh",
+   "expected": "scripts/p8_image_worker.py",
+   "live": {
+    "rank": 0,
+    "paths": [
+     "docs/plans/asana_payloads/IMAGE_EMPLOYEE_10_BUILD_2026-07-10.md"
+    ],
+    "latency_ms": 40721.5,
+    "status": "ok"
+   },
+   "record": {
+    "list_err": null,
+    "id": 19,
+    "status": "completed",
+    "get_err": null,
+    "paths": [
+     "scripts/p8_image_worker.py",
+     "tests/test_p8_image_worker_live.py",
+     "artifacts/team/image-employee-10/design-spec.md",
+     "docs/00_governance/PENDING_ACTIONS_REGISTRY.md",
+     "docs/plans/asana_payloads/IMAGE_EMPLOYEE_10_BUILD_2026-07-10.md"
+    ],
+    "rank": 1
+   }
+  },
+  {
+   "id": "seo-05",
+   "workspace": "/Users/phuongnam/02.AI/NP_AI_macos/8.P8_SEO_Clean",
+   "query": "l\u1ec7nh \u0111\u1ed3ng b\u1ed9 th\u00f4ng tin c\u1ee7a t\u1eebng site th\u00e0nh m\u1ed9t file entity mesh chung",
+   "expected": "factory/sitectl.py",
+   "live": {
+    "rank": 5,
+    "paths": [
+     "config/README.md",
+     "docs/FLEET_GOVERNANCE_ROADMAP.md",
+     "docs/fleet/MESH.md",
+     "docs/fleet/PROCESS.md",
+     "factory/sitectl.py"
+    ],
+    "latency_ms": 15451.6,
+    "status": "ok"
+   },
+   "record": {
+    "list_err": null,
+    "id": 20,
+    "status": "completed",
+    "get_err": null,
+    "paths": [
+     "factory/sitectl.py",
+     "config/README.md",
+     "docs-fleet/entity-graph.md",
+     "docs/FLEET_GOVERNANCE_ROADMAP.md",
+     "docs/decisions/DECISIONS.md"
+    ],
+    "rank": 1
+   }
+  },
+  {
+   "id": "seo-06",
+   "workspace": "/Users/phuongnam/02.AI/NP_AI_macos/8.P8_SEO_Clean",
+   "query": "trang li\u1ec7t k\u00ea t\u00ecnh tr\u1ea1ng c\u00e1c worker trong \u0111\u1ed9i h\u1ea1m con n\u00e0o \u0111ang b\u1ecb block",
+   "expected": "docs-fleet/doi-ngu.md",
+   "live": {
+    "rank": 2,
+    "paths": [
+     "docs/handoffs/HANDOFF_20260813_cau-noi-cmux-1dev.md",
+     "docs-fleet/doi-ngu.md"
+    ],
+    "latency_ms": 36132.2,
+    "status": "ok"
+   },
+   "record": {
+    "list_err": null,
+    "id": 21,
+    "status": "completed",
+    "get_err": null,
+    "paths": [
+     "scripts/p8_repo_status.py",
+     "docs/handoffs/HANDOFF_20260817_quota-gate-dispatch-hardening.md",
+     "docs-fleet/doi-ngu.md",
+     "scripts/p8_bot_listener.py",
+     "artifacts/team/adhoc/agy-b6-nguon-du-lieu-20260820-OUTPUT.md"
+    ],
+    "rank": 3
+   }
+  },
+  {
+   "id": "crm-08",
+   "workspace": "/Users/phuongnam/02.AI/NP_AI_macos/18.CRM-Nam-Pham",
+   "query": "shared helper writing one decision row into the operations ledger",
+   "expected": "crm-nam-pham/09-build/ghi_so.py",
+   "live": {
+    "rank": 0,
+    "paths": [],
+    "latency_ms": 15399.1,
+    "status": "ok"
+   },
+   "record": {
+    "list_err": null,
+    "id": 4,
+    "status": "completed",
+    "get_err": null,
+    "paths": [
+     "crm-nam-pham/09-build/ghi_so.py",
+     "crm-nam-pham/functions/api/[[path]].js",
+     "crm-nam-pham/09-build/dong_vong.py"
+    ],
+    "rank": 1
+   }
+  },
+  {
+   "id": "seo-10",
+   "workspace": "/Users/phuongnam/02.AI/NP_AI_macos/8.P8_SEO_Clean",
+   "query": "script \u00e1p d\u1ee5ng c\u00e1c g\u1ee3i \u00fd link n\u1ed9i b\u1ed9 v\u00e0o b\u00e0i vi\u1ebft tr\u00ean site",
+   "expected": "scripts/ghost_link_builder_apply.py",
+   "live": {
+    "rank": 0,
+    "paths": [
+     "scripts/internal_link_builder.py"
+    ],
+    "latency_ms": 33485.2,
+    "status": "ok"
+   },
+   "record": {
+    "list_err": null,
+    "id": 22,
+    "status": "completed",
+    "get_err": null,
+    "paths": [
+     "scripts/p8_link_injector.py",
+     "scripts/ghost_link_builder_apply.py",
+     "scripts/internal_link_builder.py",
+     "scripts/_legacy/2026-05-08/p8_link_injector.py",
+     "docs/archive/phamducphuongnam-seo/phase-2/T9-internal-link/stage_a5_t9_regenerate.py"
+    ],
+    "rank": 2
+   }
+  },
+  {
+   "id": "crm-10",
+   "workspace": "/Users/phuongnam/02.AI/NP_AI_macos/18.CRM-Nam-Pham",
+   "query": "realign local issue ids with the D1 database when fingerprints match but ids differ",
+   "expected": "crm-nam-pham/09-build/vaid_issues.py",
+   "live": {
+    "rank": 0,
+    "paths": [],
+    "latency_ms": 17296.1,
+    "status": "ok"
+   },
+   "record": {
+    "list_err": null,
+    "id": 5,
+    "status": "completed",
+    "get_err": null,
+    "paths": [
+     "crm-nam-pham/09-build/vaid_issues.py",
+     "crm-nam-pham/09-build/push_d1.py",
+     "crm-nam-pham/09-build/pull_d1.py",
+     "crm-nam-pham/09-build/test_push_d1_fk.py",
+     "crm-nam-pham/artifacts/team/1218147396705072/notes.md"
+    ],
+    "rank": 1
+   }
+  }
+ ],
+ "compose_answer": {
+  "record_id": 19,
+  "latency_ms": 10457.8,
+  "keys": [
+   "answer",
+   "confidence",
+   "direct_evidence_chunk_ids",
+   "limitations",
+   "meta",
+   "outcome",
+   "output_truncated",
+   "record_id",
+   "related_evidence_chunk_ids",
+   "reused_existing_answer",
+   "schema_version"
+  ],
+  "preview": "{\"answer\":\"C\u00f3. Worker hi\u1ec7n t\u1ea1i `scripts/p8_image_worker.py` tr\u1ef1c ti\u1ebfp tri\u1ec3n khai lu\u1ed3ng t\u1ef1 sinh \u1ea3nh cho c\u00e1c m\u1ee5c H2 thi\u1ebfu \u1ea3nh:\\n\\n- File t\u1ef1 m\u00f4 t\u1ea3 nhi\u1ec7m v\u1ee5 l\u00e0 \u201cGenerate section images for H2 blocks that lack images\u201d v\u00e0 m\u1eb7c \u0111\u1ecbnh ch\u1ea1y dry-run; ch\u1ec9 `--live` m\u1edbi th\u1ef1c thi thay \u0111\u1ed5i [chunk_id:15536].\\n- `extr"
+ }
+}
