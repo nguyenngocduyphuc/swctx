@@ -78,6 +78,103 @@ public enum Search {
         return terms.isEmpty ? nil : terms.joined(separator: " OR ")
     }
 
+    /// FTS5 MATCH for translated english_terms (W11): each term's alnum
+    /// atoms OR'd with prefix matching across all bm25-weighted columns,
+    /// plus adjacent-atom phrases scoped to path_tokens — "image worker"
+    /// reaches p8_image_worker.py-style filenames, the same filename-intent
+    /// trick as the folded-phrase leg. Terms arrive pre-validated
+    /// (alnum/space/hyphen only), so the quoted atoms are safe.
+    static func ftsTranslatedQuery(_ terms: [String]) -> String? {
+        var clauses: [String] = []
+        var seen: Set<String> = []
+        var atoms = 0
+        for t in terms.prefix(8) {
+            let toks = t.lowercased()
+                .components(separatedBy: CharacterSet.alphanumerics.inverted)
+                .filter { $0.count >= 2 }
+            for tok in toks where atoms < 20 && seen.insert(tok).inserted {
+                clauses.append("\"\(tok)\"*")
+                atoms += 1
+                // Light singularization: translated terms arrive as natural
+                // English plurals ("links", "activities") but path atoms are
+                // snake_case stems ("link"). FTS5 prefix match can't strip
+                // suffixes, so offer the stripped form as an extra atom.
+                if tok.count >= 4, let sing = singularAtom(tok),
+                   seen.insert(sing).inserted {
+                    clauses.append("\"\(sing)\"*")
+                }
+            }
+            for pair in zip(toks, toks.dropFirst())
+            where seen.insert("p:\(pair.0) \(pair.1)").inserted {
+                clauses.append("path_tokens : \"\(pair.0) \(pair.1)\"")
+            }
+        }
+        return clauses.isEmpty ? nil : clauses.joined(separator: " OR ")
+    }
+
+    /// Singular form of an English atom for FTS — "activities"→"activity",
+    /// "links"→"link". The atom is always used with `*` prefix matching, so
+    /// an over-stripped stem is harmless ("statu"* still reaches status) —
+    /// only "ies"→"y" needs real plural handling.
+    static func singularAtom(_ tok: String) -> String? {
+        if tok.hasSuffix("ies"), tok.count >= 5 {
+            return String(tok.dropLast(3)) + "y"
+        }
+        if tok.hasSuffix("s"), !tok.hasSuffix("ss"), tok.count >= 4 {
+            return String(tok.dropLast(1))
+        }
+        return nil
+    }
+
+    /// The translation leg's FTS half: translated terms through
+    /// `ftsTranslatedQuery`, then file-deduped and capped at 5 — a
+    /// translation match is a file-level signal, same contract as the
+    /// folded-phrase leg. Filename intent leads: a path_tokens-scoped atom
+    /// pass runs before the full-column pass because generic terms
+    /// ("user", "data") flood content matches and would bury a filename
+    /// hit like log_activity_live.py (observed at raw rank 15+).
+    static func translatedLegHits(store: Store, terms: [String],
+                                  pathFilter: String? = nil) throws -> [SearchHit] {
+        guard let match = ftsTranslatedQuery(terms) else { return [] }
+        var pathAtoms = ftsTranslatedAtoms(terms)
+        if pathAtoms.count > 8 { pathAtoms = Array(pathAtoms.prefix(8)) }
+        var raw: [SearchHit] = []
+        if !pathAtoms.isEmpty {
+            let pathMatch = "path_tokens : ("
+                + pathAtoms.map { "\"\($0)\"*" }.joined(separator: " OR ") + ")"
+            raw += try ftsRun(store: store, match: pathMatch, limit: 10,
+                              pathFilter: pathFilter)
+        }
+        raw += try ftsRun(store: store, match: match, limit: 20,
+                          pathFilter: pathFilter)
+        var seenFiles: Set<String> = []
+        var out: [SearchHit] = []
+        for h in raw where seenFiles.insert(h.path).inserted {
+            out.append(h)
+            if out.count == 5 { break }
+        }
+        return out
+    }
+
+    /// Deduplicated atom list for the path-scoped pass — same atomization
+    /// and singularization as `ftsTranslatedQuery`, without the clauses.
+    static func ftsTranslatedAtoms(_ terms: [String]) -> [String] {
+        var atoms: [String] = []
+        var seen: Set<String> = []
+        for t in terms.prefix(8) {
+            for tok in t.lowercased()
+                .components(separatedBy: CharacterSet.alphanumerics.inverted)
+                .filter({ $0.count >= 2 }) where seen.insert(tok).inserted {
+                atoms.append(tok)
+                if tok.count >= 4, let sing = singularAtom(tok),
+                   seen.insert(sing).inserted {
+                    atoms.append(sing)
+                }
+            }
+        }
+        return atoms
+    }
+
     /// BM25F column weights for chunks_fts(content, path_tokens,
     /// symbol_names, folded). Order must match the CREATE TABLE column
     /// order exactly — body hits are baseline, path/symbol hits outrank
@@ -96,6 +193,15 @@ public enum Search {
     /// Folded-phrase rescue leg weight — below the real legs; it exists
     /// to surface diacritic phrase matches, not outrank them.
     static let phraseLegWeight = 0.8
+    /// vn→en translation leg weight (W11) — below the real legs and the
+    /// phrase leg: LLM-produced terms are a noisier signal than folded
+    /// phrases from the query itself. SWCTX_XLATE_W overrides for bench
+    /// sweeps only — tuned values get baked in as new defaults.
+    static func xlateLegWeight() -> Double {
+        if let s = ProcessInfo.processInfo.environment["SWCTX_XLATE_W"],
+           let v = Double(s), v >= 0 { return v }
+        return 0.7
+    }
 
     /// Per-leg RRF weights (fts, semantic, symbol). Defaults are uniform;
     /// `SWCTX_RRF_W="f,s,y"` overrides for bench sweeps only — tuned
@@ -553,6 +659,7 @@ public enum Search {
         let bag = LegBag()
         let group = DispatchGroup()
         let legQueue = DispatchQueue.global(qos: .userInitiated)
+        let legStart = Date()
         group.enter()
         legQueue.async {
             defer { group.leave() }
@@ -598,8 +705,43 @@ public enum Search {
                 } catch { bag.note(error) }
             }
         }
+        // vn→en translation leg (W11): fires only on diacritic-carrying
+        // queries. The leg lives on a SEPARATE group waited with a timeout
+        // of the ~800ms deadline's remainder — a slow Ollama can add at
+        // most deadline-minus-real-legs latency, so translation is never
+        // on the critical path of the first result. A leg that misses the
+        // window is cancelled for this result but may still finish its
+        // subprocess (hard-capped separately) to fill the term cache for
+        // later queries. Failures degrade to baseline (try?/nil), never
+        // to bag.error.
+        let xlateBag = XlateBag()
+        var xlateGroup: DispatchGroup?
+        if Translation.needsTranslation(query) {
+            let g = DispatchGroup()
+            xlateGroup = g
+            g.enter()
+            legQueue.async {
+                defer { g.leave() }
+                guard let terms = Translation.englishTerms(for: query),
+                      let hits = try? translatedLegHits(
+                          store: store, terms: terms, pathFilter: pathFilter)
+                else { return }
+                xlateBag.set(hits, terms: terms)
+            }
+        }
         group.wait()
         if let e = bag.error { throw e }
+        var xlateHits: [SearchHit] = []
+        var xlateSourceTerms: [String] = []
+        if let g = xlateGroup {
+            let remainMs = Translation.deadlineMs
+                - Int(Date().timeIntervalSince(legStart) * 1000)
+            if remainMs > 0 {
+                _ = g.wait(timeout: .now() + .milliseconds(remainMs))
+            }
+            xlateHits = xlateBag.hits
+            xlateSourceTerms = xlateBag.terms
+        }
         let ftsHits = bag.fts, vecHits = bag.vec, symHits = bag.sym, phraseHits = bag.phrase
         let w = fusionWeights()
         var rrf: [Int64: Double] = [:]
@@ -611,8 +753,20 @@ public enum Search {
         for (i, h) in phraseHits.enumerated() {
             rrf[h.chunkID, default: 0] += Search.phraseLegWeight / (60 + Double(i) + 1)
         }
+        for (i, h) in xlateHits.enumerated() {
+            rrf[h.chunkID, default: 0] += Search.xlateLegWeight() / (60 + Double(i) + 1)
+        }
         var byID: [Int64: SearchHit] = [:]
-        for h in ftsHits + vecHits + symHits + phraseHits { byID[h.chunkID] = h }
+        for h in ftsHits + vecHits + symHits + phraseHits + xlateHits { byID[h.chunkID] = h }
+        // Translated-term evidence, scoped to the leg's own candidates: the
+        // query-term boosts below can't see English atoms (the query is
+        // Vietnamese), so an xlate-only file would carry a bare RRF share.
+        // Re-scoring it on translated-atom path/coverage matches keeps the
+        // leg's file-level signal meaningful without touching other
+        // candidates' scores.
+        let xlateIDs = Set(xlateHits.map { $0.chunkID })
+        let xlateAtoms = Set(ftsTranslatedAtoms(
+            xlateHits.isEmpty ? [] : xlateSourceTerms))
 
         let terms = Set(query.lowercased()
             .components(separatedBy: CharacterSet.alphanumerics.inverted)
@@ -672,6 +826,13 @@ public enum Search {
                 .filter { $0.count >= 2 })
             boost += min(Search.coverageWeight * Double(termsFolded.intersection(hayTokens).count),
                          Search.coverageCap)
+            if xlateIDs.contains(cid) {
+                // Path-atom evidence only. A coverage component on generic
+                // English atoms ("gate", "user", "data") flooded wrong
+                // files above correct baseline hits in bench — filename
+                // intent is the precise half of the leg's signal.
+                boost += 0.015 * Double(xlateAtoms.intersection(pathTokens).count)
+            }
             // File-graph PageRank: small static prior so hub definitions
             // beat same-name dead files, 0 when the index is unranked.
             if prSpan > 0, let pr = candPR[cid] {
@@ -766,5 +927,20 @@ public enum Search {
         private let lock = NSLock()
         func note(_ e: Error) { lock.lock(); if _err == nil { _err = e }; lock.unlock() }
         var error: Error? { lock.lock(); defer { lock.unlock() }; return _err }
+    }
+
+    /// Result slot for the translation leg — unlike the LegBag properties
+    /// it can be read while its writer is still running (fusion proceeds
+    /// past the deadline mid-flight), so the slot is lock-guarded rather
+    /// than wait-ordered.
+    private final class XlateBag: @unchecked Sendable {
+        private var _hits: [SearchHit] = []
+        private var _terms: [String] = []
+        private let lock = NSLock()
+        func set(_ h: [SearchHit], terms: [String]) {
+            lock.lock(); _hits = h; _terms = terms; lock.unlock()
+        }
+        var hits: [SearchHit] { lock.lock(); defer { lock.unlock() }; return _hits }
+        var terms: [String] { lock.lock(); defer { lock.unlock() }; return _terms }
     }
 }
