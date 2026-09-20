@@ -1,0 +1,513 @@
+{
+ "created": "2026-09-20T06:48:37.880568+00:00",
+ "engine": "ctxe",
+ "note": "rescored from records.db — v1 extraction bug fixed (literal \\n tokens + find_defs shape)",
+ "legs": {
+  "ask_context_min": {
+   "n": 23,
+   "recall@1": 14,
+   "recall@5": 15,
+   "recall@10": 15,
+   "mrr": 0.6304
+  },
+  "find_defs": {
+   "n": 1,
+   "recall@1": 1,
+   "recall@5": 1,
+   "recall@10": 1,
+   "mrr": 1.0
+  },
+  "union": {
+   "n": 23,
+   "recall@1": 14,
+   "recall@5": 15,
+   "recall@10": 15,
+   "mrr": 0.6304
+  }
+ },
+ "results": [
+  {
+   "id": "sitem-01",
+   "gold": "engines/p8-core/scripts/p8_authority_watch.py",
+   "query_intent": "concept_flow",
+   "path_signal": "in_path",
+   "lang": "en",
+   "ask_paths": [
+    "engines/p8-core/scripts/p8_authority_watch.py",
+    "Sources/SiteM/OpsRunbook.swift",
+    "Sources/SiteM/OpsRunner.swift",
+    "Sources/SiteM/P8ScriptRunner.swift",
+    "fleet/registry.json",
+    "packaging/bundle.sh",
+    "Sources/SiteM/OpsScheduler.swift",
+    "plan/ONBOARDING_RUNBOOK_SPEC_20260913.md",
+    "plan/P8_CORE_STANDALONE_SPEC_20260913.md",
+    "Sources/SiteM/OpsSchedulerRuntime.swift",
+    "Sources/SiteM/WeeklyOps.swift"
+   ],
+   "ask_rank": 1,
+   "union_rank": 1
+  },
+  {
+   "id": "sitem-02",
+   "gold": "engines/p8-core/scripts/p8_link_health.py",
+   "query_intent": "concept_flow",
+   "path_signal": "in_body_only",
+   "lang": "vi",
+   "ask_paths": [
+    "engines/p8-core/scripts/p8_link_health.py",
+    "Sources/SiteM/SiteAuditService.swift",
+    "Sources/SiteM/SiteHealthService.swift",
+    "Sources/SiteM/SiteHealthMonitor.swift",
+    "Sources/SiteM/SiteHealthCardView.swift",
+    "Sources/SiteM/VerifyService.swift",
+    "artifacts/dod/S2_FIX.md",
+    "artifacts/briefs/l5-audit-run.md",
+    "tmp/s2_fix_build_final.txt",
+    "tmp/s2_fix_check.txt",
+    "artifacts/dod/site-optimization-actions.md"
+   ],
+   "ask_rank": 1,
+   "union_rank": 1
+  },
+  {
+   "id": "sitem-03",
+   "gold": "engines/p8-core/scripts/p8_daily_report.py",
+   "query_intent": "concept_flow",
+   "path_signal": "in_body_only",
+   "lang": "vi",
+   "ask_paths": [
+    "engines/p8-core/scripts/p8_daily_report.py",
+    "scripts/p8_daily_report.py",
+    "18.CRM-Nam-Pham/.../pull.py",
+    "docs/dashboard/index.html",
+    "18.CRM-Nam-Pham/crm-nam-pham/09-build/pull.py",
+    "artifacts/dod/L7_export.md",
+    "Sources/SiteM/ReportExporter.swift",
+    "Sources/SiteM/DashboardView.swift",
+    "tmp/l7-report.html",
+    "Sources/SiteM/BackupStore.swift",
+    "Sources/SiteM/RankAutomationService.swift"
+   ],
+   "ask_rank": 1,
+   "union_rank": 1
+  },
+  {
+   "id": "sitem-04",
+   "gold": "engines/p8-core/scripts/p8_analytics_pull.py",
+   "query_intent": "concept_flow",
+   "path_signal": "in_path",
+   "lang": "en",
+   "ask_paths": [
+    "engines/p8-core/scripts/p8_analytics_pull.py",
+    "config/fleet/registry.json",
+    "Sources/SiteM/Metrics.swift",
+    "P8_OPS_ARTIFACT_DIR/latest.json",
+    "scripts/p8_analytics_pull.py",
+    "fleet/registry.json",
+    "Sources/SiteM/P8AnalyticsService.swift"
+   ],
+   "ask_rank": 1,
+   "union_rank": 1
+  },
+  {
+   "id": "sitem-05",
+   "gold": "engines/p8-core/scripts/p8_ai_visibility.py",
+   "query_intent": "concept_flow",
+   "path_signal": "in_body_only",
+   "lang": "vi",
+   "ask_paths": [
+    "engines/p8-core/scripts/p8_ai_visibility.py",
+    "artifacts/analytics/ai_visibility-YYYY-MM-DD.json",
+    "Sources/SiteM/GeoBaselineStore.swift",
+    "Sources/SiteM/AIVisibilityStore.swift",
+    "Sources/SiteM/AIVisibilityModels.swift",
+    "Tests/SiteMTests/BrandVoiceAITest.swift",
+    "artifacts/dod/G11_agy_r1_review.md",
+    "Sources/SiteM/AgentService.swift",
+    "Sources/SiteM/WeeklyOps.swift",
+    "Sources/SiteM/VerifyService.swift",
+    "Sources/SiteM/AgentView.swift",
+    "Sources/SiteM/InfraTest.swift"
+   ],
+   "ask_rank": 1,
+   "union_rank": 1
+  },
+  {
+   "id": "sitem-06",
+   "gold": "Sources/SiteM/LogsView.swift",
+   "query_intent": "symbol_lookup",
+   "path_signal": "in_body_only",
+   "lang": "en",
+   "ask_paths": [
+    "Sources/SiteM/LogsView.swift"
+   ],
+   "ask_rank": 1,
+   "find_defs_rank": 1,
+   "union_rank": 1
+  },
+  {
+   "id": "sitem-07",
+   "gold": "engines/p8-core/scripts/p8_docs_governance_check.py",
+   "query_intent": "concept_flow",
+   "path_signal": "in_body_only",
+   "lang": "vi",
+   "ask_paths": [
+    "engines/p8-core/scripts/p8_docs_governance_check.py",
+    "api.wordpress.org/plugins/info/1.0/wordpress-seo.json",
+    "docs/references/seo/google-search-essentials.md",
+    "docs/SPEC.md",
+    "docs/PLAN.md",
+    "docs/CONTRACT.md",
+    "outputs/audit-20260915-codex/REVIEW.md",
+    "docs/CHUAN_TEST.md",
+    "scripts/kiem_ssot.sh",
+    "outputs/plan-finalization-20260915/PROMPT_DEVIN.md",
+    "outputs/implementation/final/REVIEW_READY.md",
+    "docs/references/seo/google-seo-starter-guide.md",
+    "docs/references/seo/yoast-seo-standards.md",
+    "docs/references/technical/WORDPRESS_BEST_PRACTICE.md",
+    "packaging/bundle.sh",
+    "artifacts/dod/B6_tri_thuc.md",
+    "Sources/SiteM/ViecCanLamStore.swift",
+    "Sources/SiteM/BanCeoTriThuc.swift",
+    "tmp/b6b.txt",
+    "tmp/b6c.txt",
+    "docs/handoffs/HANDOFF_20260911_site-M_full-1mkt-parity.md",
+    "docs/handoffs/HANDOFF_20260911_site-M_resume-after-stop.md",
+    "plan/sinh_bang_so_sanh.py",
+    "Sources/SiteM/VideoPipelineModels.swift",
+    "Sources/SiteM/VideoPipelineStore.swift",
+    "Sources/SiteM/GoogleBusinessModels.swift",
+    "Sources/SiteM/GoogleBusinessStore.swift",
+    "Sources/SiteM/VideoGMBTest.swift",
+    "Sources/SiteM/App.swift",
+    "Sources/SiteM/WebAdminTest.swift",
+    "Sources/SiteM/WebAdminView.swift",
+    "plan/P8_OPS_GENERALIZE_SPEC_20260913.md",
+    "factory/sitectl.py",
+    "config/fleet/registry.json",
+    "p8_ab_monitor/tracker.py",
+    "tmp/codex_spec_out.txt",
+    "T04/receipt-live.md",
+    "T05/receipt-live.md",
+    "T08/receipt-live.md",
+    "T10/receipt-live.md",
+    "T16/receipt-live.md",
+    "outputs/implementation/T20/receipt.md",
+    "outputs/implementation/T21/receipt.md",
+    "outputs/implementation/T22/receipt-live.md",
+    "AGENTS.md/OPERATING_PROTOCOL.md",
+    "outputs/plan-finalization-20260915/CONTRACT-before.md",
+    "T11/receipt-live.md"
+   ],
+   "ask_rank": 1,
+   "union_rank": 1
+  },
+  {
+   "id": "cms-01",
+   "gold": "nampham-cms/scripts/nampham_post_integrity_audit.py",
+   "query_intent": "concept_flow",
+   "path_signal": "in_path",
+   "lang": "en",
+   "ask_paths": [
+    "nampham-cms/src/routes/cms/posts.ts",
+    "nampham-cms/scripts/nampham_post_integrity_audit.py",
+    "scripts/nampham_post_integrity_audit.py",
+    "nampham-cms/WORKFLOW.md",
+    "8.P8_SEO_Clean/WORKFLOW.md",
+    "docs/HARNESS.md",
+    "docs/FEATURE_INTAKE.md",
+    "MASTER_PROJECT_MAP.md",
+    "docs/HANDOFF.md",
+    "docs/P9_TO_CMS_PUBLISH_RUNBOOK.md",
+    "docs/CONTENT_CHECKLIST.md",
+    "docs/CONTENT_ENV_STANDARD.md",
+    "src/lib/schema.ts",
+    "docs/templates/story.md",
+    "docs/stories/backlog.md",
+    "docs/CONTENT_HISTORY.md",
+    "docs/templates/decision.md",
+    "docs/00_governance/DRIFT_LOG.md",
+    "nampham-cms/docs/DRIFT_LOG.md",
+    "artifacts/audit/post_integrity_2026-07-02.json",
+    "nampham-cms/docs/RECAP_2026-07-20.md",
+    "github/workflows/harness-checks.yml",
+    "docs/SEO_CONTENT_STANDARD.md",
+    "docs/REVIEW_PLAN_2026-07-20.md",
+    "nampham-cms/src/lib/seo-analyzer.ts"
+   ],
+   "ask_rank": 2,
+   "union_rank": 2
+  },
+  {
+   "id": "cms-02",
+   "gold": "nampham-cms/scripts/nampham_daily_report.py",
+   "query_intent": "concept_flow",
+   "path_signal": "in_body_only",
+   "lang": "vi",
+   "ask_paths": [
+    "nampham-cms/scripts/nampham_daily_report.py",
+    "scripts/nampham_daily_report.py",
+    "src/lib/sitemap-policy.ts",
+    "nampham-cms/scripts/nampham_post_integrity_audit.py",
+    "scripts/nampham_post_integrity_audit.py",
+    "nampham-cms/scripts/nampham_auto_optimizer.py"
+   ],
+   "ask_rank": 1,
+   "union_rank": 1
+  },
+  {
+   "id": "cms-03",
+   "gold": "nampham-cms/scripts/nampham_index_manager.py",
+   "query_intent": "concept_flow",
+   "path_signal": "in_body_only",
+   "lang": "vi",
+   "ask_paths": [
+    "nampham-cms/scripts/nampham_index_manager.py",
+    "scripts/nampham_index_manager.py",
+    "docs/ENTITY_GRAPH_REGISTRY.md",
+    "nampham-cms/scripts/nampham_auto_optimizer.py",
+    "nampham-cms/scripts/nampham_daily_report.py",
+    "nampham-cms/scripts/nampham_post_integrity_audit.py",
+    "nampham-cms/docs/GROWTH_ADVISE_2026-07-20.md",
+    "nampham-cms/docs/MASTER_PLAN_2026-07-20_claude-code.md"
+   ],
+   "ask_rank": 1,
+   "union_rank": 1
+  },
+  {
+   "id": "cms-04",
+   "gold": "nampham-cms/scripts/cms_content_quality_gate.ts",
+   "query_intent": "concept_flow",
+   "path_signal": "in_path",
+   "lang": "en",
+   "ask_paths": [
+    "nampham-cms/scripts/cms_content_quality_gate.ts",
+    "nampham-cms/src/routes/cms/posts.ts",
+    "nampham-cms/CLAUDE.md",
+    "nampham-cms/WORKFLOW.md",
+    "8.P8_SEO_Clean/WORKFLOW.md",
+    "docs/HARNESS.md",
+    "docs/FEATURE_INTAKE.md",
+    "MASTER_PROJECT_MAP.md",
+    "docs/HANDOFF.md",
+    "docs/P9_TO_CMS_PUBLISH_RUNBOOK.md",
+    "docs/CONTENT_CHECKLIST.md",
+    "docs/CONTENT_ENV_STANDARD.md",
+    "src/lib/schema.ts",
+    "docs/templates/story.md",
+    "docs/stories/backlog.md",
+    "docs/CONTENT_HISTORY.md",
+    "docs/templates/decision.md",
+    "docs/00_governance/DRIFT_LOG.md",
+    "nampham-cms/docs/HANDOFF.md",
+    "nampham-cms/docs/MASTER_PLAN_2026-07-20_claude-code.md",
+    "dist/index.html",
+    "src/generated/client-shell.ts",
+    "src/lib/site-seo.ts",
+    "docs/P9_P12_ARCHITECTURE.md",
+    "src/lib/topic-hubs.ts",
+    "scripts/cms_content_quality_gate.ts",
+    "dist/_worker.js",
+    "src/lib/seo.ts",
+    "nampham-cms/docs/CONTENT_HISTORY.md",
+    "nampham-cms/docs/SEO_CONTENT_STANDARD.md",
+    "scripts/writing-quality-standard.md",
+    "nampham-cms/src/lib/seo-analyzer.ts"
+   ],
+   "ask_rank": 1,
+   "union_rank": 1
+  },
+  {
+   "id": "cms-05",
+   "gold": "nampham-cms/src/admin/components/CMSEditor.tsx",
+   "query_intent": "concept_flow",
+   "path_signal": "in_path",
+   "lang": "en",
+   "ask_paths": [
+    "nampham-cms/CLAUDE.md",
+    "dist/index.html",
+    "nampham-cms/Instruction_CMS_MD/08_CMS_BUILD_GUIDE.md",
+    "nampham-cms/docs/stories/002-cms-editor-inline-preview-cleanup.md",
+    "docs/product/nampham-product.md",
+    "docs/FEATURE_INTAKE.md"
+   ],
+   "ask_rank": 0,
+   "union_rank": 0
+  },
+  {
+   "id": "cms-06",
+   "gold": "nampham-cms/scripts/nampham_auto_optimizer.py",
+   "query_intent": "concept_flow",
+   "path_signal": "in_body_only",
+   "lang": "vi",
+   "ask_paths": [
+    "nampham-cms/scripts/nampham_auto_optimizer.py",
+    "nampham-cms/src/lib/seo-analyzer.ts",
+    "nampham-cms/src/routes/cms/posts.ts",
+    "nampham-cms/docs/NAMPHAM_SEO_OPS_SOP.md",
+    "src/lib/site-seo.ts",
+    "scripts/p8_analytics_pull.py",
+    "artifacts/analytics/fleet_kpi-latest.json",
+    "docs/CONTENT_ENV_STANDARD.md",
+    "nampham-cms/docs/SEO_CONTENT_STANDARD.md",
+    "scripts/writing-quality-standard.md",
+    "nampham-cms/docs/HANDOFF_CLAUDE_CODE_CRITICAL_FIX_2026-07-20.md"
+   ],
+   "ask_rank": 1,
+   "union_rank": 1
+  },
+  {
+   "id": "cms-07",
+   "gold": "nampham-cms/cms-patch/src/admin/pages/CMSRedirects.tsx",
+   "query_intent": "concept_flow",
+   "path_signal": "in_path",
+   "lang": "en",
+   "ask_paths": [
+    "nampham-cms/src/routes/cms/redirects.ts",
+    "nampham-cms/src/lib/types.ts",
+    "nampham-cms/Instruction_CMS_MD/08_CMS_BUILD_GUIDE.md"
+   ],
+   "ask_rank": 0,
+   "union_rank": 0
+  },
+  {
+   "id": "cms-08",
+   "gold": "nampham-cms/cms-patch/src/admin/pages/CMSLeads.tsx",
+   "query_intent": "concept_flow",
+   "path_signal": "in_path",
+   "lang": "en",
+   "ask_paths": [
+    "nampham-cms/src/routes/cms/leads.ts",
+    "nampham-cms/src/lib/types.ts",
+    "nampham-cms/src/routes/forms.ts"
+   ],
+   "ask_rank": 0,
+   "union_rank": 0
+  },
+  {
+   "id": "qr-01",
+   "gold": "app/admin/(panel)/checkin/page.tsx",
+   "query_intent": "concept_flow",
+   "path_signal": "in_path",
+   "lang": "en",
+   "ask_paths": [
+    "app/api/checkin/route.ts",
+    "docs/SPEC.md",
+    "docs/REVIEW.md",
+    "lib/session.ts"
+   ],
+   "ask_rank": 0,
+   "union_rank": 0
+  },
+  {
+   "id": "qr-02",
+   "gold": "app/admin/(panel)/attendance/page.tsx",
+   "query_intent": "concept_flow",
+   "path_signal": "in_body_only",
+   "lang": "vi",
+   "ask_paths": [
+    "app/api/checkin/route.ts",
+    "app/api/attendance/route.ts",
+    "docs/GAS_PROTOCOL.md",
+    "lib/gas.ts",
+    "lib/types.ts",
+    "google-apps-script/README.md",
+    "components/ui/status-text.ts"
+   ],
+   "ask_rank": 0,
+   "union_rank": 0
+  },
+  {
+   "id": "qr-03",
+   "gold": "app/api/qr/route.ts",
+   "query_intent": "concept_flow",
+   "path_signal": "in_path",
+   "lang": "en",
+   "ask_paths": [
+    "app/api/qr/route.ts",
+    "app/api/registrations/route.ts",
+    "resend-qr/route.ts",
+    "app/api/registrations/lookup/route.ts",
+    "docs/SPEC.md",
+    "docs/REVIEW.md"
+   ],
+   "ask_rank": 1,
+   "union_rank": 1
+  },
+  {
+   "id": "qr-04",
+   "gold": "app/api/auth/login/route.ts",
+   "query_intent": "concept_flow",
+   "path_signal": "in_body_only",
+   "lang": "vi",
+   "ask_paths": [
+    "app/api/auth/login/route.ts",
+    "lib/session.ts"
+   ],
+   "ask_rank": 1,
+   "union_rank": 1
+  },
+  {
+   "id": "qr-05",
+   "gold": "app/api/dashboard/summary/route.ts",
+   "query_intent": "concept_flow",
+   "path_signal": "in_path",
+   "lang": "en",
+   "ask_paths": [
+    "app/api/dashboard/summary/route.ts",
+    "docs/GAS_PROTOCOL.md",
+    "lib/gas.ts",
+    "lib/types.ts",
+    "docs/SPEC.md",
+    "lib/server/api.ts"
+   ],
+   "ask_rank": 1,
+   "union_rank": 1
+  },
+  {
+   "id": "qr-06",
+   "gold": "app/admin/(panel)/reports/page.tsx",
+   "query_intent": "concept_flow",
+   "path_signal": "in_body_only",
+   "lang": "vi",
+   "ask_paths": [
+    "app/api/dashboard/summary/route.ts",
+    "lib/types.ts"
+   ],
+   "ask_rank": 0,
+   "union_rank": 0
+  },
+  {
+   "id": "qr-07",
+   "gold": "app/registration-success/page.tsx",
+   "query_intent": "concept_flow",
+   "path_signal": "in_path",
+   "lang": "en",
+   "ask_paths": [
+    "components/public/format.ts"
+   ],
+   "ask_rank": 0,
+   "union_rank": 0
+  },
+  {
+   "id": "qr-08",
+   "gold": "middleware.ts",
+   "query_intent": "concept_flow",
+   "path_signal": "in_path",
+   "lang": "en",
+   "ask_paths": [
+    "lib/session.ts",
+    "docs/SPEC.md",
+    "docs/REVIEW.md",
+    "lib/server/api.ts",
+    "lib/types.ts",
+    "app/api/auth/login/route.ts",
+    "app/api/auth/me/route.ts"
+   ],
+   "ask_rank": 0,
+   "union_rank": 0
+  }
+ ]
+}

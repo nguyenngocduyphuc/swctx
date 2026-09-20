@@ -1,0 +1,7 @@
+PRE-REGISTRATION — bench/fleet_holdout.json
+manifest sha256 : a3b21eefb8ffd39b7e9080753b2bf0088afb74035ceb8eba6cbcd0f6351d0460
+frozen code     : swctx release @ 28d35e4
+workspaces      : 22.site-M (a4fc8115d18a) · 12.CMS (56ada82ab9b2) · 25.event-qr-checkin (442abc5637c0)
+strata          : 23 queries — in_path 12 / in_body_only 11 · en 13 / vi 10 · symbol_lookup 1
+authored        : blind — no engine run on these queries before hash
+pass/fail       : same contract as linkeldn — swctx R@5 within <=5pts of ctxe, no zero-recall stratum

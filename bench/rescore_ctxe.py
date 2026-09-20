@@ -15,6 +15,7 @@ Scoring contract (same as strict_score.py):
   - rank 0 = gold absent from extracted evidence paths
 """
 
+import argparse
 import json
 import os
 import re
@@ -23,10 +24,7 @@ import sys
 from datetime import datetime, timezone
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-QUERIES = os.path.join(HERE, "linkeldn_holdout.json")
-OUT = os.path.join(HERE, "linkeldn_ctxe_results.json")
-INDEX_KEY = "9244bb1f135b"  # 21.linkeldn
-RECORDS_DB = os.path.expanduser(f"~/.ctxe/indexes/{INDEX_KEY}/records.db")
+INDEXES_DIR = os.path.expanduser("~/.ctxe/indexes")
 
 # repo-relative path with a real source extension at a word boundary
 PATH_RE = re.compile(
@@ -64,24 +62,48 @@ def metrics(ranks):
             "recall@10": rec(10), "mrr": round(mrr, 4)}
 
 
+def ws_index_key(workspace):
+    """ctxe index key for a workspace = same hash as swctx's."""
+    try:
+        import subprocess
+        proc = subprocess.run(
+            [os.path.join(HERE, "..", ".build", "release", "swctx"),
+             "status", workspace],
+            capture_output=True, text=True, timeout=30)
+        return json.loads(proc.stdout).get("meta", {}).get("key")
+    except Exception:
+        return None
+
+
 def main():
-    queries = json.load(open(QUERIES))["queries"]
-    con = sqlite3.connect(f"file:{RECORDS_DB}?mode=ro", uri=True)
-    # newest 25 completed asks = this leg (matched by exact query text)
-    rows = con.execute(
-        "SELECT payload FROM records WHERE kind='ask' AND status='completed' "
-        "ORDER BY id DESC LIMIT 60").fetchall()
-    con.close()
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--queries", default=os.path.join(HERE, "linkeldn_holdout.json"))
+    ap.add_argument("--out", default=os.path.join(HERE, "linkeldn_ctxe_results.json"))
+    args = ap.parse_args()
+
+    queries = json.load(open(args.queries))["queries"]
 
     by_query = {}
-    for (payload,) in rows:
-        try:
-            body = json.loads(payload)
-        except ValueError:
+    for ws in {q["workspace"] for q in queries}:
+        key = ws_index_key(ws)
+        if not key:
             continue
-        q = body.get("query")
-        if q:
-            by_query[q] = body
+        db = os.path.join(INDEXES_DIR, key, "records.db")
+        if not os.path.exists(db):
+            continue
+        con = sqlite3.connect(f"file:{db}?mode=ro", uri=True)
+        rows = con.execute(
+            "SELECT payload FROM records WHERE kind='ask' "
+            "AND status='completed' ORDER BY id DESC LIMIT 80").fetchall()
+        con.close()
+        for (payload,) in rows:
+            try:
+                body = json.loads(payload)
+            except ValueError:
+                continue
+            q = body.get("query")
+            if q and q not in by_query:
+                by_query[q] = body
 
     results = []
     for q in queries:
@@ -111,11 +133,11 @@ def main():
         "legs": {"ask_context_min": metrics([r["ask_rank"] for r in results])},
         "results": results,
     }
-    json.dump(report, open(OUT, "w"), ensure_ascii=False, indent=1)
+    json.dump(report, open(args.out, "w"), ensure_ascii=False, indent=1)
     m = report["legs"]["ask_context_min"]
     print(f"\nctxe ask(min): n={m['n']} R@1={m['recall@1']} "
           f"R@5={m['recall@5']} R@10={m['recall@10']} MRR={m['mrr']}")
-    print(f"wrote {OUT}")
+    print(f"wrote {args.out}")
 
 
 if __name__ == "__main__":

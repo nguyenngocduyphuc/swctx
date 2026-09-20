@@ -744,6 +744,40 @@ by name to any agent reading it (`P8Catalog`↔"danh mục bài viết",
 to ship"). This is exactly the comprehension ctxe sells as planner
 rounds — performed by the caller.
 
+### Fleet blind holdout (T6) — `bench/fleet_*`
+
+23 more blind queries across 22.site-M, 12.CMS, 25.event-qr-checkin
+(`fleet_holdout.REGISTERED`, same ≤5pt contract). ctxe leg rescored
+from records.db (same extraction fixes).
+
+| | swctx union | ctxe union |
+|---|---|---|
+| **fleet R@5** | **17/23** | 15/23 → **swctx wins outright** |
+| EN | **11/13** | 7/13 |
+| VI | 6/10 | **8/10** |
+| in_path | **10/12** | 6/12 |
+| in_body_only | 7/11 | **9/11** |
+| site-M / CMS / QR | 5/7 · 5/8 · **7/8** | **7/7** · 5/8 · 3/8 |
+
+**Combined blind evidence (48q, 4 workspaces): swctx 39/48 (81%) vs
+ctxe 38/48 (79%)** — statistical parity with a slight swctx edge, at
+zero marginal cost vs 48 paid asks.
+
+**Field note — ctxe weakness found:** on 25.event-qr-checkin ctxe went
+3/8. All 13 `(panel)` files ARE indexed — the miss is retrieval, not
+indexing. Next.js convention names (`page.tsx`×10, `route.ts`×7,
+`middleware.ts`) put the discriminating signal in the *directory*, not
+the basename; ctxe's evidence doesn't disambiguate same-named files by
+path the way swctx's path-token probe does. Same-class weakness as the
+`SiteCleanup` chunker bug in CTXE_FEEDBACK.md — worth reporting
+upstream.
+
+**swctx weakness (symmetric):** VN body-only remains the soft stratum
+(6/10 fleet) — cms-06 (`nampham_auto_optimizer`) and sitem-03/05 missed
+because no lexicon phrase bridged the concept. Not a filename problem —
+semantic/lexical coverage gap; mitigated by agent enumeration (T5) and
+a candidate for W15 reranker if it persists across more sets.
+
 ### Glued-name coverage (`2bc455a`)
 
 seo-05 (`factory/sitectl.py`) was the last miss: "site" probes it via
