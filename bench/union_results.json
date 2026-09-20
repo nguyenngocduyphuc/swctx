@@ -5,7 +5,7 @@
   "search_hit": true,
   "search_rank": 1,
   "answer_hit": true,
-  "answer_rank": 4
+  "answer_rank": 5
  },
  {
   "id": "seo-02",
@@ -36,8 +36,8 @@
   "gold": "factory/sitectl.py",
   "search_hit": false,
   "search_rank": 0,
-  "answer_hit": false,
-  "answer_rank": 0
+  "answer_hit": true,
+  "answer_rank": 6
  },
  {
   "id": "seo-06",

@@ -254,6 +254,9 @@ public enum Search {
         var contentDF: [String: Int] = [:]
         for a in atoms { contentDF[a] = fileCount("folded : \"\(a)\"*") }
         var raw: [SearchHit] = []
+        // Anchor atoms that fetched each path via a content-verified
+        // (AND-folded) probe — enables glued-name coverage below.
+        var viaAnd: [String: Set<String>] = [:]
         for a in probed {
             // Discriminators must be atoms the target plausibly
             // CONTAINS, not merely rare ones: lowest content-DF picks
@@ -272,6 +275,7 @@ public enum Search {
                     + ")"
                 hits = try ftsFileProbe(store: store, match: and,
                                         limit: 20, pathFilter: pathFilter)
+                for h in hits { viaAnd[h.path, default: []].insert(a) }
             }
             // Bare fallback only for atoms rare enough to trust it —
             // a mid-DF atom without content agreement is skipped, not
@@ -323,8 +327,18 @@ public enum Search {
             var stemCover = 0
             var dirCovered = false
             var matchedAtoms: [String] = []
+            // Glued names: "sitectl" embeds "site" — no exact token,
+            // but the AND probe that fetched it already verified the
+            // content speaks the question's language, so the anchor's
+            // proper prefix counts as a name claim (≥4 chars guards
+            // against "con"→"content"-style junk; bare-fallback hits
+            // never reach this branch).
+            let anchors = (viaAnd[h.path] ?? []).sorted()
             for t in pathTokens {
-                guard let a = claimedAtom(t) else { continue }
+                guard let a = claimedAtom(t) ?? anchors.first(where: {
+                    $0.count >= 4 && t.count > $0.count
+                        && t.hasPrefix($0)
+                }) else { continue }
                 matchedAtoms.append(a)
                 if stemTokens.contains(t) {
                     idfScore += idf(a)
