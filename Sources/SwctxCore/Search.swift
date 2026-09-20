@@ -221,11 +221,25 @@ public enum Search {
     /// doi-ngu.md while "chuyển đổi số" manifest reports (also "doi")
     /// lack all three. Bare path probe is the fallback when the AND
     /// comes up empty. File-deduped, ranked by distinct path coverage.
+    /// Env-tunable probe knobs — `bench/optimize.py` sweeps these; the
+    /// defaults are the measured winners, envs exist for bench sweeps
+    /// only (same contract as SWCTX_RRF_W / SWCTX_XLATE_W).
+    static func envInt(_ name: String, _ def: Int) -> Int {
+        ProcessInfo.processInfo.environment[name]
+            .flatMap(Int.init) ?? def
+    }
+    static func envDouble(_ name: String, _ def: Double) -> Double {
+        ProcessInfo.processInfo.environment[name]
+            .flatMap(Double.init) ?? def
+    }
+
     static func plannerPathProbe(store: Store, atoms: [String],
                                  pathFilter: String? = nil,
                                  rareMaxFiles: Int = 60,
                                  midMaxFiles: Int = 200,
                                  limit: Int = 10) throws -> [SearchHit] {
+        let rareMaxFiles = envInt("SWCTX_PROBE_RARE", rareMaxFiles)
+        let midMaxFiles = envInt("SWCTX_PROBE_MID", midMaxFiles)
         guard !atoms.isEmpty else { return [] }
         func fileCount(_ match: String) -> Int {
             (try? store.pool.read { db in
@@ -243,11 +257,14 @@ public enum Search {
         // Sole-carrier rarity is only meaningful against a corpus where
         // uniqueness surprises. On a ~120-file index nearly every path
         // token is DF=1, so "surgical" would crown random names — gate
-        // the bonus on corpus size (P8: 3k+ files, CRM: ~120).
+        // the bonus on corpus size. Swept on all 3 manifests (optimize.
+        // py): 150 separates CRM (~120 files, surgical=junk) from
+        // linkeldn (186 files, surgical=p8-style DF1 names) — 57/70 vs
+        // 56/70 at 500, zero per-query regressions.
         let corpusFiles = (try? store.pool.read { db in
             try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM files") ?? 0
         }) ?? 0
-        let rarityMatters = corpusFiles >= 500
+        let rarityMatters = corpusFiles >= envInt("SWCTX_PROBE_CORPUS", 150)
         // Two tiers: RARE atoms (≤rareMaxFiles files) get the AND-folded
         // probe plus a bare path fallback; MID atoms (≤midMaxFiles) get
         // the AND-folded probe ONLY — a bare "apply" probe returns 84
@@ -467,12 +484,13 @@ public enum Search {
         var dirCount: [String: Int] = [:]
         var seenBasenames: Set<String> = []
         var out: [SearchHit] = []
+        let rankBar = envDouble("SWCTX_PROBE_BAR", 2.0)
         for s in scored {
             // Champions emit even at sd 0: Next.js pages carry intent in
             // the DIRECTORY (attendance/page.tsx stem "page" is generic)
             // — dir coverage is the only signal the convention gives.
             let isChampion = championFor.values.contains(s.hit.path)
-            guard s.rank >= 2.0 || isChampion else { continue }
+            guard s.rank >= rankBar || isChampion else { continue }
             let dir = (s.hit.path as NSString).deletingLastPathComponent
             let base = (s.hit.path as NSString).lastPathComponent
             if (dirCount[dir] ?? 0) >= 2 { continue }

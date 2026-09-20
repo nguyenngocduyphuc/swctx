@@ -258,7 +258,8 @@ public enum SwctxTools {
                                                pathFilter: pathFilter)) ?? []
             if !probe.isEmpty {
                 let probePaths = Set(probe.map(\.path))
-                hits = Array(probe.prefix(6))
+                let cap = Search.envInt("SWCTX_PROBE_CAP", 6)
+                hits = Array(probe.prefix(cap))
                     + hits.filter { !probePaths.contains($0.path) }
             }
             hits = Array(hits.prefix(limit))

@@ -134,13 +134,23 @@ def main():
     ap.add_argument("--out", default=DEFAULT_OUT)
     ap.add_argument("--swctx-bin", default=DEFAULT_BIN)
     ap.add_argument("--limit", type=int, default=0)
+    ap.add_argument("--legs", default="search,answer,find_defs",
+                    help="comma list: search,answer,find_defs — "
+                         "sweeps use --legs search (~1s/query vs ~4s)")
     args = ap.parse_args()
+    legs = set(args.legs.split(","))
+    want_search = "search" in legs
+    want_answer = "answer" in legs
+    want_fd = "find_defs" in legs
 
     spec = json.load(open(args.queries))
     queries = spec["queries"][:args.limit or None]
 
-    sess = MCPSession("swctx", [args.swctx_bin, "mcp"], timeout=60)
-    sess.start()
+    sess = None
+    if want_fd and any(q["query_intent"] == "symbol_lookup"
+                       and q.get("expected_symbol") for q in queries):
+        sess = MCPSession("swctx", [args.swctx_bin, "mcp"], timeout=60)
+        sess.start()
 
     rows = []
     for q in queries:
@@ -149,36 +159,43 @@ def main():
                "query_intent": q["query_intent"],
                "path_signal": q["path_signal"], "lang": q["lang"]}
 
-        paths, lat, err = leg_search(args.swctx_bin, ws, query)
-        row["search_rank"] = rank_of(gold, paths) if not err else 0
-        row["search_ms"] = round(lat, 1)
-        if err:
-            row["search_err"] = err
+        if want_search:
+            paths, lat, err = leg_search(args.swctx_bin, ws, query)
+            row["search_rank"] = rank_of(gold, paths) if not err else 0
+            row["search_ms"] = round(lat, 1)
+            if err:
+                row["search_err"] = err
 
-        paths, lat, err = leg_answer(args.swctx_bin, ws, query)
-        row["answer_rank"] = rank_of(gold, paths) if not err else 0
-        row["answer_ms"] = round(lat, 1)
-        if err:
-            row["answer_err"] = err
+        if want_answer:
+            paths, lat, err = leg_answer(args.swctx_bin, ws, query)
+            row["answer_rank"] = rank_of(gold, paths) if not err else 0
+            row["answer_ms"] = round(lat, 1)
+            if err:
+                row["answer_err"] = err
 
-        if q["query_intent"] == "symbol_lookup" and q.get("expected_symbol"):
+        if want_fd and q["query_intent"] == "symbol_lookup" \
+                and q.get("expected_symbol"):
             t0 = time.monotonic()
-            paths = leg_find_defs(sess, ws, q["expected_symbol"])
+            paths = leg_find_defs(sess, ws, q["expected_symbol"]) if sess \
+                else []
             row["find_defs_rank"] = rank_of(gold, paths)
             row["find_defs_ms"] = round((time.monotonic() - t0) * 1000, 1)
 
         row["union_rank"] = min(
-            (r for r in (row["search_rank"], row["answer_rank"],
+            (r for r in (row.get("search_rank", 0),
+                         row.get("answer_rank", 0),
                          row.get("find_defs_rank", 0)) if r > 0),
             default=0)
         rows.append(row)
-        print(f"{row['id']:8s} s={row['search_rank']:2d} "
-              f"a={row['answer_rank']:2d} "
+        print(f"{row['id']:8s} s={row.get('search_rank', '-'):>2} "
+              f"a={row.get('answer_rank', '-'):>2} "
               f"fd={row.get('find_defs_rank', '-')} "
               f"u={row['union_rank']:2d} "
-              f"({row['search_ms']:.0f}ms/{row['answer_ms']:.0f}ms)")
+              f"({row.get('search_ms', 0):.0f}ms/"
+              f"{row.get('answer_ms', 0):.0f}ms)")
 
-    sess.stop()
+    if sess:
+        sess.stop()
 
     def agg(key):
         return metrics([r.get(key, 0) for r in rows])
@@ -187,18 +204,20 @@ def main():
         "created": datetime.now(timezone.utc).isoformat(),
         "queries_file": os.path.basename(args.queries),
         "search_window": SEARCH_WINDOW,
-        "legs": {
-            "search": agg("search_rank"),
-            "answer": agg("answer_rank"),
+        "legs": {k: v for k, v in {
+            "search": agg("search_rank") if want_search else None,
+            "answer": agg("answer_rank") if want_answer else None,
             "find_defs": metrics([r["find_defs_rank"] for r in rows
-                                  if "find_defs_rank" in r]),
+                                  if "find_defs_rank" in r])
+                        if want_fd else None,
             "union": agg("union_rank"),
-        },
+        }.items() if v is not None and v["n"] > 0},
         "latency_ms": {
-            "search": {"median": round(median([r["search_ms"] for r in rows]), 1),
-                       "p95": round(p95([r["search_ms"] for r in rows]), 1)},
-            "answer": {"median": round(median([r["answer_ms"] for r in rows]), 1),
-                       "p95": round(p95([r["answer_ms"] for r in rows]), 1)},
+            leg: {"median": round(median([r[f"{leg}_ms"] for r in rows
+                                          if f"{leg}_ms" in r]), 1),
+                  "p95": round(p95([r[f"{leg}_ms"] for r in rows
+                                    if f"{leg}_ms" in r]), 1)}
+            for leg in ("search", "answer")
         },
         "results": rows,
     }
@@ -207,10 +226,10 @@ def main():
     for leg, m in report["legs"].items():
         print(f"{leg:10s} n={m['n']:2d} R@1={m['recall@1']:2d} "
               f"R@5={m['recall@5']:2d} R@10={m['recall@10']:2d} MRR={m['mrr']}")
-    print(f"search median {report['latency_ms']['search']['median']}ms "
-          f"p95 {report['latency_ms']['search']['p95']}ms · "
-          f"answer median {report['latency_ms']['answer']['median']}ms "
-          f"p95 {report['latency_ms']['answer']['p95']}ms")
+    for leg in ("search", "answer"):
+        lat = report["latency_ms"][leg]
+        if lat["median"] or lat["p95"]:
+            print(f"{leg} median {lat['median']}ms p95 {lat['p95']}ms")
     print(f"wrote {args.out}")
 
 
