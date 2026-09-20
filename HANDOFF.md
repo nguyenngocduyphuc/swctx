@@ -672,8 +672,20 @@ The residual gap was not synthesis depth — it was filename intent.
 **Measured** (`.build/debug`, answer --format json, no --plan —
 deterministic, no LLM): all six former misses hit —
 seo-06 r1, seo-09 r1, seo-10 r4, seo-04 r3, crm-10 r1, crm-11 r1.
-**Deterministic union (search ∨ answer): 20/22** (search 13, answer
-17). crm-08 still resolves via find_definitions (`ghi_quyet_dinh` →
-ghi_so.py) → MCP-surface union 21/22. Sole remaining: seo-05
-(`sitectl.py` — no filename-token signal; planner-dependent).
-Artifact: `bench/union_results.json`. 183 tests, 0 failures.
+**Deterministic union (search ∨ answer): 21/22** (search 13, answer
+18) after the glued-name follow-up below; crm-08 resolves via
+find_definitions (`ghi_quyet_dinh` → ghi_so.py) → **22/22 on the full
+MCP surface, matching the ctxe paired union** without LLM synthesis
+on the retrieval path. Artifact: `bench/union_results.json`.
+183 tests, 0 failures.
+
+### Glued-name coverage (`2bc455a`)
+
+seo-05 (`factory/sitectl.py`) was the last miss: "site" probes it via
+prefix match and its content carries every discriminator (entity×5,
+mesh×3, sync×2) but "sitectl" is one glued token — zero exact-token
+coverage filtered it out. Fix: a token that claims no atom may claim
+the AND-probe's anchor as a proper prefix (atom ≥4 chars). The AND
+content gate makes it safe — "sitectl" only entered raw because its
+body matched entity/mesh/sync; bare-fallback hits get no prefix
+credit. seo-05 → r6 deterministic.
