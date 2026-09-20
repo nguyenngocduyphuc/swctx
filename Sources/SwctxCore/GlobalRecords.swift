@@ -65,7 +65,11 @@ public final class GlobalRecords: @unchecked Sendable {
             // Fleet usage ledger: one row per MCP tools/call. Lives in the
             // global DB (not per-workspace indexes) so all workspaces share
             // it and no index schema bump is needed. `query` is truncated
-            // at insert (~200 chars) — local-only data.
+            // at insert (~200 chars) — local-only data. `session` groups
+            // calls from one MCP server process; `top_paths` is the JSON
+            // top-5 hit paths for retrieval tools; `arg_path` is the
+            // follow-up target (inspect_path.path / fetch_chunks chunk_ids)
+            // so mined "implicit utility" labels are causally linked.
             try db.execute(sql: """
                 CREATE TABLE IF NOT EXISTS usage_events(
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -75,10 +79,20 @@ public final class GlobalRecords: @unchecked Sendable {
                     latency_ms INTEGER NOT NULL,
                     hits INTEGER,
                     ok INTEGER NOT NULL,
-                    query TEXT);
+                    query TEXT,
+                    session TEXT,
+                    top_paths TEXT,
+                    arg_path TEXT);
                 """)
             try db.execute(sql:
                 "CREATE INDEX IF NOT EXISTS idx_usage_events_tool ON usage_events(tool)")
+            // Column migrations for ledgers created before session/top_paths/
+            // arg_path existed. CREATE IF NOT EXISTS won't add them.
+            let ucols = try Row.fetchAll(db,
+                sql: "PRAGMA table_info(usage_events)").map { $0["name"] as String }
+            for c in ["session", "top_paths", "arg_path"] where !ucols.contains(c) {
+                try db.execute(sql: "ALTER TABLE usage_events ADD COLUMN \(c) TEXT")
+            }
         }
         return pool
     }
@@ -110,15 +124,21 @@ public final class GlobalRecords: @unchecked Sendable {
     }
 
     /// One MCP tools/call usage event. Callers wrap in try? — telemetry
-    /// must never break a tool response. `query` is capped at 200 chars.
+    /// must never break a tool response. `query` is capped at 200 chars;
+    /// `topPaths` is the JSON-encoded top-5 hit paths; `argPath` is the
+    /// follow-up target argument (path or chunk_ids JSON).
     public func insertUsage(ws: String, tool: String, latencyMs: Int,
-                            hits: Int?, ok: Bool, query: String?) throws {
+                            hits: Int?, ok: Bool, query: String?,
+                            session: String? = nil, topPaths: String? = nil,
+                            argPath: String? = nil) throws {
         try pool.write { db in
             try db.execute(sql: """
-                INSERT INTO usage_events(ts, ws, tool, latency_ms, hits, ok, query)
-                VALUES(?,?,?,?,?,?,?)
+                INSERT INTO usage_events(ts, ws, tool, latency_ms, hits, ok, query,
+                                         session, top_paths, arg_path)
+                VALUES(?,?,?,?,?,?,?,?,?,?)
                 """, arguments: [Date().timeIntervalSince1970, ws, tool, latencyMs,
-                                 hits, ok, query.map { String($0.prefix(200)) }])
+                                 hits, ok, query.map { String($0.prefix(200)) },
+                                 session, topPaths, argPath])
         }
     }
 

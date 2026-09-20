@@ -384,17 +384,26 @@ public enum MCPServer {
         "search_records": "records",
     ]
 
+    /// One UUID per MCP server process — groups usage_events into agent
+    /// sessions so mined implicit-utility labels are causally ordered.
+    static let sessionID = UUID().uuidString
+
     /// Pull the telemetry fields out of a finished call. `ok` flips false
     /// when the call threw AND when the body carries an {"error": …}
     /// envelope (E_OUTPUT_TOO_LARGE, "record not found", …). `hits` is the
     /// result count where cheaply known — find_definitions sums the
     /// per-symbol `definitions` arrays, the rest read one array key.
+    /// `topPaths` captures the top-5 hit paths so a later fetch/inspect
+    /// call can be linked back to the query that surfaced the file;
+    /// `argPath` is that follow-up's target (path or chunk_ids JSON).
     static func usageFields(tool: String, args: [String: Value], body: String,
-                            threw: Bool) -> (ok: Bool, hits: Int?, query: String?) {
+                            threw: Bool) -> (ok: Bool, hits: Int?, query: String?,
+                                             topPaths: String?, argPath: String?) {
         let dict = (try? JSONSerialization.jsonObject(with: Data(body.utf8)))
             as? [String: Any]
         let ok = !threw && dict?["error"] == nil
         var hits: Int? = nil
+        var topPaths: String? = nil
         if let dict {
             if tool == "find_definitions",
                let groups = dict["results"] as? [[String: Any]] {
@@ -402,10 +411,25 @@ public enum MCPServer {
                     .map { ($0["definitions"] as? [Any])?.count ?? 0 }
                     .reduce(0, +)
             } else if let key = hitsArrayKey[tool] {
-                hits = (dict[key] as? [Any])?.count
+                let arr = dict[key] as? [Any]
+                hits = arr?.count
+                let paths = (arr ?? []).prefix(5).compactMap {
+                    ($0 as? [String: Any])?["path"] as? String
+                }
+                if !paths.isEmpty,
+                   let j = try? JSONSerialization.data(withJSONObject: paths) {
+                    topPaths = String(data: j, encoding: .utf8)
+                }
             }
         }
-        return (ok, hits, args["query"]?.str)
+        var argPath = args["path"]?.str ?? args["id"]?.int.map { "\($0)" }
+        if argPath == nil,
+           let ids = args["chunk_ids"]?.arr?.compactMap({ $0.int }),
+           !ids.isEmpty,
+           let j = try? JSONSerialization.data(withJSONObject: ids) {
+            argPath = String(data: j, encoding: .utf8)
+        }
+        return (ok, hits, args["query"]?.str, topPaths, argPath)
     }
 
     /// Fleet usage ledger: one row per tools/call in
@@ -422,7 +446,9 @@ public enum MCPServer {
             let ws = (try? SwctxTools.workspace(args))
                 .map { GlobalRecords.repoKey(for: $0) } ?? ""
             _ = try? g.insertUsage(ws: ws, tool: tool, latencyMs: latencyMs,
-                                   hits: f.hits, ok: f.ok, query: f.query)
+                                   hits: f.hits, ok: f.ok, query: f.query,
+                                   session: sessionID, topPaths: f.topPaths,
+                                   argPath: f.argPath)
         }
     }
 
