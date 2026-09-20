@@ -819,6 +819,30 @@ the same probe hits answer used to add. Per-tool value is strictly up;
 residual misses are the same VN body-only class plus seo-02/seo-07.
 183 tests pass; release binary rebuilt (`~/.local/bin/swctx`).
 
+## Self-optimization loop [f530384]
+
+swctx now tunes itself — no more manual whack-a-mole on ranking
+constants:
+
+```
+python3 bench/optimize.py --knob SWCTX_PROBE_CORPUS --values 0,150,500
+python3 bench/optimize.py --grid '{"SWCTX_PROBE_CAP":[4,6,8],
+                                   "SWCTX_RRF_W":["1,1,1","2,1,1"]}'
+```
+
+Per variant it runs `strict_score.py --legs search` on all three
+manifests (vn22 tuned + linkeldn/fleet blind), prints per-set R@5,
+and flags any query that leaves the top-5 vs baseline. Winners get
+baked in as new defaults; envs (`SWCTX_PROBE_{RARE,MID,BAR,CAP,
+CORPUS}`, `SWCTX_RRF_W`, `SWCTX_XLATE_W`) stay bench-only overrides.
+
+First sweep measured: BAR/CAP defaults optimal (56/70); CORPUS=150
+adopted (57/70, zero regressions — splits CRM's ~120-file index where
+DF1 is noise from linkeldn's 186 where DF1 names are real).
+
+Gate for adopting a knob change: improves combined R@5 AND no per-query
+R@5 regression AND search p95 does not regress materially.
+
 ### Glued-name coverage (`2bc455a`)
 
 seo-05 (`factory/sitectl.py`) was the last miss: "site" probes it via
