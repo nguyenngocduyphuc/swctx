@@ -1,0 +1,317 @@
+{
+ "created": "2026-09-20T04:56:50.954175+00:00",
+ "queries_file": "vn_queries.json",
+ "search_window": 20,
+ "legs": {
+  "search": {
+   "n": 22,
+   "recall@1": 6,
+   "recall@5": 11,
+   "recall@10": 12,
+   "mrr": 0.3667
+  },
+  "answer": {
+   "n": 22,
+   "recall@1": 10,
+   "recall@5": 15,
+   "recall@10": 18,
+   "mrr": 0.5434
+  },
+  "find_defs": {
+   "n": 3,
+   "recall@1": 3,
+   "recall@5": 3,
+   "recall@10": 3,
+   "mrr": 1.0
+  },
+  "union": {
+   "n": 22,
+   "recall@1": 15,
+   "recall@5": 20,
+   "recall@10": 22,
+   "mrr": 0.7667
+  }
+ },
+ "latency_ms": {
+  "search": {
+   "median": 753.1,
+   "p95": 1576.7
+  },
+  "answer": {
+   "median": 4449.6,
+   "p95": 6738.0
+  }
+ },
+ "results": [
+  {
+   "id": "seo-01",
+   "gold": "scripts/p8_canonical_check.py",
+   "query_intent": "concept_flow",
+   "path_signal": "in_path",
+   "lang": "vi",
+   "search_rank": 1,
+   "search_ms": 1576.7,
+   "answer_rank": 5,
+   "answer_ms": 4743.1,
+   "union_rank": 1
+  },
+  {
+   "id": "seo-02",
+   "gold": "scripts/p8_link_health.py",
+   "query_intent": "concept_flow",
+   "path_signal": "in_path",
+   "lang": "vi",
+   "search_rank": 4,
+   "search_ms": 1107.6,
+   "answer_rank": 9,
+   "answer_ms": 2551.7,
+   "union_rank": 4
+  },
+  {
+   "id": "seo-03",
+   "gold": "scripts/p8_utm_builder.py",
+   "query_intent": "concept_flow",
+   "path_signal": "in_path",
+   "lang": "vi",
+   "search_rank": 1,
+   "search_ms": 1103.9,
+   "answer_rank": 1,
+   "answer_ms": 2805.9,
+   "union_rank": 1
+  },
+  {
+   "id": "seo-04",
+   "gold": "scripts/p8_image_worker.py",
+   "query_intent": "concept_flow",
+   "path_signal": "in_path",
+   "lang": "vi",
+   "search_rank": 0,
+   "search_ms": 952.4,
+   "answer_rank": 3,
+   "answer_ms": 4019.9,
+   "union_rank": 3
+  },
+  {
+   "id": "seo-05",
+   "gold": "factory/sitectl.py",
+   "query_intent": "concept_flow",
+   "path_signal": "in_body_only",
+   "lang": "vi",
+   "search_rank": 0,
+   "search_ms": 955.6,
+   "answer_rank": 6,
+   "answer_ms": 4396.6,
+   "union_rank": 6
+  },
+  {
+   "id": "seo-06",
+   "gold": "docs-fleet/doi-ngu.md",
+   "query_intent": "concept_flow",
+   "path_signal": "in_body_only",
+   "lang": "vi",
+   "search_rank": 0,
+   "search_ms": 901.5,
+   "answer_rank": 1,
+   "answer_ms": 5576.7,
+   "union_rank": 1
+  },
+  {
+   "id": "seo-07",
+   "gold": "WORKFLOW.md",
+   "query_intent": "concept_flow",
+   "path_signal": "in_body_only",
+   "lang": "vi",
+   "search_rank": 6,
+   "search_ms": 910.9,
+   "answer_rank": 0,
+   "answer_ms": 9456.9,
+   "union_rank": 6
+  },
+  {
+   "id": "seo-08",
+   "gold": "scripts/p8_fix_featured_images.py",
+   "query_intent": "concept_flow",
+   "path_signal": "in_path",
+   "lang": "en",
+   "search_rank": 3,
+   "search_ms": 1716.8,
+   "answer_rank": 2,
+   "answer_ms": 4225.9,
+   "union_rank": 2
+  },
+  {
+   "id": "crm-01",
+   "gold": "crm-nam-pham/09-build/cham_cong.py",
+   "query_intent": "concept_flow",
+   "path_signal": "in_path",
+   "lang": "vi",
+   "search_rank": 5,
+   "search_ms": 601.6,
+   "answer_rank": 0,
+   "answer_ms": 4034.8,
+   "union_rank": 5
+  },
+  {
+   "id": "crm-02",
+   "gold": "crm-nam-pham/09-build/so_tay.py",
+   "query_intent": "symbol_lookup",
+   "path_signal": "in_body_only",
+   "lang": "vi",
+   "search_rank": 15,
+   "search_ms": 599.4,
+   "answer_rank": 0,
+   "answer_ms": 4166.9,
+   "find_defs_rank": 1,
+   "find_defs_ms": 118.1,
+   "union_rank": 1
+  },
+  {
+   "id": "crm-03",
+   "gold": "crm-nam-pham/09-build/tin_lead.py",
+   "query_intent": "symbol_lookup",
+   "path_signal": "in_body_only",
+   "lang": "vi",
+   "search_rank": 2,
+   "search_ms": 571.0,
+   "answer_rank": 1,
+   "answer_ms": 6547.7,
+   "find_defs_rank": 1,
+   "find_defs_ms": 10.0,
+   "union_rank": 1
+  },
+  {
+   "id": "crm-04",
+   "gold": "crm-nam-pham/09-build/dong_vong.py",
+   "query_intent": "concept_flow",
+   "path_signal": "in_path",
+   "lang": "vi",
+   "search_rank": 0,
+   "search_ms": 580.0,
+   "answer_rank": 1,
+   "answer_ms": 3661.8,
+   "union_rank": 1
+  },
+  {
+   "id": "crm-05",
+   "gold": "crm-nam-pham/functions/_middleware.js",
+   "query_intent": "concept_flow",
+   "path_signal": "in_body_only",
+   "lang": "vi",
+   "search_rank": 2,
+   "search_ms": 572.9,
+   "answer_rank": 1,
+   "answer_ms": 3627.6,
+   "union_rank": 1
+  },
+  {
+   "id": "crm-06",
+   "gold": "crm-nam-pham/07-docs/DANG_NHAP.md",
+   "query_intent": "concept_flow",
+   "path_signal": "in_path",
+   "lang": "vi",
+   "search_rank": 1,
+   "search_ms": 604.7,
+   "answer_rank": 1,
+   "answer_ms": 4502.6,
+   "union_rank": 1
+  },
+  {
+   "id": "crm-07",
+   "gold": "crm-nam-pham/09-build/nap_serp.py",
+   "query_intent": "concept_flow",
+   "path_signal": "in_path",
+   "lang": "vi",
+   "search_rank": 1,
+   "search_ms": 576.4,
+   "answer_rank": 7,
+   "answer_ms": 6738.0,
+   "union_rank": 1
+  },
+  {
+   "id": "crm-08",
+   "gold": "crm-nam-pham/09-build/ghi_so.py",
+   "query_intent": "symbol_lookup",
+   "path_signal": "in_body_only",
+   "lang": "en",
+   "search_rank": 0,
+   "search_ms": 572.9,
+   "answer_rank": 0,
+   "answer_ms": 4608.8,
+   "find_defs_rank": 1,
+   "find_defs_ms": 14.8,
+   "union_rank": 1
+  },
+  {
+   "id": "seo-09",
+   "gold": "scripts/p8_brain.py",
+   "query_intent": "concept_flow",
+   "path_signal": "in_body_only",
+   "lang": "vi",
+   "search_rank": 0,
+   "search_ms": 1274.4,
+   "answer_rank": 1,
+   "answer_ms": 5288.9,
+   "union_rank": 1
+  },
+  {
+   "id": "seo-10",
+   "gold": "scripts/ghost_link_builder_apply.py",
+   "query_intent": "concept_flow",
+   "path_signal": "in_body_only",
+   "lang": "vi",
+   "search_rank": 0,
+   "search_ms": 1076.9,
+   "answer_rank": 4,
+   "answer_ms": 4748.3,
+   "union_rank": 4
+  },
+  {
+   "id": "seo-11",
+   "gold": "docs-fleet/ke-hoach.md",
+   "query_intent": "concept_flow",
+   "path_signal": "in_path",
+   "lang": "vi",
+   "search_rank": 1,
+   "search_ms": 944.4,
+   "answer_rank": 4,
+   "answer_ms": 5193.2,
+   "union_rank": 1
+  },
+  {
+   "id": "crm-09",
+   "gold": "crm-nam-pham/09-build/kiem_he_thiet_ke.py",
+   "query_intent": "concept_flow",
+   "path_signal": "in_path",
+   "lang": "vi",
+   "search_rank": 1,
+   "search_ms": 585.7,
+   "answer_rank": 1,
+   "answer_ms": 3693.9,
+   "union_rank": 1
+  },
+  {
+   "id": "crm-10",
+   "gold": "crm-nam-pham/09-build/vaid_issues.py",
+   "query_intent": "symbol_lookup",
+   "path_signal": "in_body_only",
+   "lang": "en",
+   "search_rank": 20,
+   "search_ms": 564.1,
+   "answer_rank": 1,
+   "answer_ms": 5929.0,
+   "union_rank": 1
+  },
+  {
+   "id": "crm-11",
+   "gold": "crm-nam-pham/09-build/log_activity_live.py",
+   "query_intent": "concept_flow",
+   "path_signal": "in_body_only",
+   "lang": "vi",
+   "search_rank": 0,
+   "search_ms": 579.8,
+   "answer_rank": 1,
+   "answer_ms": 4103.3,
+   "union_rank": 1
+  }
+ ]
+}

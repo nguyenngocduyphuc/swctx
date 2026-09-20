@@ -1,0 +1,357 @@
+{
+ "created": "2026-09-20T05:05:30.239071+00:00",
+ "queries_file": "linkeldn_holdout.json",
+ "search_window": 20,
+ "legs": {
+  "search": {
+   "n": 25,
+   "recall@1": 11,
+   "recall@5": 17,
+   "recall@10": 18,
+   "mrr": 0.557
+  },
+  "answer": {
+   "n": 25,
+   "recall@1": 14,
+   "recall@5": 18,
+   "recall@10": 18,
+   "mrr": 0.63
+  },
+  "find_defs": {
+   "n": 5,
+   "recall@1": 5,
+   "recall@5": 5,
+   "recall@10": 5,
+   "mrr": 1.0
+  },
+  "union": {
+   "n": 25,
+   "recall@1": 18,
+   "recall@5": 22,
+   "recall@10": 22,
+   "mrr": 0.778
+  }
+ },
+ "latency_ms": {
+  "search": {
+   "median": 677.3,
+   "p95": 1141.2
+  },
+  "answer": {
+   "median": 6353.1,
+   "p95": 8012.5
+  }
+ },
+ "results": [
+  {
+   "id": "link-01",
+   "gold": "Sources/LinkedInAdminApp/LoopbackOAuthServer.swift",
+   "query_intent": "concept_flow",
+   "path_signal": "in_path",
+   "lang": "en",
+   "search_rank": 1,
+   "search_ms": 1232.2,
+   "answer_rank": 0,
+   "answer_ms": 5695.6,
+   "union_rank": 1
+  },
+  {
+   "id": "link-02",
+   "gold": "Sources/LinkedInAdminCore/BackupService.swift",
+   "query_intent": "concept_flow",
+   "path_signal": "in_path",
+   "lang": "en",
+   "search_rank": 1,
+   "search_ms": 1141.2,
+   "answer_rank": 1,
+   "answer_ms": 6329.3,
+   "union_rank": 1
+  },
+  {
+   "id": "link-03",
+   "gold": "Sources/LinkedInAdminCore/CrossPostSimilarity.swift",
+   "query_intent": "concept_flow",
+   "path_signal": "in_body_only",
+   "lang": "vi",
+   "search_rank": 12,
+   "search_ms": 1010.5,
+   "answer_rank": 4,
+   "answer_ms": 4149.5,
+   "union_rank": 4
+  },
+  {
+   "id": "link-04",
+   "gold": "Sources/LinkedInAdminCore/VoiceContentGate.swift",
+   "query_intent": "concept_flow",
+   "path_signal": "in_body_only",
+   "lang": "vi",
+   "search_rank": 0,
+   "search_ms": 908.5,
+   "answer_rank": 1,
+   "answer_ms": 6849.1,
+   "union_rank": 1
+  },
+  {
+   "id": "link-05",
+   "gold": "Sources/LinkedInAdminCore/EditorialQualityScan.swift",
+   "query_intent": "concept_flow",
+   "path_signal": "in_path",
+   "lang": "en",
+   "search_rank": 1,
+   "search_ms": 927.1,
+   "answer_rank": 1,
+   "answer_ms": 4040.2,
+   "union_rank": 1
+  },
+  {
+   "id": "link-06",
+   "gold": "Sources/LinkedInAdminCore/PublishReadiness.swift",
+   "query_intent": "concept_flow",
+   "path_signal": "in_path",
+   "lang": "en",
+   "search_rank": 1,
+   "search_ms": 662.8,
+   "answer_rank": 1,
+   "answer_ms": 3910.2,
+   "union_rank": 1
+  },
+  {
+   "id": "link-07",
+   "gold": "Sources/LinkedInAdminCore/ReviewQueue.swift",
+   "query_intent": "concept_flow",
+   "path_signal": "in_body_only",
+   "lang": "vi",
+   "search_rank": 5,
+   "search_ms": 995.3,
+   "answer_rank": 0,
+   "answer_ms": 6353.1,
+   "union_rank": 5
+  },
+  {
+   "id": "link-08",
+   "gold": "Sources/LinkedInAdminCore/SourceIntake.swift",
+   "query_intent": "concept_flow",
+   "path_signal": "in_path",
+   "lang": "en",
+   "search_rank": 2,
+   "search_ms": 447.1,
+   "answer_rank": 1,
+   "answer_ms": 7006.2,
+   "union_rank": 1
+  },
+  {
+   "id": "link-09",
+   "gold": "Sources/LinkedInAdminCore/LocalP8SourceAdapter.swift",
+   "query_intent": "concept_flow",
+   "path_signal": "in_path",
+   "lang": "en",
+   "search_rank": 2,
+   "search_ms": 594.5,
+   "answer_rank": 1,
+   "answer_ms": 6682.8,
+   "union_rank": 1
+  },
+  {
+   "id": "link-10",
+   "gold": "Sources/LinkedInAdminCore/SecureStore.swift",
+   "query_intent": "concept_flow",
+   "path_signal": "in_body_only",
+   "lang": "vi",
+   "search_rank": 0,
+   "search_ms": 1089.2,
+   "answer_rank": 1,
+   "answer_ms": 5142.2,
+   "union_rank": 1
+  },
+  {
+   "id": "link-11",
+   "gold": "Sources/LinkedInAdminCore/SettingsMigration.swift",
+   "query_intent": "concept_flow",
+   "path_signal": "in_path",
+   "lang": "en",
+   "search_rank": 2,
+   "search_ms": 457.7,
+   "answer_rank": 2,
+   "answer_ms": 7414.7,
+   "union_rank": 2
+  },
+  {
+   "id": "link-12",
+   "gold": "Sources/LinkedInAdminCore/ImageGeneration.swift",
+   "query_intent": "concept_flow",
+   "path_signal": "in_body_only",
+   "lang": "vi",
+   "search_rank": 7,
+   "search_ms": 948.0,
+   "answer_rank": 1,
+   "answer_ms": 8012.5,
+   "union_rank": 1
+  },
+  {
+   "id": "link-13",
+   "gold": "Sources/LinkedInAdminCore/LinkedInHistoryStore.swift",
+   "query_intent": "concept_flow",
+   "path_signal": "in_path",
+   "lang": "en",
+   "search_rank": 2,
+   "search_ms": 550.3,
+   "answer_rank": 0,
+   "answer_ms": 7329.9,
+   "union_rank": 2
+  },
+  {
+   "id": "link-14",
+   "gold": "Sources/LinkedInAdminCore/VoicePresetLibrary.swift",
+   "query_intent": "concept_flow",
+   "path_signal": "in_path",
+   "lang": "en",
+   "search_rank": 1,
+   "search_ms": 453.9,
+   "answer_rank": 1,
+   "answer_ms": 4433.0,
+   "union_rank": 1
+  },
+  {
+   "id": "link-15",
+   "gold": "Sources/LinkedInAdminCore/P8Catalog.swift",
+   "query_intent": "concept_flow",
+   "path_signal": "in_body_only",
+   "lang": "vi",
+   "search_rank": 0,
+   "search_ms": 1070.4,
+   "answer_rank": 0,
+   "answer_ms": 4722.5,
+   "union_rank": 0
+  },
+  {
+   "id": "link-16",
+   "gold": "Sources/LinkedInAdminCore/GateReasonCopy.swift",
+   "query_intent": "concept_flow",
+   "path_signal": "in_path",
+   "lang": "en",
+   "search_rank": 1,
+   "search_ms": 543.9,
+   "answer_rank": 1,
+   "answer_ms": 7707.3,
+   "union_rank": 1
+  },
+  {
+   "id": "link-17",
+   "gold": "Sources/LinkedInAdminCore/CommandIntent.swift",
+   "query_intent": "concept_flow",
+   "path_signal": "in_path",
+   "lang": "en",
+   "search_rank": 1,
+   "search_ms": 481.0,
+   "answer_rank": 2,
+   "answer_ms": 4338.4,
+   "union_rank": 1
+  },
+  {
+   "id": "link-18",
+   "gold": "Sources/LinkedInAdminCore/OneMktCredentialBridge.swift",
+   "query_intent": "concept_flow",
+   "path_signal": "in_body_only",
+   "lang": "vi",
+   "search_rank": 0,
+   "search_ms": 953.5,
+   "answer_rank": 0,
+   "answer_ms": 3775.9,
+   "union_rank": 0
+  },
+  {
+   "id": "link-19",
+   "gold": "Sources/LinkedInAdminCore/AccountCredentials.swift",
+   "query_intent": "concept_flow",
+   "path_signal": "in_path",
+   "lang": "en",
+   "search_rank": 1,
+   "search_ms": 677.3,
+   "answer_rank": 1,
+   "answer_ms": 7678.0,
+   "union_rank": 1
+  },
+  {
+   "id": "link-20",
+   "gold": "Sources/LinkedInAdminCore/PublishReadiness.swift",
+   "query_intent": "concept_flow",
+   "path_signal": "in_body_only",
+   "lang": "en",
+   "search_rank": 0,
+   "search_ms": 569.6,
+   "answer_rank": 0,
+   "answer_ms": 5930.6,
+   "union_rank": 0
+  },
+  {
+   "id": "link-21",
+   "gold": "Sources/LinkedInAdminCore/CommandIntent.swift",
+   "query_intent": "symbol_lookup",
+   "path_signal": "in_body_only",
+   "lang": "en",
+   "search_rank": 1,
+   "search_ms": 465.0,
+   "answer_rank": 2,
+   "answer_ms": 2051.7,
+   "find_defs_rank": 1,
+   "find_defs_ms": 133.0,
+   "union_rank": 1
+  },
+  {
+   "id": "link-22",
+   "gold": "Sources/LinkedInAdminCore/ContentBrief.swift",
+   "query_intent": "symbol_lookup",
+   "path_signal": "in_body_only",
+   "lang": "vi",
+   "search_rank": 2,
+   "search_ms": 797.3,
+   "answer_rank": 1,
+   "answer_ms": 8064.3,
+   "find_defs_rank": 1,
+   "find_defs_ms": 4.4,
+   "union_rank": 1
+  },
+  {
+   "id": "link-23",
+   "gold": "Sources/LinkedInAdminApp/LoopbackOAuthServer.swift",
+   "query_intent": "symbol_lookup",
+   "path_signal": "in_body_only",
+   "lang": "en",
+   "search_rank": 1,
+   "search_ms": 454.2,
+   "answer_rank": 1,
+   "answer_ms": 7221.0,
+   "find_defs_rank": 1,
+   "find_defs_ms": 7.0,
+   "union_rank": 1
+  },
+  {
+   "id": "link-24",
+   "gold": "Sources/LinkedInAdminCore/BackupService.swift",
+   "query_intent": "symbol_lookup",
+   "path_signal": "in_body_only",
+   "lang": "en",
+   "search_rank": 1,
+   "search_ms": 588.0,
+   "answer_rank": 1,
+   "answer_ms": 7556.5,
+   "find_defs_rank": 1,
+   "find_defs_ms": 6.5,
+   "union_rank": 1
+  },
+  {
+   "id": "link-25",
+   "gold": "Sources/LinkedInAdminCore/ReviewQueue.swift",
+   "query_intent": "symbol_lookup",
+   "path_signal": "in_body_only",
+   "lang": "vi",
+   "search_rank": 0,
+   "search_ms": 860.4,
+   "answer_rank": 0,
+   "answer_ms": 6865.4,
+   "find_defs_rank": 1,
+   "find_defs_ms": 15.2,
+   "union_rank": 1
+  }
+ ]
+}

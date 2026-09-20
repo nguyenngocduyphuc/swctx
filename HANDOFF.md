@@ -679,6 +679,28 @@ MCP surface, matching the ctxe paired union** without LLM synthesis
 on the retrieval path. Artifact: `bench/union_results.json`.
 183 tests, 0 failures.
 
+### Figure ledger — every reported number, one table (Codex T1)
+
+All on the same 22-query VN benchmark (`bench/vn_queries.json`,
+P8 + CRM) unless noted. "Deterministic" = no LLM anywhere on the leg.
+
+| Figure | Commit/era | Legs included | Notes |
+|---|---|---|---|
+| 14/22 | pre-probe | local retrieval baseline (hybrid) | original local-only coverage |
+| 19/22 | `79bbeea` | search ∨ find_defs ∨ answer --plan | planner rescued 4/8; nondeterministic |
+| 20/22 | `4126a2c` | search ∨ answer (no plan) | deterministic union, pre-glued-name |
+| 13/22 | `2bc455a` | search only | single-leg, deterministic |
+| 18/22 | `2bc455a` | answer only (no plan) | single-leg, deterministic; several hits rank 6–9 |
+| **21/22** | `2bc455a` | **search ∨ answer union** | **current headline; sole miss crm-08** |
+| 22/22 | `2bc455a` | union + find_definitions | crm-08 → `ghi_quyet_dinh`→`ghi_so.py`; full MCP surface |
+| 22/22 | (ctxe) | ctxe paired union incl. ask rescue | the parity reference, credit-paid |
+| 14–16/22 | any | answer --plan alone | LLM planner flaps run-to-run — never headline |
+| 11/20 | `e0ad02c` | frozen 20q holdout, search@5 | separate corpus; baseline, never tuned |
+
+**Caveat (Codex T2):** union binary counts rank-6–9 as "hit" — it
+measures *reach*, not rank quality. Strict per-leg Recall@5 + MRR is
+tracked as T2 before any superiority claim.
+
 ### Glued-name coverage (`2bc455a`)
 
 seo-05 (`factory/sitectl.py`) was the last miss: "site" probes it via

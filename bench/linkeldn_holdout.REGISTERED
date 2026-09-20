@@ -1,0 +1,8 @@
+PRE-REGISTRATION — bench/linkeldn_holdout.json
+manifest sha256 : e73cf8491f743a520aa3a12a68fb20a20a2566b296aa4e6a56771ad26c3ade52
+index.db head   : 82826d8110953a3f11856bdca644049555e30f288852e4fd981710234f647d1c (first 1MiB, key 9244bb1f135b)
+frozen code     : swctx release binary @ commit 2bc455a+f88752d (post glued-name)
+strata          : 25 queries — in_path 12 / in_body_only 13 · concept_flow 20 / symbol_lookup 5 · en 16 / vi 9
+authored        : blind — no swctx/ctxe run on these queries before this hash
+pass/fail (predeclared): swctx Recall@5 within <=5 points of ctxe Recall@5 on the same frozen snapshot; no stratum with zero recall.
+discipline      : results of this set NEVER feed retrieval tuning; regressions get diagnosed, thresholds unchanged.
