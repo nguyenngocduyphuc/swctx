@@ -23,7 +23,11 @@ public struct IndexReport: Codable, Sendable {
 
 public final class Indexer {
     let store: Store
-    var embedder: Embedder
+    /// Lazy: Embedder() eagerly loads the ~900MB CoreML model at
+    /// construction, so watchers sitting on a fully-embedded index must
+    /// not pay that residency for zero pending chunks. Created on first
+    /// embed need via requireEmbedder(); injected instances stay honored.
+    var embedder: Embedder?
 
     static let denyDirs: Set<String> = [
         ".git", ".build", ".next", ".nuxt", ".venv", "venv", "env",
@@ -47,9 +51,20 @@ public final class Indexer {
     /// js/ts index, rust mod.
     static let packageIndexStems: Set<String> = ["__init__", "index", "mod"]
 
-    public init(store: Store, embedder: Embedder = Embedder()) {
+    public init(store: Store, embedder: Embedder? = nil) {
         self.store = store
         self.embedder = embedder
+    }
+
+    /// Lazily create the embedder on first embed need; the returned
+    /// instance stays cached for the whole pass so one vector space
+    /// covers every batch.
+    @discardableResult
+    func requireEmbedder() -> Embedder {
+        if let e = embedder { return e }
+        let e = Embedder()
+        embedder = e
+        return e
     }
 
     // MARK: - Discovery
@@ -240,8 +255,9 @@ public final class Indexer {
         // pending chunks remain (capped at embedMaxBatches); `swctx embed`
         // fills whatever a mid-run failure or the cap leaves. Never fails
         // the index — embed errors land in report.errors.
-        if autoEmbed, embedder.isAvailable {
-            report.embeddingModel = embedder.modelName
+        let pendingBefore = autoEmbed ? ((try? pendingEmbeddings()) ?? 0) : 0
+        if autoEmbed, pendingBefore > 0, requireEmbedder().isAvailable {
+            report.embeddingModel = embedder?.modelName
             do {
                 report.embeddedChunks = try embedAll(
                     maxBatches: Indexer.embedMaxBatches
@@ -251,7 +267,8 @@ public final class Indexer {
             }
         }
         report.pendingEmbeddings = (try? pendingEmbeddings()) ?? 0
-        if autoEmbed, embedder.isAvailable, report.pendingEmbeddings > 0 {
+        if autoEmbed, report.pendingEmbeddings > 0,
+           let e = embedder, e.isAvailable {
             report.errors.append(
                 "embed: \(report.pendingEmbeddings) chunks still pending — run `swctx embed`")
         }
@@ -405,7 +422,7 @@ public final class Indexer {
             guard staged > 0 else { return 0 }
             // Without a working model the same-dim guard can't be
             // evaluated — keep the snapshot so a later run can restore it.
-            let dim = embedder.dimension
+            let dim = requireEmbedder().dimension
             guard dim > 0 else { return 0 }
             // Dropped even when the INSERT throws: a poisoned snapshot
             // must not wedge every later embed pass.
@@ -919,10 +936,10 @@ public final class Indexer {
         if let dims = try store.pool.read({ db in
             try Int64.fetchAll(db, sql: "SELECT DISTINCT dim FROM embeddings")
         }).nilIfEmpty() {
-            if dims.count > 1 || Int(dims[0]) != embedder.dimension {
+            if dims.count > 1 || Int(dims[0]) != requireEmbedder().dimension {
                 throw NSError(domain: "swctx", code: 2, userInfo: [
                     NSLocalizedDescriptionKey:
-                        "stored embeddings have dim=\(dims) but the active model produces \(embedder.dimension); run `swctx embed --reindex`"])
+                        "stored embeddings have dim=\(dims) but the active model produces \(requireEmbedder().dimension); run `swctx embed --reindex`"])
             }
         }
         var total = 0
@@ -992,7 +1009,7 @@ public final class Indexer {
             let path = (row["path"] as? String) ?? ""
             let kind = (row["kind"] as? String) ?? ""
             let text = (path + "\n" + (symbol ?? kind) + "\n" + content).prefix(1800)
-            guard let vec = embedder.embed(String(text)) else { failed.insert(cid); continue }
+            guard let vec = requireEmbedder().embed(String(text)) else { failed.insert(cid); continue }
             vectors.append((cid, vec.count, vec.withUnsafeBytes { Data($0) }))
         }
         try store.pool.write { db in
