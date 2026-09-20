@@ -45,12 +45,8 @@ no LLM) = 21/22 on the 22-query VN benchmark; +`find_definitions` = **22/22
 MCP surface** — parity with the ctxe paired union at zero marginal cost.
 Commits `3b450b2`/`4126a2c`/`2bc455a`; artifact `bench/union_results.json`.
 
-**The only remaining paid dependency: LLM prose synthesis.**
-- `ask_context compose:true` produces reports swctx's extractive `answer`
-  does not match in prose quality.
-- If that capability is needed post-ctxe, the replacement path is a **local
-  model** (self-hosted Qwopus/3B already used by `answer --plan` — zero
-  credit), not another paid service.
+**The only remaining paid dependency: LLM prose synthesis — and it is not
+a real gap.** See §5.
 
 ## 4. "When the money stops" checklist
 
@@ -62,9 +58,42 @@ If ctxe credentials lapse / credits run out:
 | `find_definitions`/`find_usages`/graph/records/inspect_path | swctx MCP — same tool names, same agent config | yes |
 | Workspace orientation | `fast_understand` digest | yes |
 | Evidence packs for questions | `answer` / `context_pack` | yes (22/22 measured) |
-| LLM-written investigation reports | nothing local yet — `compose_answer` equivalent | **the one real gap** |
+| Investigation reports | **the calling agent itself** — Devin/agy/Claude reads the pack and writes | yes — see §5 |
 
-**Bottom line:** 4/5 paid capabilities already replaced at 0 cost. The day
-credits stop, retrieval keeps working untouched; the only thing that
-disappears is server-written prose — and the fix for that is a local model,
-not a subscription.
+## 5. Feasibility of 100% replacement — the agent-is-the-brain argument
+
+ctxe sells two server-side brains: the **planner** (`ask_context` rounds:
+retrieve → reason → re-query) and the **composer** (`compose_answer`
+prose). Both are billed per call in credits.
+
+But every MCP caller in this fleet is already an LLM agent — Devin, agy,
+Claude, Codex — paid as a flat subscription, not per query. The
+agent-driven loop *is* a planner:
+
+```
+agent → swctx search → read evidence → next query → … → writes report
+```
+
+Equivalent to ctxe's internal planner, with two advantages: the model is
+stronger than a server-side 3B-class reasoner, and it carries the full
+task context ctxe never sees. swctx's `answer --plan` additionally ships
+a local-model planner for headless use — zero credit either way.
+
+**Therefore the §3 "gap" resolves to:** ctxe's paid synthesis is redundant
+when the consumer is an agent CLI. It would only matter for a
+*non-agent* consumer (a script wanting prose with no LLM in the loop) —
+not this workflow.
+
+### Residual risks (honest — quality margins, not structural gaps)
+
+| Risk | Mitigation |
+|---|---|
+| Parity measured on one 22-query set, tuned against it | Blind holdout on an untuned repo (todo #10) |
+| Only P8 + CRM measured | Extend index + bench to remaining workspaces |
+| `voyage-code-4` (1024-d) vs BGE (768-d) embedding quality | Measured parity so far; reranker (W15) if a gap appears |
+| Headless prose reports with no agent | Local model via `answer --plan`; or accept absence |
+
+**Verdict: 100% replacement is feasible today for agent-driven work.**
+Nothing ctxe sells is structurally irreplaceable — the two paid brains are
+duplicates of the caller. The only open work is *evidence breadth*
+(blind holdout, more repos), not new capability.
