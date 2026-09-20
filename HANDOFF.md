@@ -701,6 +701,40 @@ P8 + CRM) unless noted. "Deterministic" = no LLM anywhere on the leg.
 measures *reach*, not rank quality. Strict per-leg Recall@5 + MRR is
 tracked as T2 before any superiority claim.
 
+### Strict metrics (Codex T2) — `bench/strict_results.json`
+
+22q VN set, release binary, deterministic legs only:
+
+| leg | R@1 | R@5 | R@10 | MRR | median |
+|---|---|---|---|---|---|
+| search (limit 20) | 6/22 | 11/22 | 12/22 | 0.37 | 753 ms |
+| answer (no --plan) | 10/22 | 15/22 | 18/22 | 0.54 | 4.4 s |
+| find_defs (symbol) | 3/3 | 3/3 | 3/3 | 1.0 | — |
+| **union** | **15/22** | **20/22** | **22/22** | **0.77** | — |
+
+### Blind paired holdout (Codex T3/T4) — `bench/linkeldn_*`
+
+25 queries authored blind on 21.linkeldn, manifest+index hashed before
+results (`linkeldn_holdout.REGISTERED`), pass/fail predeclared:
+swctx R@5 within ≤5 pts of ctxe, no zero-recall stratum.
+
+| | swctx union | ctxe union (ask min ∪ find_defs) |
+|---|---|---|
+| **R@5** | **22/25 (88%)** | **23/25 (92%)** → Δ4 **PASS** |
+| R@1 / MRR | 18/25 · **0.778** | 15/25 · 0.715 |
+| in_path | **12/12** | 10/12 (missed 2 EN filename queries) |
+| in_body_only | 10/13 | **13/13** |
+| vi / en | 7/9 / **15/16** | **9/9** / 14/16 |
+| cost | **0đ** | 25 paid asks |
+
+Read: swctx wins filename-intent + EN + rank quality (MRR) for free;
+ctxe's paid planner wins body-only VN — the stratum where filename
+signal is absent and LLM comprehension genuinely helps. swctx misses:
+link-15 (P8Catalog), link-18 (OneMktCredentialBridge), link-20
+(PublishReadiness body-only EN). Verdict per predeclared contract:
+**PASS — regression detector green; not generalization proof** (Codex:
+25q is a detector, T6 extends coverage).
+
 ### Glued-name coverage (`2bc455a`)
 
 seo-05 (`factory/sitectl.py`) was the last miss: "site" probes it via
