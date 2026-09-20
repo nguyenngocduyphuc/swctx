@@ -778,6 +778,47 @@ because no lexicon phrase bridged the concept. Not a filename problem —
 semantic/lexical coverage gap; mitigated by agent enumeration (T5) and
 a candidate for W15 reranker if it persists across more sets.
 
+## 2026-09-20 (b) — Probe in `search` leg + camelCase stems [ee3ec77]
+
+`Tools.search` (hybrid/identifier) now prepends up to 6 verified
+filename-probe hits — the probe previously lived only in `answer`,
+while agents call `search` far more. Probe ranking was rebuilt after
+three orderings whack-a-mole'd:
+
+- fp-first (DF≤2): crowned one-rare-atom junk over `p8_canonical_check`
+- ec-first: buried `p8_brain`'s DF-1 name under 58 plausible ec2 files
+- **final: `rank = effectiveCover + stemDensity + soleCarrier`**
+  (sole-carrier = matched atom with path-DF==1), plus a surgical tier
+  when the DF-1 atom sits in the STEM *and* the corpus is large enough
+  that uniqueness means something (≥500 files — on ~120-file CRM almost
+  every path token is DF1, so "surgical" crowned random names there)
+
+Two supporting fixes measured on the blind sets:
+
+- **camelCase stem split**: `LocalP8SourceAdapter` was one glued stem
+  token → stemCover 0, dir-only ec1 → below the emit bar. Stems now
+  split on lower→upper boundaries (linkeldn search leg 17→21).
+- **per-atom champions**: each probed atom keeps its best candidate
+  below the rank bar — `vaid_issues.py` (rk 1.5, sole "issue" carrier)
+  and `attendance/page.tsx` (Next.js dir intent, sd 0) stay reachable.
+
+Strict R@5 after the change (`strict_results.json`,
+`linkeldn_swctx_results.json`, `fleet_swctx_results.json` — all
+regenerated on this build):
+
+| set | search@5 before → after | union@5 before → after |
+|---|---|---|
+| vn22 | 11/22 → **18/22** | 20/22 → 20/22 |
+| linkeldn (blind) | 17/25 → **21/25** | 22/25 → 21/25 |
+| fleet (blind) | 12/23 → **17/23** | 17/23 → 17/23 |
+
+Read yet: the *agent-facing* `search` leg alone now matches the old
+two-leg union on blind sets (21+17 = 38/48 vs old union 39/48). Union
+is flat (−1 linkeldn) because the legs converged — search now returns
+the same probe hits answer used to add. Per-tool value is strictly up;
+residual misses are the same VN body-only class plus seo-02/seo-07.
+183 tests pass; release binary rebuilt (`~/.local/bin/swctx`).
+
 ### Glued-name coverage (`2bc455a`)
 
 seo-05 (`factory/sitectl.py`) was the last miss: "site" probes it via
