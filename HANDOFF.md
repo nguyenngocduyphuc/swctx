@@ -735,6 +735,15 @@ link-15 (P8Catalog), link-18 (OneMktCredentialBridge), link-20
 **PASS — regression detector green; not generalization proof** (Codex:
 25q is a detector, T6 extends coverage).
 
+**Agent-is-brain follow-up (T5):** the 3 swctx misses are recoverable
+by the standard agent loop without query rewriting —
+`search` (miss) → `get_workspace_tree Sources/LinkedInAdminCore`
+(1 call, free) → all 3 gold files present in the listing, recognizable
+by name to any agent reading it (`P8Catalog`↔"danh mục bài viết",
+`OneMktCredentialBridge`↔"cầu nối credential", `PublishReadiness`↔"safe
+to ship"). This is exactly the comprehension ctxe sells as planner
+rounds — performed by the caller.
+
 ### Glued-name coverage (`2bc455a`)
 
 seo-05 (`factory/sitectl.py`) was the last miss: "site" probes it via
