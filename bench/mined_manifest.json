@@ -1,0 +1,15 @@
+{
+ "generated": "2026-09-20T23:29:33.692275+00:00",
+ "confidence_note": "implicit_utility is positive-unlabeled — verify before treating as gold",
+ "queries": [
+  {
+   "id": "zh-5",
+   "query": "telemetry smoke zerohit",
+   "workspace": "d75cc574dfb7",
+   "expected_path": null,
+   "confidence": "zero_hit",
+   "source": "usage",
+   "sessions": 1
+  }
+ ]
+}
