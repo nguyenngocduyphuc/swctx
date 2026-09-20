@@ -1,21 +1,21 @@
 {
- "created": "2026-09-20T06:26:33.102929+00:00",
+ "created": "2026-09-20T15:06:49.584309+00:00",
  "queries_file": "fleet_holdout.json",
  "search_window": 20,
  "legs": {
   "search": {
    "n": 23,
-   "recall@1": 8,
-   "recall@5": 12,
-   "recall@10": 13,
-   "mrr": 0.4098
+   "recall@1": 11,
+   "recall@5": 17,
+   "recall@10": 18,
+   "mrr": 0.5841
   },
   "answer": {
    "n": 23,
-   "recall@1": 12,
-   "recall@5": 15,
-   "recall@10": 15,
-   "mrr": 0.5667
+   "recall@1": 11,
+   "recall@5": 17,
+   "recall@10": 17,
+   "mrr": 0.5797
   },
   "find_defs": {
    "n": 1,
@@ -26,20 +26,20 @@
   },
   "union": {
    "n": 23,
-   "recall@1": 14,
+   "recall@1": 11,
    "recall@5": 17,
    "recall@10": 18,
-   "mrr": 0.6597
+   "mrr": 0.5841
   }
  },
  "latency_ms": {
   "search": {
-   "median": 681.1,
-   "p95": 1045.5
+   "median": 634.0,
+   "p95": 1023.2
   },
   "answer": {
-   "median": 4474.3,
-   "p95": 6936.9
+   "median": 3121.3,
+   "p95": 7207.6
   }
  },
  "results": [
@@ -49,10 +49,10 @@
    "query_intent": "concept_flow",
    "path_signal": "in_path",
    "lang": "en",
-   "search_rank": 5,
-   "search_ms": 1581.7,
+   "search_rank": 1,
+   "search_ms": 1482.6,
    "answer_rank": 1,
-   "answer_ms": 6003.7,
+   "answer_ms": 2909.2,
    "union_rank": 1
   },
   {
@@ -61,11 +61,11 @@
    "query_intent": "concept_flow",
    "path_signal": "in_body_only",
    "lang": "vi",
-   "search_rank": 0,
-   "search_ms": 1045.5,
-   "answer_rank": 1,
-   "answer_ms": 5804.9,
-   "union_rank": 1
+   "search_rank": 2,
+   "search_ms": 634.0,
+   "answer_rank": 2,
+   "answer_ms": 3126.3,
+   "union_rank": 2
   },
   {
    "id": "sitem-03",
@@ -73,11 +73,11 @@
    "query_intent": "concept_flow",
    "path_signal": "in_body_only",
    "lang": "vi",
-   "search_rank": 0,
-   "search_ms": 943.0,
-   "answer_rank": 0,
-   "answer_ms": 4328.3,
-   "union_rank": 0
+   "search_rank": 1,
+   "search_ms": 511.2,
+   "answer_rank": 1,
+   "answer_ms": 2918.4,
+   "union_rank": 1
   },
   {
    "id": "sitem-04",
@@ -86,9 +86,9 @@
    "path_signal": "in_path",
    "lang": "en",
    "search_rank": 1,
-   "search_ms": 604.1,
+   "search_ms": 1022.4,
    "answer_rank": 1,
-   "answer_ms": 4229.5,
+   "answer_ms": 2581.3,
    "union_rank": 1
   },
   {
@@ -98,9 +98,9 @@
    "path_signal": "in_body_only",
    "lang": "vi",
    "search_rank": 0,
-   "search_ms": 929.3,
+   "search_ms": 644.9,
    "answer_rank": 0,
-   "answer_ms": 5121.5,
+   "answer_ms": 2329.7,
    "union_rank": 0
   },
   {
@@ -110,11 +110,11 @@
    "path_signal": "in_body_only",
    "lang": "en",
    "search_rank": 1,
-   "search_ms": 495.8,
-   "answer_rank": 0,
-   "answer_ms": 6936.9,
+   "search_ms": 882.0,
+   "answer_rank": 1,
+   "answer_ms": 2232.1,
    "find_defs_rank": 1,
-   "find_defs_ms": 148.2,
+   "find_defs_ms": 153.8,
    "union_rank": 1
   },
   {
@@ -123,11 +123,11 @@
    "query_intent": "concept_flow",
    "path_signal": "in_body_only",
    "lang": "vi",
-   "search_rank": 0,
-   "search_ms": 766.6,
-   "answer_rank": 1,
-   "answer_ms": 5697.5,
-   "union_rank": 1
+   "search_rank": 3,
+   "search_ms": 657.7,
+   "answer_rank": 3,
+   "answer_ms": 3235.7,
+   "union_rank": 3
   },
   {
    "id": "cms-01",
@@ -135,10 +135,10 @@
    "query_intent": "concept_flow",
    "path_signal": "in_path",
    "lang": "en",
-   "search_rank": 5,
-   "search_ms": 681.1,
+   "search_rank": 1,
+   "search_ms": 986.3,
    "answer_rank": 1,
-   "answer_ms": 7432.1,
+   "answer_ms": 2146.0,
    "union_rank": 1
   },
   {
@@ -147,10 +147,10 @@
    "query_intent": "concept_flow",
    "path_signal": "in_body_only",
    "lang": "vi",
-   "search_rank": 19,
-   "search_ms": 973.1,
+   "search_rank": 1,
+   "search_ms": 554.9,
    "answer_rank": 1,
-   "answer_ms": 4474.3,
+   "answer_ms": 1893.6,
    "union_rank": 1
   },
   {
@@ -159,11 +159,11 @@
    "query_intent": "concept_flow",
    "path_signal": "in_body_only",
    "lang": "vi",
-   "search_rank": 4,
-   "search_ms": 921.8,
-   "answer_rank": 0,
-   "answer_ms": 5431.5,
-   "union_rank": 4
+   "search_rank": 3,
+   "search_ms": 911.6,
+   "answer_rank": 3,
+   "answer_ms": 2128.5,
+   "union_rank": 3
   },
   {
    "id": "cms-04",
@@ -171,11 +171,11 @@
    "query_intent": "concept_flow",
    "path_signal": "in_path",
    "lang": "en",
-   "search_rank": 1,
-   "search_ms": 483.6,
+   "search_rank": 2,
+   "search_ms": 560.3,
    "answer_rank": 2,
-   "answer_ms": 4128.6,
-   "union_rank": 1
+   "answer_ms": 6839.7,
+   "union_rank": 2
   },
   {
    "id": "cms-05",
@@ -183,11 +183,11 @@
    "query_intent": "concept_flow",
    "path_signal": "in_path",
    "lang": "en",
-   "search_rank": 6,
-   "search_ms": 422.9,
+   "search_rank": 10,
+   "search_ms": 781.5,
    "answer_rank": 0,
-   "answer_ms": 3582.1,
-   "union_rank": 6
+   "answer_ms": 5609.2,
+   "union_rank": 10
   },
   {
    "id": "cms-06",
@@ -196,9 +196,9 @@
    "path_signal": "in_body_only",
    "lang": "vi",
    "search_rank": 0,
-   "search_ms": 973.7,
+   "search_ms": 1023.2,
    "answer_rank": 0,
-   "answer_ms": 4397.0,
+   "answer_ms": 3121.3,
    "union_rank": 0
   },
   {
@@ -207,11 +207,11 @@
    "query_intent": "concept_flow",
    "path_signal": "in_path",
    "lang": "en",
-   "search_rank": 18,
-   "search_ms": 485.9,
+   "search_rank": 0,
+   "search_ms": 689.7,
    "answer_rank": 0,
-   "answer_ms": 4150.1,
-   "union_rank": 18
+   "answer_ms": 10255.2,
+   "union_rank": 0
   },
   {
    "id": "cms-08",
@@ -220,10 +220,10 @@
    "path_signal": "in_path",
    "lang": "en",
    "search_rank": 0,
-   "search_ms": 455.2,
-   "answer_rank": 5,
-   "answer_ms": 4437.8,
-   "union_rank": 5
+   "search_ms": 639.1,
+   "answer_rank": 0,
+   "answer_ms": 3076.9,
+   "union_rank": 0
   },
   {
    "id": "qr-01",
@@ -232,9 +232,9 @@
    "path_signal": "in_path",
    "lang": "en",
    "search_rank": 1,
-   "search_ms": 409.8,
+   "search_ms": 523.7,
    "answer_rank": 1,
-   "answer_ms": 6420.4,
+   "answer_ms": 3908.8,
    "union_rank": 1
   },
   {
@@ -243,11 +243,11 @@
    "query_intent": "concept_flow",
    "path_signal": "in_body_only",
    "lang": "vi",
-   "search_rank": 0,
-   "search_ms": 925.3,
-   "answer_rank": 1,
-   "answer_ms": 4936.8,
-   "union_rank": 1
+   "search_rank": 3,
+   "search_ms": 600.9,
+   "answer_rank": 3,
+   "answer_ms": 4774.6,
+   "union_rank": 3
   },
   {
    "id": "qr-03",
@@ -255,11 +255,11 @@
    "query_intent": "concept_flow",
    "path_signal": "in_path",
    "lang": "en",
-   "search_rank": 2,
-   "search_ms": 374.8,
+   "search_rank": 3,
+   "search_ms": 426.5,
    "answer_rank": 3,
-   "answer_ms": 2927.8,
-   "union_rank": 2
+   "answer_ms": 5275.3,
+   "union_rank": 3
   },
   {
    "id": "qr-04",
@@ -268,9 +268,9 @@
    "path_signal": "in_body_only",
    "lang": "vi",
    "search_rank": 0,
-   "search_ms": 795.1,
+   "search_ms": 506.2,
    "answer_rank": 0,
-   "answer_ms": 4814.7,
+   "answer_ms": 2153.9,
    "union_rank": 0
   },
   {
@@ -280,9 +280,9 @@
    "path_signal": "in_path",
    "lang": "en",
    "search_rank": 1,
-   "search_ms": 394.6,
+   "search_ms": 417.2,
    "answer_rank": 1,
-   "answer_ms": 3476.7,
+   "answer_ms": 4523.5,
    "union_rank": 1
   },
   {
@@ -292,9 +292,9 @@
    "path_signal": "in_body_only",
    "lang": "vi",
    "search_rank": 1,
-   "search_ms": 892.0,
+   "search_ms": 473.0,
    "answer_rank": 1,
-   "answer_ms": 5964.6,
+   "answer_ms": 7207.6,
    "union_rank": 1
   },
   {
@@ -304,9 +304,9 @@
    "path_signal": "in_path",
    "lang": "en",
    "search_rank": 1,
-   "search_ms": 388.3,
+   "search_ms": 607.4,
    "answer_rank": 1,
-   "answer_ms": 4471.4,
+   "answer_ms": 3012.7,
    "union_rank": 1
   },
   {
@@ -316,9 +316,9 @@
    "path_signal": "in_path",
    "lang": "en",
    "search_rank": 1,
-   "search_ms": 378.4,
+   "search_ms": 406.2,
    "answer_rank": 1,
-   "answer_ms": 4183.6,
+   "answer_ms": 3705.9,
    "union_rank": 1
   }
  ]

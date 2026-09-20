@@ -1,21 +1,21 @@
 {
- "created": "2026-09-20T04:56:50.954175+00:00",
+ "created": "2026-09-20T15:07:06.160746+00:00",
  "queries_file": "vn_queries.json",
  "search_window": 20,
  "legs": {
   "search": {
    "n": 22,
-   "recall@1": 6,
-   "recall@5": 11,
-   "recall@10": 12,
-   "mrr": 0.3667
+   "recall@1": 11,
+   "recall@5": 18,
+   "recall@10": 19,
+   "mrr": 0.6213
   },
   "answer": {
    "n": 22,
-   "recall@1": 10,
-   "recall@5": 15,
+   "recall@1": 11,
+   "recall@5": 18,
    "recall@10": 18,
-   "mrr": 0.5434
+   "mrr": 0.6091
   },
   "find_defs": {
    "n": 3,
@@ -26,20 +26,20 @@
   },
   "union": {
    "n": 22,
-   "recall@1": 15,
+   "recall@1": 13,
    "recall@5": 20,
-   "recall@10": 22,
-   "mrr": 0.7667
+   "recall@10": 21,
+   "mrr": 0.7098
   }
  },
  "latency_ms": {
   "search": {
-   "median": 753.1,
-   "p95": 1576.7
+   "median": 1603.9,
+   "p95": 3393.5
   },
   "answer": {
-   "median": 4449.6,
-   "p95": 6738.0
+   "median": 4020.3,
+   "p95": 9791.5
   }
  },
  "results": [
@@ -50,9 +50,9 @@
    "path_signal": "in_path",
    "lang": "vi",
    "search_rank": 1,
-   "search_ms": 1576.7,
-   "answer_rank": 5,
-   "answer_ms": 4743.1,
+   "search_ms": 3755.0,
+   "answer_rank": 1,
+   "answer_ms": 3504.2,
    "union_rank": 1
   },
   {
@@ -61,11 +61,11 @@
    "query_intent": "concept_flow",
    "path_signal": "in_path",
    "lang": "vi",
-   "search_rank": 4,
-   "search_ms": 1107.6,
-   "answer_rank": 9,
-   "answer_ms": 2551.7,
-   "union_rank": 4
+   "search_rank": 8,
+   "search_ms": 2005.7,
+   "answer_rank": 0,
+   "answer_ms": 2833.9,
+   "union_rank": 8
   },
   {
    "id": "seo-03",
@@ -74,9 +74,9 @@
    "path_signal": "in_path",
    "lang": "vi",
    "search_rank": 1,
-   "search_ms": 1103.9,
+   "search_ms": 1728.4,
    "answer_rank": 1,
-   "answer_ms": 2805.9,
+   "answer_ms": 3265.2,
    "union_rank": 1
   },
   {
@@ -85,11 +85,11 @@
    "query_intent": "concept_flow",
    "path_signal": "in_path",
    "lang": "vi",
-   "search_rank": 0,
-   "search_ms": 952.4,
-   "answer_rank": 3,
-   "answer_ms": 4019.9,
-   "union_rank": 3
+   "search_rank": 2,
+   "search_ms": 3027.0,
+   "answer_rank": 2,
+   "answer_ms": 3425.5,
+   "union_rank": 2
   },
   {
    "id": "seo-05",
@@ -97,11 +97,11 @@
    "query_intent": "concept_flow",
    "path_signal": "in_body_only",
    "lang": "vi",
-   "search_rank": 0,
-   "search_ms": 955.6,
-   "answer_rank": 6,
-   "answer_ms": 4396.6,
-   "union_rank": 6
+   "search_rank": 5,
+   "search_ms": 1782.6,
+   "answer_rank": 5,
+   "answer_ms": 5173.0,
+   "union_rank": 5
   },
   {
    "id": "seo-06",
@@ -109,10 +109,10 @@
    "query_intent": "concept_flow",
    "path_signal": "in_body_only",
    "lang": "vi",
-   "search_rank": 0,
-   "search_ms": 901.5,
+   "search_rank": 1,
+   "search_ms": 1735.6,
    "answer_rank": 1,
-   "answer_ms": 5576.7,
+   "answer_ms": 4089.1,
    "union_rank": 1
   },
   {
@@ -121,11 +121,11 @@
    "query_intent": "concept_flow",
    "path_signal": "in_body_only",
    "lang": "vi",
-   "search_rank": 6,
-   "search_ms": 910.9,
+   "search_rank": 11,
+   "search_ms": 2287.2,
    "answer_rank": 0,
-   "answer_ms": 9456.9,
-   "union_rank": 6
+   "answer_ms": 5019.2,
+   "union_rank": 11
   },
   {
    "id": "seo-08",
@@ -133,10 +133,10 @@
    "query_intent": "concept_flow",
    "path_signal": "in_path",
    "lang": "en",
-   "search_rank": 3,
-   "search_ms": 1716.8,
+   "search_rank": 2,
+   "search_ms": 1801.1,
    "answer_rank": 2,
-   "answer_ms": 4225.9,
+   "answer_ms": 3871.9,
    "union_rank": 2
   },
   {
@@ -145,11 +145,11 @@
    "query_intent": "concept_flow",
    "path_signal": "in_path",
    "lang": "vi",
-   "search_rank": 5,
-   "search_ms": 601.6,
-   "answer_rank": 0,
-   "answer_ms": 4034.8,
-   "union_rank": 5
+   "search_rank": 2,
+   "search_ms": 935.0,
+   "answer_rank": 2,
+   "answer_ms": 5659.4,
+   "union_rank": 2
   },
   {
    "id": "crm-02",
@@ -157,12 +157,12 @@
    "query_intent": "symbol_lookup",
    "path_signal": "in_body_only",
    "lang": "vi",
-   "search_rank": 15,
-   "search_ms": 599.4,
+   "search_rank": 19,
+   "search_ms": 1025.2,
    "answer_rank": 0,
-   "answer_ms": 4166.9,
+   "answer_ms": 3868.0,
    "find_defs_rank": 1,
-   "find_defs_ms": 118.1,
+   "find_defs_ms": 109.1,
    "union_rank": 1
   },
   {
@@ -171,12 +171,12 @@
    "query_intent": "symbol_lookup",
    "path_signal": "in_body_only",
    "lang": "vi",
-   "search_rank": 2,
-   "search_ms": 571.0,
+   "search_rank": 1,
+   "search_ms": 750.3,
    "answer_rank": 1,
-   "answer_ms": 6547.7,
+   "answer_ms": 4632.7,
    "find_defs_rank": 1,
-   "find_defs_ms": 10.0,
+   "find_defs_ms": 9.4,
    "union_rank": 1
   },
   {
@@ -185,10 +185,10 @@
    "query_intent": "concept_flow",
    "path_signal": "in_path",
    "lang": "vi",
-   "search_rank": 0,
-   "search_ms": 580.0,
+   "search_rank": 1,
+   "search_ms": 1420.0,
    "answer_rank": 1,
-   "answer_ms": 3661.8,
+   "answer_ms": 9791.5,
    "union_rank": 1
   },
   {
@@ -197,10 +197,10 @@
    "query_intent": "concept_flow",
    "path_signal": "in_body_only",
    "lang": "vi",
-   "search_rank": 2,
-   "search_ms": 572.9,
+   "search_rank": 1,
+   "search_ms": 1479.4,
    "answer_rank": 1,
-   "answer_ms": 3627.6,
+   "answer_ms": 2093.4,
    "union_rank": 1
   },
   {
@@ -210,9 +210,9 @@
    "path_signal": "in_path",
    "lang": "vi",
    "search_rank": 1,
-   "search_ms": 604.7,
+   "search_ms": 1013.6,
    "answer_rank": 1,
-   "answer_ms": 4502.6,
+   "answer_ms": 3836.8,
    "union_rank": 1
   },
   {
@@ -221,11 +221,11 @@
    "query_intent": "concept_flow",
    "path_signal": "in_path",
    "lang": "vi",
-   "search_rank": 1,
-   "search_ms": 576.4,
-   "answer_rank": 7,
-   "answer_ms": 6738.0,
-   "union_rank": 1
+   "search_rank": 5,
+   "search_ms": 1121.1,
+   "answer_rank": 5,
+   "answer_ms": 4438.3,
+   "union_rank": 5
   },
   {
    "id": "crm-08",
@@ -234,11 +234,11 @@
    "path_signal": "in_body_only",
    "lang": "en",
    "search_rank": 0,
-   "search_ms": 572.9,
+   "search_ms": 914.8,
    "answer_rank": 0,
-   "answer_ms": 4608.8,
+   "answer_ms": 4624.4,
    "find_defs_rank": 1,
-   "find_defs_ms": 14.8,
+   "find_defs_ms": 19.6,
    "union_rank": 1
   },
   {
@@ -247,10 +247,10 @@
    "query_intent": "concept_flow",
    "path_signal": "in_body_only",
    "lang": "vi",
-   "search_rank": 0,
-   "search_ms": 1274.4,
+   "search_rank": 1,
+   "search_ms": 3393.5,
    "answer_rank": 1,
-   "answer_ms": 5288.9,
+   "answer_ms": 3495.2,
    "union_rank": 1
   },
   {
@@ -259,10 +259,10 @@
    "query_intent": "concept_flow",
    "path_signal": "in_body_only",
    "lang": "vi",
-   "search_rank": 0,
-   "search_ms": 1076.9,
+   "search_rank": 4,
+   "search_ms": 2436.7,
    "answer_rank": 4,
-   "answer_ms": 4748.3,
+   "answer_ms": 10007.3,
    "union_rank": 4
   },
   {
@@ -271,11 +271,11 @@
    "query_intent": "concept_flow",
    "path_signal": "in_path",
    "lang": "vi",
-   "search_rank": 1,
-   "search_ms": 944.4,
+   "search_rank": 4,
+   "search_ms": 1932.3,
    "answer_rank": 4,
-   "answer_ms": 5193.2,
-   "union_rank": 1
+   "answer_ms": 5328.9,
+   "union_rank": 4
   },
   {
    "id": "crm-09",
@@ -284,9 +284,9 @@
    "path_signal": "in_path",
    "lang": "vi",
    "search_rank": 1,
-   "search_ms": 585.7,
+   "search_ms": 666.3,
    "answer_rank": 1,
-   "answer_ms": 3693.9,
+   "answer_ms": 3951.6,
    "union_rank": 1
   },
   {
@@ -295,10 +295,10 @@
    "query_intent": "symbol_lookup",
    "path_signal": "in_body_only",
    "lang": "en",
-   "search_rank": 20,
-   "search_ms": 564.1,
+   "search_rank": 1,
+   "search_ms": 628.6,
    "answer_rank": 1,
-   "answer_ms": 5929.0,
+   "answer_ms": 3516.4,
    "union_rank": 1
   },
   {
@@ -307,10 +307,10 @@
    "query_intent": "concept_flow",
    "path_signal": "in_body_only",
    "lang": "vi",
-   "search_rank": 0,
-   "search_ms": 579.8,
+   "search_rank": 1,
+   "search_ms": 665.0,
    "answer_rank": 1,
-   "answer_ms": 4103.3,
+   "answer_ms": 5090.4,
    "union_rank": 1
   }
  ]

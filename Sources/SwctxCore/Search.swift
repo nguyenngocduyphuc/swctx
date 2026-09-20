@@ -240,6 +240,14 @@ public enum Search {
         for a in atoms {
             pathDF[a] = fileCount("path_tokens : \"\(a)\"*")
         }
+        // Sole-carrier rarity is only meaningful against a corpus where
+        // uniqueness surprises. On a ~120-file index nearly every path
+        // token is DF=1, so "surgical" would crown random names — gate
+        // the bonus on corpus size (P8: 3k+ files, CRM: ~120).
+        let corpusFiles = (try? store.pool.read { db in
+            try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM files") ?? 0
+        }) ?? 0
+        let rarityMatters = corpusFiles >= 500
         // Two tiers: RARE atoms (≤rareMaxFiles files) get the AND-folded
         // probe plus a bare path fallback; MID atoms (≤midMaxFiles) get
         // the AND-folded probe ONLY — a bare "apply" probe returns 84
@@ -292,9 +300,10 @@ public enum Search {
             }
         }
         var seenFiles: Set<String> = []
-        var scored: [(hit: SearchHit, fingerprint: Bool,
+        var scored: [(hit: SearchHit, surgical: Bool,
                       effectiveCover: Int, stemDensity: Double,
-                      idfScore: Double, cover: Int, stemLen: Int)] = []
+                      rank: Double, idfScore: Double,
+                      atoms: Set<String>, stemLen: Int)] = []
         let atomSet = Set(atoms)
         // The atom a covered token claims: its own form if it is an
         // atom, else its singular ("issues" → "issue"). One token = one
@@ -318,9 +327,26 @@ public enum Search {
             // weight — inherited context, not the file's own name.
             let pathTokens = Set(pathTokenString(h.path)
                 .components(separatedBy: " ").filter { !$0.isEmpty })
+            // CamelCase stems must split too — LocalP8SourceAdapter is
+            // one glued token otherwise, so source/adapter never count
+            // as stem coverage and the file scores dir-only ec1 (the
+            // linkeldn regression). Insert a boundary before each
+            // upper-case letter that follows a lower-case/digit, then
+            // fold and split as usual.
+            let stemRaw = ((h.path as NSString).lastPathComponent
+                as NSString).deletingPathExtension
+            var splitStem = ""
+            splitStem.reserveCapacity(stemRaw.count + 8)
+            var prevIsLowerOrDigit = false
+            for ch in stemRaw {
+                if ch.isUppercase && prevIsLowerOrDigit {
+                    splitStem.append(" ")
+                }
+                splitStem.append(ch)
+                prevIsLowerOrDigit = ch.isLowercase || ch.isNumber
+            }
             let stemTokens = Set(
-                foldText(((h.path as NSString).lastPathComponent
-                    as NSString).deletingPathExtension)
+                foldText(splitStem)
                 .components(separatedBy: CharacterSet.alphanumerics.inverted)
                 .filter { !$0.isEmpty })
             var idfScore = 0.0
@@ -352,13 +378,12 @@ public enum Search {
             // name the atom ("blockquote" for "block") — a hit with
             // zero token coverage is noise, not a filename intent.
             guard stemCover > 0 || !matchedAtoms.isEmpty else { continue }
-            // A fingerprint atom is one only a handful of files carry
-            // (path-DF ≤ 2): "brain" names exactly p8_brain.py, so its
-            // hit outranks plausible multi-atom matches like a
-            // gsc-ga4 playbook whose atoms are merely uncommon.
-            let fingerprint = matchedAtoms.contains {
-                let df = pathDF[$0] ?? 0
-                return df >= 1 && df <= 2
+            // A sole-carrier atom lives in exactly one path (path-DF = 1):
+            // "brain" names only p8_brain.py — the file IS the concept.
+            // DF ≤ 2 proved too generous: twin copies of one script under
+            // _legacy/ dirs share DF 2 yet name nothing rare.
+            let soleCarrier = rarityMatters && matchedAtoms.contains {
+                (pathDF[$0] ?? 0) == 1
             }
             // Effective coverage = distinct stem tokens explained, plus
             // ONE bonus for any directory-level agreement: doi-ngu.md
@@ -372,12 +397,30 @@ public enum Search {
             // {link,apply}/4 = 0.5 vs 2150-pre-apply-stage-a 1/5 = 0.2).
             let stemDensity = stemTokens.isEmpty ? 0.0
                 : Double(stemCover) / Double(stemTokens.count)
-            scored.append((h, fingerprint, effectiveCover, stemDensity,
-                           idfScore, matchedAtoms.count,
+            // Continuous rank, no tiers: cover + density + sole-carrier.
+            // Tiered orders whack-a-mole'd — fp-first crowned one-rare-
+            // atom junk over canonical_check (seo-01), ec-first buried
+            // p8_brain's DF-1 hit under 58 plausible ec2 files (seo-09).
+            // Additive scoring prices both: brain = 1+0.5+1 = 2.5 beats
+            // analysis-dir ec2+sd0.12 = 2.12; canonical = 3+0.67 = 3.67
+            // beats minh-bach 2+0.25 = 2.25.
+            let rank = Double(effectiveCover) + stemDensity
+                + (soleCarrier ? 1.0 : 0.0)
+            // Surgical: the file's STEM carries a sole-carrier atom —
+            // p8_brain is the only path naming "brain", so it is the
+            // concept, not a plausible neighbour. Dir-only sole atoms
+            // (chong-lap/index.html ← "duyet") don't qualify: the name
+            // itself must claim the concept.
+            let stemAtoms = stemTokens.compactMap { claimedAtom($0) }
+            let surgical = rarityMatters
+                && stemAtoms.contains { (pathDF[$0] ?? 0) == 1 }
+            scored.append((h, surgical, effectiveCover, stemDensity,
+                           rank, idfScore, Set(matchedAtoms),
                            stemTokens.count))
         }
         scored.sort {
-            if $0.fingerprint != $1.fingerprint { return $0.fingerprint }
+            if $0.surgical != $1.surgical { return $0.surgical }
+            if $0.rank != $1.rank { return $0.rank > $1.rank }
             if $0.effectiveCover != $1.effectiveCover {
                 return $0.effectiveCover > $1.effectiveCover
             }
@@ -387,14 +430,16 @@ public enum Search {
             if $0.idfScore != $1.idfScore {
                 return $0.idfScore > $1.idfScore
             }
-            if $0.cover != $1.cover { return $0.cover > $1.cover }
+            if $0.atoms.count != $1.atoms.count {
+                return $0.atoms.count > $1.atoms.count
+            }
             if $0.stemLen != $1.stemLen { return $0.stemLen < $1.stemLen }
             return $0.hit.score > $1.hit.score
         }
         if ProcessInfo.processInfo.environment["SWCTX_PROBE_DEBUG"] == "1" {
             FileHandle.standardError.write(
                 ("probe ranked: " + scored.map {
-                    "\($0.hit.path) fp=\($0.fingerprint) ec=\($0.effectiveCover) sd=\(String(format: "%.2f", $0.stemDensity)) idf=\(String(format: "%.3f", $0.idfScore)) sl=\($0.stemLen)"
+                    "\($0.hit.path) sc=\($0.surgical) ec=\($0.effectiveCover) sd=\(String(format: "%.2f", $0.stemDensity)) rk=\(String(format: "%.2f", $0.rank))"
                 }.joined(separator: " | ") + "\n").data(using: .utf8)!)
         }
         // Per-directory cap + basename dedup: generated backup/manifest
@@ -402,10 +447,32 @@ public enum Search {
         // same dir tokens, and verify/report pipelines scatter copies of
         // one artifact under per-item dirs (internal-link-check.json ×N).
         // Two per directory and one per basename keep representatives.
+        // Surgical bar: a probe hit earns its slot only when the name
+        // actually matches the intent — fingerprint atom, two explained
+        // tokens (stem+dir), or a stem that IS the query concept
+        // (density ≥ 0.5). Below the bar the probe is noise — emitting
+        // it just crowds out good fusion hits (measured: seo-01 fell
+        // rank 1→5 when unfiltered probe rows were prepended).
+        // Per-atom champions: each probed atom keeps its best candidate
+        // even below the rank bar — vaid_issues.py (rk 1.5) is the only
+        // path naming "issue", and dropping it forfeits the whole atom's
+        // intent. Champions append AFTER ranked hits, so they surface as
+        // tail coverage, never displace stronger names.
+        var championFor: [String: String] = [:]  // atom -> path
+        for s in scored {
+            for a in s.atoms where championFor[a] == nil {
+                championFor[a] = s.hit.path
+            }
+        }
         var dirCount: [String: Int] = [:]
         var seenBasenames: Set<String> = []
         var out: [SearchHit] = []
         for s in scored {
+            // Champions emit even at sd 0: Next.js pages carry intent in
+            // the DIRECTORY (attendance/page.tsx stem "page" is generic)
+            // — dir coverage is the only signal the convention gives.
+            let isChampion = championFor.values.contains(s.hit.path)
+            guard s.rank >= 2.0 || isChampion else { continue }
             let dir = (s.hit.path as NSString).deletingLastPathComponent
             let base = (s.hit.path as NSString).lastPathComponent
             if (dirCount[dir] ?? 0) >= 2 { continue }

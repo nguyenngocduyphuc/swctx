@@ -247,6 +247,22 @@ public enum SwctxTools {
             hits = h
         default: hits = try Search.hybrid(store: store, embedder: store.embedder, query: q, limit: limit, pathFilter: pathFilter)
         }
+        // Filename-intent probe FIRST on fused modes — the same rare-atom
+        // machinery that lifted the answer leg (strict R@5 15/22 vs search
+        // 11/22 on the 22q VN set). A surgical filename match must not be
+        // crowded out by broad fusion hits; capped at 6 so fusion keeps
+        // the majority of the window. Pure fts/semantic legs untouched —
+        // callers choosing a single leg asked for exactly that leg.
+        if mode == "hybrid" || mode == "identifier" {
+            let probe = (try? Answer.pathProbe(store: store, query: q,
+                                               pathFilter: pathFilter)) ?? []
+            if !probe.isEmpty {
+                let probePaths = Set(probe.map(\.path))
+                hits = Array(probe.prefix(6))
+                    + hits.filter { !probePaths.contains($0.path) }
+            }
+            hits = Array(hits.prefix(limit))
+        }
         // Optional cross-encoder stage (`rerank: true`): pin the top-3
         // fused hits, rescore the rest of a 30-candidate pool with the
         // multilingual cross-encoder. Measured +1/16 on the vn probe as a

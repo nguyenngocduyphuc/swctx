@@ -1,21 +1,21 @@
 {
- "created": "2026-09-20T05:05:30.239071+00:00",
+ "created": "2026-09-20T15:11:24.315932+00:00",
  "queries_file": "linkeldn_holdout.json",
  "search_window": 20,
  "legs": {
   "search": {
    "n": 25,
-   "recall@1": 11,
-   "recall@5": 17,
-   "recall@10": 18,
-   "mrr": 0.557
+   "recall@1": 20,
+   "recall@5": 21,
+   "recall@10": 22,
+   "mrr": 0.819
   },
   "answer": {
    "n": 25,
-   "recall@1": 14,
-   "recall@5": 18,
-   "recall@10": 18,
-   "mrr": 0.63
+   "recall@1": 20,
+   "recall@5": 20,
+   "recall@10": 20,
+   "mrr": 0.8
   },
   "find_defs": {
    "n": 5,
@@ -26,20 +26,20 @@
   },
   "union": {
    "n": 25,
-   "recall@1": 18,
-   "recall@5": 22,
+   "recall@1": 20,
+   "recall@5": 21,
    "recall@10": 22,
-   "mrr": 0.778
+   "mrr": 0.819
   }
  },
  "latency_ms": {
   "search": {
-   "median": 677.3,
-   "p95": 1141.2
+   "median": 537.2,
+   "p95": 677.9
   },
   "answer": {
-   "median": 6353.1,
-   "p95": 8012.5
+   "median": 2167.2,
+   "p95": 6474.1
   }
  },
  "results": [
@@ -50,9 +50,9 @@
    "path_signal": "in_path",
    "lang": "en",
    "search_rank": 1,
-   "search_ms": 1232.2,
-   "answer_rank": 0,
-   "answer_ms": 5695.6,
+   "search_ms": 1240.5,
+   "answer_rank": 1,
+   "answer_ms": 1915.0,
    "union_rank": 1
   },
   {
@@ -62,9 +62,9 @@
    "path_signal": "in_path",
    "lang": "en",
    "search_rank": 1,
-   "search_ms": 1141.2,
+   "search_ms": 623.5,
    "answer_rank": 1,
-   "answer_ms": 6329.3,
+   "answer_ms": 2489.4,
    "union_rank": 1
   },
   {
@@ -73,11 +73,11 @@
    "query_intent": "concept_flow",
    "path_signal": "in_body_only",
    "lang": "vi",
-   "search_rank": 12,
-   "search_ms": 1010.5,
-   "answer_rank": 4,
-   "answer_ms": 4149.5,
-   "union_rank": 4
+   "search_rank": 1,
+   "search_ms": 493.5,
+   "answer_rank": 1,
+   "answer_ms": 2661.6,
+   "union_rank": 1
   },
   {
    "id": "link-04",
@@ -85,10 +85,10 @@
    "query_intent": "concept_flow",
    "path_signal": "in_body_only",
    "lang": "vi",
-   "search_rank": 0,
-   "search_ms": 908.5,
+   "search_rank": 1,
+   "search_ms": 522.5,
    "answer_rank": 1,
-   "answer_ms": 6849.1,
+   "answer_ms": 1941.8,
    "union_rank": 1
   },
   {
@@ -98,9 +98,9 @@
    "path_signal": "in_path",
    "lang": "en",
    "search_rank": 1,
-   "search_ms": 927.1,
+   "search_ms": 630.1,
    "answer_rank": 1,
-   "answer_ms": 4040.2,
+   "answer_ms": 2865.3,
    "union_rank": 1
   },
   {
@@ -110,9 +110,9 @@
    "path_signal": "in_path",
    "lang": "en",
    "search_rank": 1,
-   "search_ms": 662.8,
+   "search_ms": 625.4,
    "answer_rank": 1,
-   "answer_ms": 3910.2,
+   "answer_ms": 2981.3,
    "union_rank": 1
   },
   {
@@ -121,11 +121,11 @@
    "query_intent": "concept_flow",
    "path_signal": "in_body_only",
    "lang": "vi",
-   "search_rank": 5,
-   "search_ms": 995.3,
-   "answer_rank": 0,
-   "answer_ms": 6353.1,
-   "union_rank": 5
+   "search_rank": 1,
+   "search_ms": 534.3,
+   "answer_rank": 1,
+   "answer_ms": 1776.4,
+   "union_rank": 1
   },
   {
    "id": "link-08",
@@ -133,10 +133,10 @@
    "query_intent": "concept_flow",
    "path_signal": "in_path",
    "lang": "en",
-   "search_rank": 2,
-   "search_ms": 447.1,
+   "search_rank": 1,
+   "search_ms": 537.2,
    "answer_rank": 1,
-   "answer_ms": 7006.2,
+   "answer_ms": 1848.0,
    "union_rank": 1
   },
   {
@@ -145,11 +145,11 @@
    "query_intent": "concept_flow",
    "path_signal": "in_path",
    "lang": "en",
-   "search_rank": 2,
-   "search_ms": 594.5,
-   "answer_rank": 1,
-   "answer_ms": 6682.8,
-   "union_rank": 1
+   "search_rank": 7,
+   "search_ms": 556.1,
+   "answer_rank": 0,
+   "answer_ms": 6474.1,
+   "union_rank": 7
   },
   {
    "id": "link-10",
@@ -157,10 +157,10 @@
    "query_intent": "concept_flow",
    "path_signal": "in_body_only",
    "lang": "vi",
-   "search_rank": 0,
-   "search_ms": 1089.2,
+   "search_rank": 1,
+   "search_ms": 557.2,
    "answer_rank": 1,
-   "answer_ms": 5142.2,
+   "answer_ms": 1627.0,
    "union_rank": 1
   },
   {
@@ -169,11 +169,11 @@
    "query_intent": "concept_flow",
    "path_signal": "in_path",
    "lang": "en",
-   "search_rank": 2,
-   "search_ms": 457.7,
-   "answer_rank": 2,
-   "answer_ms": 7414.7,
-   "union_rank": 2
+   "search_rank": 1,
+   "search_ms": 494.9,
+   "answer_rank": 1,
+   "answer_ms": 1710.1,
+   "union_rank": 1
   },
   {
    "id": "link-12",
@@ -181,10 +181,10 @@
    "query_intent": "concept_flow",
    "path_signal": "in_body_only",
    "lang": "vi",
-   "search_rank": 7,
-   "search_ms": 948.0,
+   "search_rank": 1,
+   "search_ms": 505.0,
    "answer_rank": 1,
-   "answer_ms": 8012.5,
+   "answer_ms": 1591.0,
    "union_rank": 1
   },
   {
@@ -193,11 +193,11 @@
    "query_intent": "concept_flow",
    "path_signal": "in_path",
    "lang": "en",
-   "search_rank": 2,
-   "search_ms": 550.3,
+   "search_rank": 3,
+   "search_ms": 653.1,
    "answer_rank": 0,
-   "answer_ms": 7329.9,
-   "union_rank": 2
+   "answer_ms": 2218.2,
+   "union_rank": 3
   },
   {
    "id": "link-14",
@@ -206,9 +206,9 @@
    "path_signal": "in_path",
    "lang": "en",
    "search_rank": 1,
-   "search_ms": 453.9,
+   "search_ms": 463.2,
    "answer_rank": 1,
-   "answer_ms": 4433.0,
+   "answer_ms": 3492.6,
    "union_rank": 1
   },
   {
@@ -218,9 +218,9 @@
    "path_signal": "in_body_only",
    "lang": "vi",
    "search_rank": 0,
-   "search_ms": 1070.4,
+   "search_ms": 597.9,
    "answer_rank": 0,
-   "answer_ms": 4722.5,
+   "answer_ms": 1820.1,
    "union_rank": 0
   },
   {
@@ -230,9 +230,9 @@
    "path_signal": "in_path",
    "lang": "en",
    "search_rank": 1,
-   "search_ms": 543.9,
+   "search_ms": 625.4,
    "answer_rank": 1,
-   "answer_ms": 7707.3,
+   "answer_ms": 7110.3,
    "union_rank": 1
   },
   {
@@ -242,9 +242,9 @@
    "path_signal": "in_path",
    "lang": "en",
    "search_rank": 1,
-   "search_ms": 481.0,
-   "answer_rank": 2,
-   "answer_ms": 4338.4,
+   "search_ms": 499.3,
+   "answer_rank": 1,
+   "answer_ms": 2543.0,
    "union_rank": 1
   },
   {
@@ -254,9 +254,9 @@
    "path_signal": "in_body_only",
    "lang": "vi",
    "search_rank": 0,
-   "search_ms": 953.5,
+   "search_ms": 506.1,
    "answer_rank": 0,
-   "answer_ms": 3775.9,
+   "answer_ms": 3650.1,
    "union_rank": 0
   },
   {
@@ -266,9 +266,9 @@
    "path_signal": "in_path",
    "lang": "en",
    "search_rank": 1,
-   "search_ms": 677.3,
+   "search_ms": 544.5,
    "answer_rank": 1,
-   "answer_ms": 7678.0,
+   "answer_ms": 2245.6,
    "union_rank": 1
   },
   {
@@ -278,9 +278,9 @@
    "path_signal": "in_body_only",
    "lang": "en",
    "search_rank": 0,
-   "search_ms": 569.6,
+   "search_ms": 610.6,
    "answer_rank": 0,
-   "answer_ms": 5930.6,
+   "answer_ms": 2157.5,
    "union_rank": 0
   },
   {
@@ -290,11 +290,11 @@
    "path_signal": "in_body_only",
    "lang": "en",
    "search_rank": 1,
-   "search_ms": 465.0,
-   "answer_rank": 2,
-   "answer_ms": 2051.7,
+   "search_ms": 522.7,
+   "answer_rank": 1,
+   "answer_ms": 1861.9,
    "find_defs_rank": 1,
-   "find_defs_ms": 133.0,
+   "find_defs_ms": 113.6,
    "union_rank": 1
   },
   {
@@ -303,12 +303,12 @@
    "query_intent": "symbol_lookup",
    "path_signal": "in_body_only",
    "lang": "vi",
-   "search_rank": 2,
-   "search_ms": 797.3,
+   "search_rank": 1,
+   "search_ms": 511.6,
    "answer_rank": 1,
-   "answer_ms": 8064.3,
+   "answer_ms": 1654.3,
    "find_defs_rank": 1,
-   "find_defs_ms": 4.4,
+   "find_defs_ms": 7.7,
    "union_rank": 1
   },
   {
@@ -318,11 +318,11 @@
    "path_signal": "in_body_only",
    "lang": "en",
    "search_rank": 1,
-   "search_ms": 454.2,
+   "search_ms": 507.8,
    "answer_rank": 1,
-   "answer_ms": 7221.0,
+   "answer_ms": 6461.1,
    "find_defs_rank": 1,
-   "find_defs_ms": 7.0,
+   "find_defs_ms": 4.7,
    "union_rank": 1
   },
   {
@@ -332,11 +332,11 @@
    "path_signal": "in_body_only",
    "lang": "en",
    "search_rank": 1,
-   "search_ms": 588.0,
+   "search_ms": 677.9,
    "answer_rank": 1,
-   "answer_ms": 7556.5,
+   "answer_ms": 2167.2,
    "find_defs_rank": 1,
-   "find_defs_ms": 6.5,
+   "find_defs_ms": 15.3,
    "union_rank": 1
   },
   {
@@ -345,12 +345,12 @@
    "query_intent": "symbol_lookup",
    "path_signal": "in_body_only",
    "lang": "vi",
-   "search_rank": 0,
-   "search_ms": 860.4,
-   "answer_rank": 0,
-   "answer_ms": 6865.4,
+   "search_rank": 1,
+   "search_ms": 510.7,
+   "answer_rank": 1,
+   "answer_ms": 2062.4,
    "find_defs_rank": 1,
-   "find_defs_ms": 15.2,
+   "find_defs_ms": 13.7,
    "union_rank": 1
   }
  ]
