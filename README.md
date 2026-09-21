@@ -7,6 +7,33 @@ Codex / Cursor) connecting over MCP stdio. swctx only does retrieval.
 **Đọc cho người dùng / review (tiếng Việt): [`docs/00-BAT-DAU.md`](docs/00-BAT-DAU.md)**
 — 6 file hoàn chỉnh + Excel so sánh ctxe (`docs/swctx-vs-ctxe.xlsx`).
 
+## Quickstart (new machine)
+
+Requirements: macOS (Apple Silicon recommended — embeddings run on the
+Neural Engine), a Swift toolchain (Xcode or `xcode-select --install`),
+Python 3 only if you want to convert extra models.
+
+```sh
+git clone https://github.com/nguyenngocduyphuc/swctx.git && cd swctx
+swift build -c release
+sudo cp .build/release/swctx /usr/local/bin/    # or any dir on PATH
+swctx model install                              # ~210MB CoreML embedder from HF
+swctx index /path/to/your/repo                   # incremental index + embed
+swctx mcp                                        # stdio MCP server
+```
+
+Then point your agent CLI at it (`swctx install-agent` merges the config
+for Claude Code / Codex / Gemini / Cursor / Windsurf / Devin), or add
+manually:
+
+```json
+{ "mcpServers": { "swctx": { "command": "swctx", "args": ["mcp"] } } }
+```
+
+Cross-platform note: this repository also ships `swctx-py/` — a pure-Python
+port (SQLite FTS5 + ONNX embeddings + MCP) that runs on Windows, Linux and
+macOS. See `swctx-py/README.md`.
+
 ## What it does
 
 - **Incremental index** per workspace: file discovery, SHA-256 change detection,

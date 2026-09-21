@@ -1,0 +1,2 @@
+[console_scripts]
+swctx-py = swctx_py.__main__:main
