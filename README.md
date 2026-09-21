@@ -131,7 +131,7 @@ Any MCP client: point it at the built binary, or run
 
 | Tool | Purpose |
 |---|---|
-| prime | ~300-token orientation card — call first each session (branch, counts, freshness, watcher, hub symbols, warnings) |
+| prime | ~300-token orientation card — call first each session (branch, counts, freshness, watcher, hub symbols, warnings); also surfaces newest shared-ledger records so a fresh session notices prior work in sibling workspaces |
 | get_status | index state, counts, capabilities |
 | fast_understand | deterministic workspace digest: langs, hub symbols, hot files, communities, recent files, optional `query` → top hybrid hits |
 | index_workspace | create/update index (the only mutating tool); also ingests `git log` into `kind="commit"` records — sha, author, date, changed paths, workspace-relative for nested repos |
@@ -146,6 +146,7 @@ Any MCP client: point it at the built binary, or run
 | graph_expand | scored-seed neighborhood expansion (depth ≤2, score decay) |
 | graph_paths | frontier-batched BFS paths between chunks (≤500-id queries, no full-table load); `max_hops`, `max_paths`, `include_content` |
 | get_impact | transitive dependents ("what breaks if I change this"); `include_content` |
+| *(edge kind)* | `api_call` links frontend call sites to backend route defs across files: `fetch('/api/users')` resolves to the chunk holding `@app.get('/api/users')` — route paths are indexed as `route` symbols, so `find_usages("/api/x")` and impact traversal cross the HTTP boundary for free |
 | simulate_patch | speculative pre-flight: unified `diff`/`diff_file` → changed/removed declarations → every indexed caller, implementer and test that would break — before the patch touches disk |
 | context_pack | deterministic multi-round retrieval: hybrid hits + 1-hop call-graph expansion; persists a `records` row |
 | get_record | one record by id; `scope` (workspace default, global, all = workspace first then global); `stale` flag when anchors no longer resolve post-HEAD-move |

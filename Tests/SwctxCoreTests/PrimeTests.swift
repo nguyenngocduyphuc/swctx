@@ -63,6 +63,36 @@ final class PrimeTests: XCTestCase {
         XCTAssertTrue(card.contains("stale files — run `swctx index`"))
     }
 
+    /// A fresh session must notice prior work in the shared ledger:
+    /// the newest agent-authored record surfaces on the card (with the
+    /// scope=global pointer), dual-written local rows don't double up.
+    func testPrimeSurfacesSharedLedgerPriorWork() throws {
+        guard let g = GlobalRecords.shared else {
+            throw XCTSkip("global ledger unavailable")
+        }
+        let (dir, store) = try makeWorkspace()
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let ws = GlobalRecords.repoKey(for: dir)
+        defer {
+            try? g.pool.write { db in
+                try db.execute(
+                    sql: "DELETE FROM records WHERE ws = ?", arguments: [ws])
+            }
+        }
+        let title = "orca teardown \(UUID().uuidString.prefix(8))"
+        try g.insert(ws: ws, kind: "finding", source: "test",
+                     status: "completed", title: title, payload: "{}")
+
+        let snap = try Prime.snapshot(store: store, root: store.workspaceRoot)
+        let prior = try XCTUnwrap(snap["prior_work"] as? [[String: Any]])
+        XCTAssertTrue(prior.contains { ($0["title"] as? String) == title })
+        XCTAssertTrue((snap["prior_work_total"] as? Int ?? 0) >= 1)
+        let card = try Prime.card(store: store, root: store.workspaceRoot)
+        XCTAssertTrue(card.contains("Prior work"))
+        XCTAssertTrue(card.contains(title))
+        XCTAssertTrue(card.contains("scope=global"))
+    }
+
     /// snapshot emits JSON-safe values for --format json consumers.
     func testPrimeSnapshotJSON() throws {
         let (dir, store) = try makeWorkspace()

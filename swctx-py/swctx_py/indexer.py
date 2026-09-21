@@ -62,7 +62,9 @@ class Indexer:
             removed += 1
 
         self._backfill_edges()
-        if changed or removed or s.meta("edges_resolved") != "1":
+        routes_added = self._backfill_routes()
+        if changed or removed or routes_added \
+                or s.meta("edges_resolved") != "1":
             self._resolve_edges()
             s.set_meta("edges_resolved", "1")
 
@@ -109,6 +111,13 @@ class Indexer:
                 s.db.execute(
                     "INSERT INTO symbols VALUES (?,?,?,?,?)",
                     (ch["symbol"], ch["type"], cid, rel, ch["start"]))
+            # Route defs become `route` symbols so api_call edges from
+            # fetch('/api/x') resolve through the generic name join.
+            s.db.executemany(
+                "INSERT INTO symbols VALUES (?,?,?,?,?)",
+                [(p, "route", cid, rel, ln)
+                 for p, ln in edges.route_defs(ch["content"], lang,
+                                               ch["start"])])
             s.db.executemany(
                 "INSERT INTO edges(src_chunk,dst_name,kind,line) "
                 "VALUES (?,?,?,?)",
@@ -144,13 +153,46 @@ class Indexer:
             "FROM chunks c JOIN files f ON f.path = c.file_id").fetchall()
         s.db.execute("DELETE FROM edges")
         for cid, content, start, lang in rows:
+            # api_call rows are owned by _backfill_routes (paired with the
+            # `route` symbols it inserts) — skip them here so the two
+            # passes can't double-insert.
             s.db.executemany(
                 "INSERT INTO edges(src_chunk,dst_name,kind,line) "
                 "VALUES (?,?,?,?)",
                 [(cid, n, k, ln)
-                 for n, k, ln in edges.extract(content or "", lang, start)])
+                 for n, k, ln in edges.extract(content or "", lang, start)
+                 if k != "api_call"])
         s.set_meta("edges_built", "1")
         s.db.commit()
+
+    def _backfill_routes(self) -> bool:
+        """One-time route pass for indexes predating route extraction:
+        inserts `route` symbols + `api_call` edges from stored chunks —
+        no file re-read. Returns True when rows were added so the caller
+        forces a resolution pass (edges_resolved may already be set)."""
+        s = self.store
+        if s.meta("routes_built") == "1":
+            return False
+        # Idempotent: prior partial output (interrupted run) is rebuilt.
+        s.db.execute("DELETE FROM edges WHERE kind='api_call'")
+        s.db.execute("DELETE FROM symbols WHERE type='route'")
+        rows = s.db.execute(
+            "SELECT c.id, c.content, c.start_line, c.file_id, f.lang "
+            "FROM chunks c JOIN files f ON f.path = c.file_id").fetchall()
+        for cid, content, start, file_id, lang in rows:
+            s.db.executemany(
+                "INSERT INTO symbols VALUES (?,?,?,?,?)",
+                [(p, "route", cid, file_id, ln)
+                 for p, ln in edges.route_defs(content or "", lang, start)])
+            s.db.executemany(
+                "INSERT INTO edges(src_chunk,dst_name,kind,line) "
+                "VALUES (?,?,'api_call',?)",
+                [(cid, n, ln)
+                 for n, k, ln in edges.extract(content or "", lang, start)
+                 if k == "api_call"])
+        s.set_meta("routes_built", "1")
+        s.db.commit()
+        return bool(rows)
 
     def _resolve_edges(self) -> None:
         """Fill dst_chunk by symbol name — prefer a same-file definition."""

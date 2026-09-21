@@ -52,8 +52,68 @@ _INHERIT = {
 # Prose/data formats produce call-edge noise — code languages only.
 _CODE = frozenset({
     "python", "javascript", "typescript", "tsx", "swift", "go", "rust",
-    "java", "ruby", "php", "kotlin", "bash",
+    "java", "ruby", "php", "kotlin", "bash", "html",
 })
+
+# Cross-boundary API links: route defs become `route` symbols, call
+# sites become `api_call` edges keyed on the normalized path — the
+# generic name-resolution pass then links fetch('/api/x') -> handler.
+_ROUTE_DEF_RX = re.compile(
+    r"(?:@[A-Za-z_][\w.]*|\b(?:app|router|server|api|bp|blueprint|web))"
+    r"\s*[.\s]\s*"
+    r"(?:get|post|put|patch|delete|head|options|route|use|add_route"
+    r"|add_url_rule)\s*\(\s*[\"']([^\"']+)[\"']")
+_ROUTE_CALL_RX = re.compile(
+    r"\b(?:fetch|axios|request|apiFetch|apiClient|client|http|callApi"
+    r"|apiCall)(?:\s*\.\s*(?:get|post|put|patch|delete|head|options"
+    r"|request|fetch))?\s*\(\s*[`'\"]([^`'\"\s]+)")
+# Bare literals only under a canonical API root — other leading-slash
+# strings are file paths or prose.
+_ROUTE_LIT_RX = re.compile(r"[\"'](/(?:api|v\d|graphql|auth)[^'\"\s]*)[\"']")
+_API_ROOTS = frozenset(
+    {"api", "graphql", "auth", "health", "status", "webhook", "oauth"})
+
+
+def norm_route(raw: str) -> str | None:
+    """Canonical route key: leading '/', no query/fragment/trailing '/'.
+    Absolute URLs collapse to their path. Single-segment strings only
+    pass under a known API root — '/ROOT'/'/FILE' are env vars."""
+    p = raw.strip()
+    m = re.match(r"^https?://[^/]+", p)
+    if m:
+        p = p[m.end():]
+        if not p:
+            return None
+    for sep in ("?", "#"):
+        if sep in p:
+            p = p[:p.index(sep)]
+    if not p.startswith("/"):
+        p = "/" + p
+    while len(p) > 1 and p.endswith("/"):
+        p = p[:-1]
+    if len(p) <= 1 or " " in p:
+        return None
+    first = p[1:].split("/", 1)[0]
+    two_segs = len(first) < len(p) - 1
+    api_root = (first.lower() in _API_ROOTS
+                or (first.startswith("v") and first[1:].isdigit()))
+    return p if two_segs or api_root else None
+
+
+def route_defs(content: str, lang: str | None,
+               base_line: int) -> list[tuple[str, int]]:
+    """Route definitions in one chunk -> [(path, line)] for symbols."""
+    if lang not in _CODE:
+        return []
+    out: list[tuple[str, int]] = []
+    seen: set[tuple[str, int]] = set()
+    for i, line in enumerate(content.splitlines()):
+        for m in _ROUTE_DEF_RX.finditer(line):
+            p = norm_route(m.group(1))
+            if p and (p, base_line + i) not in seen:
+                seen.add((p, base_line + i))
+                out.append((p, base_line + i))
+    return out
 
 
 def extract(content: str, lang: str | None,
@@ -93,4 +153,18 @@ def extract(content: str, lang: str | None,
         elif fam == "rs":
             for m in _RS_IMPL.finditer(line):
                 out.append((m.group(1).split("::")[-1], "implements", ln))
+        # API call sites. Def lines emit a `route` symbol instead — the
+        # literal pass must not turn '@app.get("/x")' into a self-call.
+        is_def = _ROUTE_DEF_RX.search(line) is not None
+        for m in _ROUTE_CALL_RX.finditer(line):
+            p = norm_route(m.group(1))
+            if p and (f"@{p}", ln) not in seen:
+                seen.add((f"@{p}", ln))
+                out.append((p, "api_call", ln))
+        if not is_def:
+            for m in _ROUTE_LIT_RX.finditer(line):
+                p = norm_route(m.group(1))
+                if p and (f"@{p}", ln) not in seen:
+                    seen.add((f"@{p}", ln))
+                    out.append((p, "api_call", ln))
     return out

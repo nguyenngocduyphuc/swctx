@@ -122,6 +122,38 @@ public enum Prime {
             return d
         }
         out["stale_records"] = staleRecords
+        // Prior work: the shared ledger aggregates agent-authored memory
+        // from every checkout/workspace of this repo. Surfacing its newest
+        // rows lets a fresh session notice a sibling project already
+        // investigated the same subject instead of redoing it — the agent
+        // follows up with search_records scope=global.
+        if let g = GlobalRecords.shared,
+           let rows = try? g.pool.read({ db in
+               try Row.fetchAll(db, sql: """
+                   SELECT kind, title FROM records
+                   WHERE kind IN ('note','finding','decision','todo')
+                   ORDER BY id DESC LIMIT 3
+                   """)
+           }), !rows.isEmpty {
+            let total = (try? g.pool.read { db in
+                try Int.fetchOne(db, sql: """
+                    SELECT COUNT(*) FROM records
+                    WHERE kind IN ('note','finding','decision','todo')
+                    """)
+            }) ?? rows.count
+            // put_record dual-writes: skip titles the workspace ledger
+            // already surfaced in `records` so the card shows each once.
+            let shown = Set(recent.compactMap { $0["title"] as? String })
+            let others = rows.filter {
+                !shown.contains((($0["title"] as? String) ?? ""))
+            }
+            out["prior_work_total"] = total
+            out["prior_work"] = others.map { r -> [String: Any] in
+                ["kind": (r["kind"] as? String) ?? "",
+                 "title": Understand.truncHead(
+                    (r["title"] as? String) ?? "", 60)]
+            }
+        }
         // Freshness: the same shallow stat probe get_status runs by default
         // (indexed rows only — no directory walk).
         let indexer = Indexer(store: store, embedder: store.embedder)
@@ -185,6 +217,13 @@ public enum Prime {
                 md += "- \((r["kind"] as? String) ?? ""): \((r["title"] as? String) ?? "")"
                 if r["stale"] as? Bool == true { md += " ·stale" }
                 md += "\n"
+            }
+        }
+        if let prior = s["prior_work"] as? [[String: Any]], !prior.isEmpty {
+            md += "Prior work (\(s["prior_work_total"] ?? prior.count) shared records"
+                + " — search_records scope=global):\n"
+            for r in prior {
+                md += "- \((r["kind"] as? String) ?? ""): \((r["title"] as? String) ?? "")\n"
             }
         }
         let warnings = (s["warnings"] as? [String]) ?? []

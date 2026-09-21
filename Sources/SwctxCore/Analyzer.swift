@@ -66,6 +66,12 @@ public enum Analyzer {
             if languageID == "markdown" {
                 result.symbols = markdownSymbols(lines: lines, chunks: result.chunks)
             }
+            // Code langs without a working grammar still get route links.
+            if Self.routeLangs.contains(languageID) {
+                let (rs, re) = routeRefs(lines: lines, chunks: result.chunks)
+                result.symbols.append(contentsOf: rs)
+                result.edges.append(contentsOf: re)
+            }
             return result
         }
 
@@ -175,7 +181,120 @@ public enum Analyzer {
         }
         result.symbols = symbols
         result.edges = edges
+        // Cross-boundary API links: fetch('/api/x') -> @app.get('/api/x').
+        // The URL path is the only shared contract, so it becomes a
+        // `route` symbol on the handler chunk and an `api_call` edge on
+        // each call site — the generic resolver links them like calls.
+        if Self.routeLangs.contains(languageID) {
+            let (rs, re) = routeRefs(lines: lines, chunks: chunks)
+            result.symbols.append(contentsOf: rs)
+            result.edges.append(contentsOf: re)
+        }
         return result
+    }
+
+    /// Languages whose sources can carry API call/def strings. Docs and
+    /// data formats are excluded — a path in markdown is prose, not a link.
+    static let routeLangs: Set<String> = [
+        "swift", "python", "javascript", "typescript", "tsx",
+        "go", "rust", "bash", "html"]
+
+    // Method-call / decorator route definitions:
+    //   @app.get('/x')  @router.post("/x")  @Get('/x')
+    //   app.get('/x')   router.post('/x')   bp.route('/x')
+    private static let routeDefRe = try! NSRegularExpression(
+        pattern: """
+            (?:@[A-Za-z_][\\w.]*|\\b(?:app|router|server|api|bp|blueprint|web))\
+            \\s*[.\\s]\\s*\
+            (?:get|post|put|patch|delete|head|options|route|use|add_route|add_url_rule)\
+            \\s*\\(\\s*["']([^"']+)["']
+            """,
+        options: [.allowCommentsAndWhitespace])
+    // Call sites: fetch('/x')  axios.get('/x')  apiClient(`/x/${id}`)
+    private static let routeCallRe = try! NSRegularExpression(
+        pattern: """
+            \\b(?:fetch|axios|request|apiFetch|apiClient|client|http|callApi|apiCall)\
+            (?:\\s*\\.\\s*(?:get|post|put|patch|delete|head|options|request|fetch))?\
+            \\s*\\(\\s*[`'"]([^`'"\\s]+)
+            """,
+        options: [.allowCommentsAndWhitespace])
+    // Bare literals are only trusted under a canonical API root — other
+    // leading-slash strings are file paths or prose.
+    private static let routeLiteralRe = try! NSRegularExpression(
+        pattern: #"["'](/(?:api|v\d|graphql|auth)[^'"\s]*)["']"#)
+
+    /// Scan lines for route defs + call sites. Paths are normalized
+    /// (leading `/`, query stripped, trailing `/` dropped) so both sides
+    /// key on the same string; a def that can't be reached stays an
+    /// unresolved `api_call` edge, exactly like an undefined call.
+    static func routeRefs(lines: [String], chunks: [ChunkDraft])
+        -> (symbols: [SymbolDraft], edges: [EdgeDraft]) {
+        var symbols: [SymbolDraft] = []
+        var edges: [EdgeDraft] = []
+        var seenDef = Set<String>(), seenCall = Set<String>()
+        for (i, line) in lines.enumerated() {
+            let ln = i + 1
+            let range = NSRange(line.startIndex..., in: line)
+            var isDef = false
+            for m in routeDefRe.matches(in: line, range: range) {
+                isDef = true
+                guard let r = Range(m.range(at: 1), in: line) else { continue }
+                guard let path = normRoute(String(line[r])) else { continue }
+                guard seenDef.insert("\(ln):\(path)").inserted else { continue }
+                symbols.append(SymbolDraft(
+                    name: path, kind: "route", line: ln,
+                    signature: line.trimmingCharacters(in: .whitespaces),
+                    chunkIndex: chunkIndex(forLine: ln, in: chunks),
+                    declText: String(line.prefix(256))))
+            }
+            var calls: [String] = []
+            for m in routeCallRe.matches(in: line, range: range) {
+                if let r = Range(m.range(at: 1), in: line) {
+                    calls.append(String(line[r]))
+                }
+            }
+            // Def lines already emitted a `route` symbol — the literal
+            // pass must not turn `@app.get('/x')` into a self api_call.
+            if !isDef {
+                for m in routeLiteralRe.matches(in: line, range: range) {
+                    if let r = Range(m.range(at: 1), in: line) {
+                        calls.append(String(line[r]))
+                    }
+                }
+            }
+            for raw in calls {
+                guard let path = normRoute(raw),
+                      seenCall.insert("\(ln):\(path)").inserted else { continue }
+                edges.append(EdgeDraft(
+                    kind: "api_call", dstName: path, line: ln,
+                    chunkIndex: chunkIndex(forLine: ln, in: chunks)))
+            }
+        }
+        return (symbols, edges)
+    }
+
+    /// Canonical route key: leading `/`, no query/fragment, no trailing
+    /// slash. Single-segment strings are only trusted under a known API
+    /// root — bare `/ROOT`, `/FILE`-style tokens are env vars and file
+    /// paths, not routes.
+    static func normRoute(_ raw: String) -> String? {
+        var p = raw.trimmingCharacters(in: .whitespaces)
+        // Absolute URL -> its path part (fetch('https://h.com/x') -> '/x').
+        if let r = p.range(of: #"^https?://[^/]+"#, options: .regularExpression) {
+            p = String(p[r.upperBound...])
+            guard !p.isEmpty else { return nil }
+        }
+        if let q = p.firstIndex(of: "?") { p = String(p[..<q]) }
+        if let q = p.firstIndex(of: "#") { p = String(p[..<q]) }
+        if !p.hasPrefix("/") { p = "/" + p }
+        while p.count > 1 && p.hasSuffix("/") { p.removeLast() }
+        guard p.count > 1, !p.contains(" ") else { return nil }
+        let firstSeg = p.dropFirst().prefix { $0 != "/" }
+        let twoSegs = firstSeg.count < p.count - 1
+        let apiRoot = ["api", "graphql", "auth", "health", "status",
+                       "webhook", "oauth"].contains(firstSeg.lowercased())
+            || (firstSeg.hasPrefix("v") && firstSeg.dropFirst().allSatisfy(\.isNumber))
+        return twoSegs || apiRoot ? p : nil
     }
 
     // MARK: - Chunk emission
