@@ -134,7 +134,7 @@ Any MCP client: point it at the built binary, or run
 | prime | ~300-token orientation card — call first each session (branch, counts, freshness, watcher, hub symbols, warnings) |
 | get_status | index state, counts, capabilities |
 | fast_understand | deterministic workspace digest: langs, hub symbols, hot files, communities, recent files, optional `query` → top hybrid hits |
-| index_workspace | create/update index (the only mutating tool) |
+| index_workspace | create/update index (the only mutating tool); also ingests `git log` into `kind="commit"` records — sha, author, date, changed paths, workspace-relative for nested repos |
 | list_workspaces | indexed workspace registry |
 | search | `auto` (default): identifier-shaped queries take the deterministic FTS+symbol path, prose takes full hybrid fusion; explicit `identifier`/`hybrid`/`fts`/`semantic` also accepted; `resolved_mode` reports the pick. `rerank:true` (opt-in) rescues hard NL queries: pins the fused top-3 and cross-encoder-rescores the 30-candidate pool via the amberoad mBERT model — ~0.4s/call, neutral-to-+1 on the vn probe, off by default |
 | find_definitions | symbol name → definition locations (`kind` = normalized kind like `struct`/`enum`, `raw_kind` = tree-sitter node type) |
@@ -172,6 +172,13 @@ workspace-local by design: they reference per-index chunk ids.
 - `put_record` captures `head_sha` + resolvable anchors; reads flag a
   record stale when HEAD moved AND an anchor stopped resolving
   (never on head alone). `prime` marks stale records and counts them.
+- Git history lands in the same ledger: every `index_workspace` run
+  ingests commits scoped to the workspace subtree (worktree/nested-repo
+  aware, incremental via a stored head, dedup by sha). Commit rows are
+  immutable facts — they carry no anchors so they never flag stale, and
+  they sort last in `list_records`/`prime` so bulk history never floods
+  agent-authored memory. Query them with `search_records` (e.g. "when did
+  X land", "which commit touched file Y").
 
 ### Response budget
 
@@ -186,7 +193,7 @@ a multi-megabyte payload.
 
 ## Differences vs ctxe
 
-- Tool surface is 21 (20 retrieval + index_workspace): 16 tools are shared parity; each side has tools the
+- Tool surface is 22 (21 retrieval + index_workspace): 16 tools are shared parity; each side has tools the
   other lacks — swctx: `search` (workspace-wide retrieval), `context_pack`
   (deterministic evidence pack), `simulate_patch` (speculative diff
   pre-flight over the call graph); ctxe: `ask_context`, `compose_answer`
