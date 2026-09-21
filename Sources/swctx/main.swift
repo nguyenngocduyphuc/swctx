@@ -898,11 +898,12 @@ struct AskCmd: AsyncParsableCommand {
 /// never shown to the model.
 struct AnswerCmd: AsyncParsableCommand {
     static let configuration = CommandConfiguration(commandName: "answer",
-        abstract: "Answer a question with a local LLM (Ollama) over indexed evidence — cited JSON, no cloud, no credits.")
+        abstract: "Answer a question over indexed evidence — cited JSON via a local LLM (Ollama, default) or an agent CLI backend (--backend cli:agy|claude|codex|…), no cloud credits.")
     @Option(name: .long, help: "Workspace path (default: current directory)") var workspace: String = "."
     @Option(name: .long, help: "Question to answer") var query: String
     @Option(name: .long, help: "Ollama model (default qwen2.5:3b; env SWCTX_ANSWER_MODEL)") var model: String?
-    @Option(name: .long, help: "Per-attempt Ollama timeout seconds (one format-retry allowed)") var timeout: Int = Answer.defaultTimeoutSeconds
+    @Option(name: .long, help: "Synthesis backend: ollama (default) | cli:<name> — agent CLI (agy, claude, codex, qwen, opencode…); env SWCTX_ANSWER_BACKEND/SWCTX_ANSWER_CLI") var backend: String?
+    @Option(name: .long, help: "Per-attempt model timeout seconds (one format-retry allowed)") var timeout: Int = Answer.defaultTimeoutSeconds
     @Flag(name: .long, help: "Bounded planner loop: iterate retrieval (≤4 rounds, VN+EN query variants) before answering — rescue mode for retrieval misses") var plan = false
     @Option(name: .long, help: "Planner total wall-clock seconds (default 60; ~20s per planner call)") var planTimeout: Int = Answer.defaultPlanTimeoutSeconds
     @Option(name: .long, help: "Eval oracle path — recorded only, never shown to the model") var expectedPath: String?
@@ -916,6 +917,7 @@ struct AnswerCmd: AsyncParsableCommand {
             "source": .string("cli"),
         ]
         if let model { args["model"] = .string(model) }
+        if let backend { args["backend"] = .string(backend) }
         if plan {
             args["plan"] = .bool(true)
             args["plan_timeout"] = .int(planTimeout)

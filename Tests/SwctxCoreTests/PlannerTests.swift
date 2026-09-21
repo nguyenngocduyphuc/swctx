@@ -379,7 +379,7 @@ final class PlannerTests: XCTestCase {
             tokenBudget: Answer.defaultEvidenceTokens, maxItems: 12)
         let rep = Answer.planLoop(
             store: store, acc: acc, query: "what does tom_tat do",
-            bin: "/nonexistent/ollama", model: "qwen2.5:3b",
+            backend: .ollama(bin: "/nonexistent/ollama", model: "qwen2.5:3b"),
             deadline: Date().addingTimeInterval(-1), pathFilter: nil)
         XCTAssertEqual(rep.stopped, "deadline")
         XCTAssertEqual(rep.rounds, 0)

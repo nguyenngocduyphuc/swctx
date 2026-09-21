@@ -588,7 +588,7 @@ public enum Answer {
     /// evidence exists. Reuses the same `spawn` subprocess path as
     /// synthesis; the run semaphore is already held by `run`.
     static func planLoop(store: Store, acc: PackBuilder, query: String,
-                         bin: String, model: String, deadline: Date,
+                         backend: ModelBackend, deadline: Date,
                          pathFilter: String?) -> PlannerReport {
         var rep = PlannerReport()
         var triedNorm: Set<String> = []
@@ -665,10 +665,8 @@ public enum Answer {
                     plannerCallTimeoutSeconds,
                     max(1, Int(deadline.timeIntervalSinceNow.rounded(.up))))
                 do {
-                    out = try spawn(bin, argv: [
-                        "run", model, "--format", "json",
-                        "--hidethinking", "--nowordwrap", prompt,
-                    ], timeout: callTimeout)
+                    out = try callModel(backend, prompt: prompt,
+                                        timeout: callTimeout)
                     break
                 } catch {
                     if attempt == 1
@@ -704,6 +702,96 @@ public enum Answer {
         }
         if rep.stopped.isEmpty { rep.stopped = "round_cap" }
         return rep
+    }
+
+    // MARK: - Model backend (ollama | agent CLI)
+
+    /// Synthesis backend. `ollama` = fully-offline local model (default).
+    /// `cli` = an agent CLI from the user's subscription fleet (agy,
+    /// claude, codex, qwen, opencode, grok…) — the CLI's configured model
+    /// synthesizes over the evidence pack; no cloud credits, no local
+    /// 3B quality ceiling.
+    public enum ModelBackend {
+        case ollama(bin: String, model: String)
+        case cli(bin: String, argvPrefix: [String])
+
+        var label: String {
+            switch self {
+            case .ollama(_, let model): return "ollama:\(model)"
+            case .cli(let bin, _): return "cli:\(bin)"
+            }
+        }
+    }
+
+    /// Non-interactive argv prefixes per known agent CLI — the evidence
+    /// prompt is appended last. Flags mirror the fleet's dispatch table:
+    /// skip-permissions/yolo so a text-only synthesis can't block on a
+    /// tool-approval prompt.
+    static let cliArgTemplates: [String: [String]] = [
+        "agy": ["--dangerously-skip-permissions", "-p"],
+        "claude": ["-p"],
+        "codex": ["exec", "--skip-git-repo-check"],
+        "qwen": ["--approval-mode", "yolo"],
+        "opencode": ["run"],
+        "grok": ["-p"],
+        "gemini": ["-p"],
+        "copilot": ["-p"],
+        "cline": [],
+    ]
+
+    /// backend spec: explicit arg > SWCTX_ANSWER_BACKEND > "ollama".
+    /// Forms: "ollama" | "cli" (binary via SWCTX_ANSWER_CLI, default
+    /// "agy") | "cli:<bin>" | a bare known CLI name ("codex", "agy"…).
+    static func resolveBackend(_ explicit: String?, model: String?,
+                               ollamaBin: String?) -> ModelBackend {
+        var spec = explicit ?? ""
+        if spec.isEmpty {
+            spec = ProcessInfo.processInfo.environment["SWCTX_ANSWER_BACKEND"] ?? ""
+        }
+        let envCLI = ProcessInfo.processInfo.environment["SWCTX_ANSWER_CLI"] ?? ""
+        if spec.isEmpty && !envCLI.isEmpty { spec = "cli:\(envCLI)" }
+        if spec.isEmpty || spec == "ollama" {
+            return .ollama(bin: resolveBin(ollamaBin), model: resolveModel(model))
+        }
+        var name = spec
+        if spec == "cli" { name = envCLI.isEmpty ? "agy" : envCLI }
+        else if spec.hasPrefix("cli:") { name = String(spec.dropFirst(4)) }
+        return .cli(bin: name,
+                    argvPrefix: cliArgTemplates[name] ?? [])
+    }
+
+    /// One probe per process: ollama checks binary+model via `list`; a
+    /// CLI backend just needs the binary to answer `--version`.
+    static func backendAvailable(_ backend: ModelBackend)
+        -> (ok: Bool, detail: String) {
+        switch backend {
+        case .ollama(let bin, let model):
+            return ollamaAvailable(bin: bin, model: model)
+        case .cli(let bin, _):
+            do {
+                _ = try spawn(bin, argv: ["--version"], timeout: 15)
+                return (true, "ok")
+            } catch {
+                return (false, "cli '\(bin)' unavailable: \(error.localizedDescription)")
+            }
+        }
+    }
+
+    /// Prompt → raw model text for whichever backend is configured.
+    static func callModel(_ backend: ModelBackend, prompt: String,
+                          timeout: Int) throws -> String {
+        switch backend {
+        case .ollama(let bin, let model):
+            // --nowordwrap: without it `ollama run` rewraps output at
+            // ~50 cols, injecting literal \n inside JSON string values.
+            return try spawn(bin, argv: [
+                "run", model, "--format", "json",
+                "--hidethinking", "--nowordwrap", prompt,
+            ], timeout: timeout)
+        case .cli(let bin, let argvPrefix):
+            return try spawn(bin, argv: argvPrefix + [prompt],
+                             timeout: timeout)
+        }
     }
 
     // MARK: - Ollama subprocess
@@ -983,10 +1071,16 @@ public enum Answer {
                            ollamaBin: String? = nil, timeout: Int = defaultTimeoutSeconds,
                            expectedPath: String? = nil, source: String = "mcp",
                            pathFilter: String? = nil, plan: Bool = false,
-                           planTimeout: Int = defaultPlanTimeoutSeconds) throws -> [String: Any] {
+                           planTimeout: Int = defaultPlanTimeoutSeconds,
+                           backendSpec: String? = nil) throws -> [String: Any] {
         let t0 = Date()
-        let modelID = resolveModel(model)
-        let bin = resolveBin(ollamaBin)
+        let backend = resolveBackend(backendSpec, model: model,
+                                     ollamaBin: ollamaBin)
+        // Records/reporting keep the bare model name for ollama
+        // (back-compat); a CLI backend reports itself ("cli:agy").
+        let modelID: String
+        if case .cli = backend { modelID = backend.label }
+        else { modelID = resolveModel(model) }
         let clampedTimeout = min(max(timeout, 5), 900)
         let clampedPlanTimeout = min(max(planTimeout, 5), 900)
 
@@ -1023,10 +1117,10 @@ public enum Answer {
         var planner: PlannerReport? = plan ? PlannerReport() : nil
 
         // Preflight once — the planner and synthesis share the verdict.
-        let pre = ollamaAvailable(bin: bin, model: modelID)
+        let pre = backendAvailable(backend)
         let ollamaOK = pre.ok
         if !pre.ok {
-            limitations.append("ollama unavailable — deterministic evidence pack only (\(pre.detail))")
+            limitations.append("\(backend.label) unavailable — deterministic evidence pack only (\(pre.detail))")
             planner?.stopped = "ollama_unavailable"
         }
 
@@ -1060,7 +1154,7 @@ public enum Answer {
             acc.maxItems = plannerMaxEvidence
             acc.tokenCeiling = acc.tokenBudget   // planner phase gets the rest
             planner = planLoop(store: store, acc: acc, query: query,
-                               bin: bin, model: modelID,
+                               backend: backend,
                                deadline: t0.addingTimeInterval(
                                    TimeInterval(clampedPlanTimeout)),
                                pathFilter: pathFilter)
@@ -1075,13 +1169,8 @@ public enum Answer {
                 let prompt = buildPrompt(query: query, evidence: pack,
                                          retry: attempt == 2)
                 do {
-                    // --nowordwrap: without it `ollama run` rewraps
-                    // output at ~50 cols, injecting literal \n inside
-                    // JSON string values and corrupting the payload.
-                    let out = try spawn(bin, argv: [
-                        "run", modelID, "--format", "json",
-                        "--hidethinking", "--nowordwrap", prompt,
-                    ], timeout: clampedTimeout)
+                    let out = try callModel(backend, prompt: prompt,
+                                            timeout: clampedTimeout)
                     rawOutput = stripANSI(out)
                     if let parsed = parseAnswer(out) {
                         answer = parsed.answer
@@ -1099,7 +1188,7 @@ public enum Answer {
                         limitations.append("model output was not the required JSON after 1 format-retry")
                     }
                 } catch {
-                    limitations.append("ollama call failed: \(error.localizedDescription)")
+                    limitations.append("\(backend.label) call failed: \(error.localizedDescription)")
                     break   // transport errors never retry
                 }
             }

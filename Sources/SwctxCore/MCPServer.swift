@@ -193,6 +193,7 @@ public enum MCPServer {
                 inputSchema: obj([wsProp,
                                   ("query", prop("string", "Natural-language question about the codebase")),
                                   ("model", prop("string", "Ollama model override (default qwen2.5:3b; env SWCTX_ANSWER_MODEL)")),
+                                  ("backend", prop("string", "Synthesis backend: 'ollama' (default, offline) | 'cli:<name>' — agent CLI from the subscription fleet (cli:agy, cli:claude, cli:codex, cli:qwen, cli:opencode…). Env: SWCTX_ANSWER_BACKEND / SWCTX_ANSWER_CLI.")),
                                   ("timeout", prop("integer", "Per-attempt Ollama seconds, default 60 (one format-retry allowed)")),
                                   ("plan", prop("boolean", "Bounded planner loop (≤4 rounds, ≤3 queries/round): iterates retrieval before answering — rescue mode for retrieval misses. Default off = single-shot.")),
                                   ("plan_timeout", prop("integer", "Planner total wall-clock seconds, default 60 (~20s per planner call)")),

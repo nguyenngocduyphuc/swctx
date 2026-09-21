@@ -951,3 +951,26 @@ at all.
   `test_memory.py` + live MCP stdio against the release binary
   (checkpoint → prime shows `Resume:` + `Prior work`).
 - MCP server instructions now step 3 = "checkpoint at task end".
+
+## 2026-09-21 (b) — `answer` gains a CLI-agent synthesis backend
+
+Gap (CEO): `answer` synthesized only via local Ollama (3B ceiling) while
+the paid fleet — agy/claude/codex/qwen/opencode/grok — sat unused. `swctx
+ask` already piped packs to agent CLIs, but lacks `answer`'s citation
+validation + planner loop.
+
+- `backend` arg (MCP `answer` + CLI `--backend`, env
+  `SWCTX_ANSWER_BACKEND`/`SWCTX_ANSWER_CLI`): `ollama` default stays
+  offline-free; `cli:<name>` spawns the agent CLI non-interactively with
+  the same strict-JSON prompt — planner rounds AND synthesis share it.
+- Preset argv table mirrors cmux_dispatch conventions (agy `-p
+  --dangerously-skip-permissions`, codex `exec`, qwen `--approval-mode
+  yolo`, opencode `run`…); unknown binaries get positional prompt.
+- CLI preflight = `<bin> --version` probe; failure degrades to the
+  deterministic pack (same as missing ollama). Record model field shows
+  `cli:<name>`; ollama keeps the bare model name (back-compat).
+- Verified live: `--backend cli:agy` on aiteam returned a cited answer
+  (E03 BietXong.swift, E04 SessionModels, E05 SessionStore) through the
+  full validator — real evidence IDs, real path:line.
+- 38 answer/planner/schema tests green; PlannerTests updated for the
+  backend parameter.

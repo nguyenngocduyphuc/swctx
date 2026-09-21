@@ -1049,7 +1049,8 @@ public enum SwctxTools {
             source: source,
             pathFilter: args["path"]?.str,
             plan: args["plan"]?.bool ?? false,
-            planTimeout: args["plan_timeout"]?.int ?? Answer.defaultPlanTimeoutSeconds)
+            planTimeout: args["plan_timeout"]?.int ?? Answer.defaultPlanTimeoutSeconds,
+            backendSpec: args["backend"]?.str)
         return json(result)
     }
 

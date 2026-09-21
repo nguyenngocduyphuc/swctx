@@ -97,6 +97,7 @@ swctx discover <path>            # debug: which files discovery would index
 swctx model            # list known models + installed status
 swctx model install [<id>] [--from <dir>]  # install the bge-base default (~210MB) or a converted CoreML dir
 swctx ask <path> "question"   # evidence pack -> local agent CLI (claude/codex/gemini) -> cited answer + record
+swctx answer --workspace <path> --query "q" [--backend ollama|cli:<name>]  # validated cited JSON; cli backend = agent CLI fleet (agy/claude/codex/qwen/opencode…) instead of local Ollama
 swctx simulate <path> [--diff file.patch]   # pre-flight a unified diff: broken callers/implementers/tests before writing
 swctx mcp              # stdio MCP server
 swctx mcp-config       # print client config snippet
