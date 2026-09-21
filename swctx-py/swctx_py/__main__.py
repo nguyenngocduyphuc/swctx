@@ -46,6 +46,12 @@ def main() -> None:
     pw.add_argument("--interval", type=float, default=2.0)
     pw.add_argument("--once", action="store_true")
 
+    pim = sub.add_parser("simulate")
+    pim.add_argument("path")
+    pim.add_argument("--diff", default=None,
+                     help="path to .diff/.patch (default: stdin)")
+    pim.add_argument("--max-callers", type=int, default=50)
+
     args = p.parse_args()
 
     if args.cmd == "index":
@@ -94,6 +100,15 @@ def main() -> None:
             if args.once:
                 break
             time.sleep(args.interval)
+    elif args.cmd == "simulate":
+        from . import simulate
+        if args.diff:
+            text = open(args.diff, encoding="utf-8").read()
+        else:
+            text = sys.stdin.read()
+        s = Store(args.path, create=False)
+        print(json.dumps(simulate.run(s, text, args.max_callers),
+                         ensure_ascii=False, indent=1))
 
 
 if __name__ == "__main__":

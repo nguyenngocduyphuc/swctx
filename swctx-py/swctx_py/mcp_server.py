@@ -58,6 +58,14 @@ def tool_defs() -> list[dict]:
          "inputSchema": {"type": "object", "properties": {
              "workspace": ws, "query": {"type": "string"}},
              "required": ["workspace", "query"]}},
+        {"name": "simulate_patch",
+         "description": "Pre-flight a unified diff: declarations changed/removed plus every indexed caller/implementer/test that would break — before writing the patch.",
+         "inputSchema": {"type": "object", "properties": {
+             "workspace": ws,
+             "diff": {"type": "string", "description": "Unified-diff text"},
+             "diff_file": {"type": "string", "description": "Path to .diff/.patch"},
+             "max_callers": {"type": "integer", "default": 50}},
+             "required": ["workspace"]}},
     ]
 
 
@@ -126,6 +134,17 @@ def call(name: str, args: dict) -> str:
             "SELECT tool,query,top_paths,hit_count,ts FROM usage_events "
             "WHERE query LIKE ? ORDER BY id DESC LIMIT 20", (q,)).fetchall()
         return _j({"records": rows, "usage": evs})
+    if name == "simulate_patch":
+        from . import simulate
+        diff = args.get("diff") or ""
+        if not diff and args.get("diff_file"):
+            try:
+                diff = open(args["diff_file"], encoding="utf-8").read()
+            except OSError:
+                return _j({"error": f"cannot read {args['diff_file']}"})
+        if not diff.strip():
+            return _j({"error": "missing diff or diff_file"})
+        return _j(simulate.run(s, diff, int(args.get("max_callers", 50))))
     return _j({"error": f"unknown tool {name}"})
 
 

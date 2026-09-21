@@ -25,6 +25,11 @@ CREATE TABLE IF NOT EXISTS symbols (
     name TEXT, type TEXT, chunk_id INT, file_id TEXT, line INT);
 CREATE INDEX IF NOT EXISTS idx_symbols_name ON symbols(name);
 CREATE INDEX IF NOT EXISTS idx_chunks_file ON chunks(file_id);
+CREATE TABLE IF NOT EXISTS edges (
+    id INTEGER PRIMARY KEY AUTOINCREMENT, src_chunk INT, dst_chunk INT,
+    dst_name TEXT, kind TEXT, line INT);
+CREATE INDEX IF NOT EXISTS idx_edges_src ON edges(src_chunk);
+CREATE INDEX IF NOT EXISTS idx_edges_name ON edges(dst_name);
 CREATE TABLE IF NOT EXISTS embeddings (
     chunk_id INTEGER PRIMARY KEY, vec BLOB);
 CREATE TABLE IF NOT EXISTS records (

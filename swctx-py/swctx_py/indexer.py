@@ -8,7 +8,7 @@ from pathlib import Path
 
 import numpy as np
 
-from . import chunker, discover
+from . import chunker, discover, edges
 from .embedder import Embedder, MODELS_KNOWN, model_installed
 from .fold import fold_text, path_token_string, symbol_token_string
 from .store import Store
@@ -61,6 +61,8 @@ class Indexer:
             self._delete_file(rel)
             removed += 1
 
+        self._backfill_edges()
+
         embedded = 0
         if not skip_embed and model_installed(model_id):
             embedded = self.embed_all(model_id)
@@ -101,6 +103,12 @@ class Indexer:
                 s.db.execute(
                     "INSERT INTO symbols VALUES (?,?,?,?,?)",
                     (ch["symbol"], ch["type"], cid, rel, ch["start"]))
+            s.db.executemany(
+                "INSERT INTO edges(src_chunk,dst_name,kind,line) "
+                "VALUES (?,?,?,?)",
+                [(cid, n, k, ln)
+                 for n, k, ln in edges.extract(ch["content"], lang,
+                                               ch["start"])])
         s.db.commit()
 
     def _delete_file(self, rel: str, commit: bool = True) -> None:
@@ -111,12 +119,32 @@ class Indexer:
             q = ",".join("?" * len(ids))
             s.db.execute(f"DELETE FROM embeddings WHERE chunk_id IN ({q})", ids)
             s.db.execute(f"DELETE FROM symbols WHERE chunk_id IN ({q})", ids)
+            s.db.execute(f"DELETE FROM edges WHERE src_chunk IN ({q})", ids)
             if s.fts_ok:
                 s.db.execute(f"DELETE FROM fts_chunks WHERE chunk_id IN ({q})", ids)
             s.db.execute(f"DELETE FROM chunks WHERE id IN ({q})", ids)
         s.db.execute("DELETE FROM files WHERE path=?", (rel,))
         if commit:
             s.db.commit()
+
+    def _backfill_edges(self) -> None:
+        """One-time edge pass for indexes built before the edges table —
+        extracts from stored chunk content, no file re-read needed."""
+        s = self.store
+        if s.meta("edges_built") == "1":
+            return
+        rows = s.db.execute(
+            "SELECT c.id, c.content, c.start_line, f.lang "
+            "FROM chunks c JOIN files f ON f.path = c.file_id").fetchall()
+        s.db.execute("DELETE FROM edges")
+        for cid, content, start, lang in rows:
+            s.db.executemany(
+                "INSERT INTO edges(src_chunk,dst_name,kind,line) "
+                "VALUES (?,?,?,?)",
+                [(cid, n, k, ln)
+                 for n, k, ln in edges.extract(content or "", lang, start)])
+        s.set_meta("edges_built", "1")
+        s.db.commit()
 
     def embed_all(self, model_id: str) -> int:
         """Embed all pending chunks, then release the model (RAM hygiene)."""

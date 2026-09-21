@@ -29,6 +29,7 @@ swctx-py search /path/to/repo "query" # CLI sanity check
 swctx-py status /path/to/repo
 swctx-py watch /path/to/repo          # polling watcher (mtime, ~2s)
 swctx-py mcp                          # stdio MCP server
+swctx-py simulate /path --diff f.patch  # pre-flight a diff: broken callers/implementers/tests
 ```
 
 MCP client config:
@@ -41,7 +42,8 @@ MCP client config:
 
 `prime` (orientation card — call first) · `get_status` · `list_workspaces` ·
 `index_workspace` · `search` · `fetch_chunks` · `find_definitions` ·
-`find_usages` · `workspace_tree` · `search_records`
+`find_usages` · `workspace_tree` · `search_records` · `simulate_patch`
+(speculative diff → broken dependents, via the call/extends edge graph)
 
 ## What it does
 
@@ -76,5 +78,6 @@ HuggingFace. Per-index binding: `swctx-py index <path> --model <id>`.
 The Swift build (repo root) runs CoreML on Apple Neural Engine and adds the
 full planner/graph/impact toolset. This port targets portability: CPU ONNX
 embeddings, the same retrieval shape and lexicon legs, and the core MCP
-toolset. Graph traversal (`callers`/`callees`/`impact`) and the ask/evidence
-planner are not ported yet.
+toolset, plus a regex-based call/extends edge graph powering
+`simulate_patch` (speculative diff pre-flight). BFS graph traversal
+(`graph_paths`/`get_impact`) and the ask/evidence planner are not ported yet.
