@@ -512,15 +512,62 @@ public enum SwctxTools {
         guard let ids = args["chunk_ids"]?.arr?.compactMap({ Int64($0.int ?? -1) }),
               !ids.isEmpty else { throw ToolError.missingArg("chunk_ids") }
         let includeContent = args["include_content"]?.bool ?? true
+        // mode=signature swaps body for the declaration lines — the
+        // task-aware slice: read the shape, not the implementation.
+        let sigMode = args["mode"]?.str == "signature"
+        let wantBody = includeContent || sigMode
         let rows = try store.pool.read { db in
             try Row.fetchAll(db, sql: """
                 SELECT c.id, f.path, c.start_line, c.end_line, c.kind, c.symbol
-                \(includeContent ? ", c.content" : "")
+                \(wantBody ? ", c.content" : "")
                 FROM chunks c JOIN files f ON f.id = c.file_id
                 WHERE c.id IN (\(ids.map { _ in "?" }.joined(separator: ",")))
                 """, arguments: StatementArguments(ids.map { $0 as DatabaseValueConvertible }))
         }
-        return json(["chunks": rows.map { chunkDict($0, content: includeContent) }])
+        return json(["chunks": rows.map { r -> [String: Any] in
+            if sigMode {
+                var d = chunkDict(r, content: false)
+                d["signature"] = Slice.signature(
+                    of: (r["content"] as? String) ?? "",
+                    symbol: r["symbol"] as? String)
+                return d
+            }
+            return chunkDict(r, content: includeContent)
+        }])
+    }
+
+    /// `outline`: one file -> symbol map (kind, lines, signature) with no
+    /// bodies — the ~10%-token answer to "what is in this file".
+    static func outline(_ args: [String: Value]) throws -> String {
+        let store = try store(args)
+        guard let path = args["path"]?.str, !path.isEmpty
+        else { throw ToolError.missingArg("path") }
+        if path.hasPrefix("/") || path.contains("..") {
+            return json(["error": "path must be relative, no '..' allowed"])
+        }
+        let rows = try store.pool.read { db in
+            try Row.fetchAll(db, sql: """
+                SELECT c.id, c.start_line, c.end_line, c.kind, c.symbol,
+                       c.content
+                FROM chunks c JOIN files f ON f.id = c.file_id
+                WHERE f.path = ? ORDER BY c.idx
+                """, arguments: [path])
+        }
+        if rows.isEmpty {
+            return json(["error": "path not indexed or has no chunks — "
+                       + "use inspect_path for directories"])
+        }
+        return json(["path": path, "symbols": rows.map { r in
+            var d: [String: Any] = [
+                "chunk_id": (r["id"] as? Int64) ?? -1,
+                "kind": (r["kind"] as? String) ?? "",
+                "lines": "\((r["start_line"] as? Int64) ?? 0)-\((r["end_line"] as? Int64) ?? 0)"]
+            if let s = r["symbol"] as? String { d["symbol"] = s }
+            d["signature"] = Slice.signature(
+                of: (r["content"] as? String) ?? "",
+                symbol: r["symbol"] as? String)
+            return d
+        }])
     }
 
     static func inspectPath(_ args: [String: Value]) throws -> String {
@@ -1757,6 +1804,7 @@ public enum SwctxTools {
         case "simulate_patch": return try simulatePatch(arguments)
         case "test_coverage": return try testCoverage(arguments)
         case "trace_lookup": return try traceLookup(arguments)
+        case "outline": return try outline(arguments)
         case "fast_understand": return try fastUnderstand(arguments)
         case "get_record": return try getRecord(arguments)
         case "list_records": return try listRecords(arguments)

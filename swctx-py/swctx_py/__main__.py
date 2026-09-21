@@ -64,6 +64,10 @@ def main() -> None:
     ptr.add_argument("--file", default=None,
                      help="trace file (default: stdin)")
 
+    po = sub.add_parser("outline")
+    po.add_argument("path")
+    po.add_argument("file")
+
     args = p.parse_args()
 
     if args.cmd == "index":
@@ -133,6 +137,18 @@ def main() -> None:
                 else sys.stdin.read())
         s = Store(args.path, create=False)
         print(json.dumps(trace.run(s, text), ensure_ascii=False, indent=1))
+    elif args.cmd == "outline":
+        from .slice import signature
+        s = Store(args.path, create=False)
+        rows = s.db.execute(
+            "SELECT id, start_line, end_line, symbol_type, symbol_name, "
+            "content FROM chunks WHERE file_id = ? ORDER BY id",
+            (args.file,)).fetchall()
+        print(json.dumps({"path": args.file, "symbols": [
+            {"chunk_id": r[0], "kind": r[3] or "", "symbol": r[4],
+             "lines": f"{r[1]}-{r[2]}",
+             "signature": signature(r[5], symbol=r[4])}
+            for r in rows]}, ensure_ascii=False, indent=1))
 
 
 if __name__ == "__main__":

@@ -33,6 +33,7 @@ swctx-py simulate /path --diff f.patch  # pre-flight a diff: broken callers/impl
 swctx-py coverage /path --symbol foo    # which tests call foo
 swctx-py coverage /path --file tests/test_x.py  # what this test covers
 cat crash.log | swctx-py trace /path          # stack frames -> indexed symbols
+swctx-py outline /path src/foo.py             # file symbol map, no bodies
 ```
 
 MCP client config:
@@ -49,7 +50,9 @@ MCP client config:
 (speculative diff → broken dependents, via the call/extends edge graph) ·
 `test_coverage` (symbol↔test map over the same edges: `symbol_name` →
 covering tests, `path` → covered production symbols) · `trace_lookup`
-(stack trace → indexed frames + suspects, `recent_commit`-flagged)
+(stack trace → indexed frames + suspects, `recent_commit`-flagged) ·
+`outline` + `fetch_chunks mode=signature` (task-aware slicing: shapes,
+not bodies)
 
 ## What it does
 

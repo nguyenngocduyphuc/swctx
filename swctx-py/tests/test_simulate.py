@@ -1,4 +1,5 @@
 """Simulate test — edges backfill + diff impact on a tiny fixture."""
+import json
 import sys
 import tempfile
 from pathlib import Path
@@ -85,7 +86,23 @@ def test_all():
         assert r["frames"][0]["matched"] is False
         assert any(sp["path"] == "b.py" for sp in r["suspects"])
 
-        print("simulate + coverage + trace OK")
+        # slice: signature strips body, marks truncation
+        from swctx_py.slice import signature
+        sig = signature("def greet(name):\n    return f'hi'\n    x=1\n")
+        assert sig == "def greet(name):\n    …", sig
+        # multi-line decl keeps going until brackets balance
+        sig = signature("def f(\n    a: int,\n    b: int\n) -> bool:\n    1\n")
+        assert ") -> bool:" in sig and "    1" not in sig, sig
+
+        # outline over MCP dispatch
+        from swctx_py import mcp_server
+        o = json.loads(mcp_server.call(
+            "outline", {"workspace": tmp, "path": "a.py"}))
+        names = [s["symbol"] for s in o["symbols"]]
+        assert "greet" in names, o  # fallback chunker may merge helper
+        assert o["symbols"][0]["signature"].startswith("def greet")
+
+        print("simulate + coverage + trace + slice OK")
         return 0
 
 

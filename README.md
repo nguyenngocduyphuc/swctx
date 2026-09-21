@@ -139,7 +139,8 @@ Any MCP client: point it at the built binary, or run
 | search | `auto` (default): identifier-shaped queries take the deterministic FTS+symbol path, prose takes full hybrid fusion; explicit `identifier`/`hybrid`/`fts`/`semantic` also accepted; `resolved_mode` reports the pick. `rerank:true` (opt-in) rescues hard NL queries: pins the fused top-3 and cross-encoder-rescores the 30-candidate pool via the amberoad mBERT model — ~0.4s/call, neutral-to-+1 on the vn probe, off by default |
 | find_definitions | symbol name → definition locations (`kind` = normalized kind like `struct`/`enum`, `raw_kind` = tree-sitter node type) |
 | find_usages | reverse edges: callers/importers/implementers of a symbol |
-| fetch_chunks | full source by chunk IDs |
+| fetch_chunks | full source by chunk IDs; `mode=signature` returns declaration lines only (~10% tokens — read the shape when the body is not needed) |
+| outline | one file → symbol map (kind, line range, signature) with no bodies — the cheap "what is in this file" |
 | inspect_path | browse chunks under a path; `query` rerank, `offset`, `rerank_pool_size` |
 | get_workspace_tree | paginated file list with counts |
 | graph_neighbors | call/import/implements neighbors; `depth` 1-3 BFS; `include_content` |
@@ -196,11 +197,12 @@ a multi-megabyte payload.
 
 ## Differences vs ctxe
 
-- Tool surface is 24 (23 retrieval + index_workspace): 16 tools are shared parity; each side has tools the
+- Tool surface is 25 (24 retrieval + index_workspace): 16 tools are shared parity; each side has tools the
   other lacks — swctx: `search` (workspace-wide retrieval), `context_pack`
   (deterministic evidence pack), `simulate_patch` (speculative diff
   pre-flight over the call graph), `test_coverage` (symbol↔test map),
-  `trace_lookup` (stack trace → indexed frames); ctxe: `ask_context`,
+  `trace_lookup` (stack trace → indexed frames), `outline` +
+  `fetch_chunks mode=signature` (task-aware slicing); ctxe: `ask_context`,
   `compose_answer`
   (server-side LLM planner, consumes account credits).
 - No cloud server, no OAuth, no credits — embeddings run on-device

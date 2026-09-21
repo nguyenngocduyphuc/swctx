@@ -34,11 +34,17 @@ def tool_defs() -> list[dict]:
              "workspace": ws, "query": {"type": "string"},
              "limit": {"type": "integer", "default": 10}},
              "required": ["workspace", "query"]}},
-        {"name": "fetch_chunks", "description": "Fetch full chunk bodies by id.",
+        {"name": "fetch_chunks", "description": "Fetch full chunk bodies by id. mode=signature returns declaration lines only (~10% tokens).",
          "inputSchema": {"type": "object", "properties": {
              "workspace": ws,
+             "mode": {"type": "string",
+                      "description": "full (default) | signature"},
              "chunk_ids": {"type": "array", "items": {"type": "integer"}}},
              "required": ["workspace", "chunk_ids"]}},
+        {"name": "outline", "description": "One file -> symbol map (kind, lines, signature), no bodies.",
+         "inputSchema": {"type": "object", "properties": {
+             "workspace": ws, "path": {"type": "string"}},
+             "required": ["workspace", "path"]}},
         {"name": "find_definitions", "description": "Exact symbol definitions.",
          "inputSchema": {"type": "object", "properties": {
              "workspace": ws, "name": {"type": "string"}},
@@ -118,8 +124,32 @@ def call(name: str, args: dict) -> str:
         s.log_event("fetch_chunks", "", arg_path="",
                     top_paths=";".join(r[1] for r in rows[:5]),
                     hit_count=len(rows))
+        if args.get("mode") == "signature":
+            from .slice import signature
+            rows2 = s.db.execute(
+                f"SELECT c.id, c.file_id, c.start_line, c.end_line, "
+                f"c.content, c.symbol_name FROM chunks c "
+                f"WHERE c.id IN ({marks})", ids).fetchall()
+            return _j([{"chunk_id": r[0], "path": r[1],
+                        "lines": [r[2], r[3]],
+                        "signature": signature(r[4], symbol=r[5])}
+                       for r in rows2])
         return _j([{"chunk_id": r[0], "path": r[1], "lines": [r[2], r[3]],
                     "content": r[4]} for r in rows])
+    if name == "outline":
+        from .slice import signature
+        rows = s.db.execute(
+            "SELECT id, start_line, end_line, symbol_type, symbol_name, "
+            "content FROM chunks WHERE file_id = ? ORDER BY id",
+            (args["path"],)).fetchall()
+        if not rows:
+            return _j({"error": "path not indexed or has no chunks — "
+                       "use workspace_tree/inspect for directories"})
+        return _j({"path": args["path"], "symbols": [
+            {"chunk_id": r[0], "kind": r[3] or "", "symbol": r[4],
+             "lines": f"{r[1]}-{r[2]}",
+             "signature": signature(r[5], symbol=r[4])}
+            for r in rows]})
     if name == "find_definitions":
         return _j(Searcher(s).find_definitions(args["name"]))
     if name == "find_usages":

@@ -98,12 +98,21 @@ public enum MCPServer {
                 annotations: .init(readOnlyHint: true)),
             Tool(
                 name: "fetch_chunks",
-                description: "Read full source for chunk IDs returned by other tools.",
+                description: "Read full source for chunk IDs returned by other tools. mode=signature returns declaration lines only (~10% tokens) when the shape is enough.",
                 inputSchema: obj([wsProp,
                                   ("chunk_ids", prop("array", "Integer chunk IDs")),
                                   ("include_content", prop("boolean", "Default true")),
+                                  ("mode", prop("string", "full (default) | signature — declaration lines only")),
                                   budgetProp, ("type", .string("object")),
                                   ("required", .array([.string("chunk_ids")]))]),
+                annotations: .init(readOnlyHint: true)),
+            Tool(
+                name: "outline",
+                description: "One file -> its symbol map: kind, line range, signature — no bodies. The cheap answer to 'what is in this file' before fetching bodies.",
+                inputSchema: obj([wsProp,
+                                  ("path", prop("string", "Relative file path (exact file; use inspect_path for directories)")),
+                                  budgetProp, ("type", .string("object")),
+                                  ("required", .array([.string("path")]))]),
                 annotations: .init(readOnlyHint: true)),
             Tool(
                 name: "inspect_path",
