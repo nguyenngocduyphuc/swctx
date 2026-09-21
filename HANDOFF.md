@@ -853,3 +853,25 @@ the AND-probe's anchor as a proper prefix (atom ≥4 chars). The AND
 content gate makes it safe — "sitectl" only entered raw because its
 body matched entity/mesh/sync; bare-fallback hits get no prefix
 credit. seo-05 → r6 deterministic.
+
+## T7 ops evidence + T8 reranker verdict [20bf310]
+
+**T7 — ops measured live:**
+- Watcher freshness (CRM, launchd-managed): new file searchable in
+  **2.66s** (debounce 1.5s + pass), content-indexed same pass; delete
+  removed in **5.28s**.
+- Killed-reindex: SIGKILL mid-`index` (300-file tmp ws) → sqlite
+  `integrity_check=ok`, incremental rerun completed files+embeddings.
+- Latency ledger: swctx search p50 **142ms** vs ctxe ask p50 **35s**.
+
+**T8 — reranker REJECTED by evidence** (rerank_eval_*.json, prior spike):
+- bge-reranker-v2-m3: R@5 10/16 → **7/16**, vi 9/14 → 6/14, 2.8s/pair.
+- v3: 13/22 → 13/22, vi 12/19 → 11/19, 1.5s/pair.
+- Root cause of VN body-only gap is **pool coverage** (gold never
+  enters candidates: pool_coverage 10-15/22) — rerank can't fix what
+  fusion never surfaced. Direction if revisited: VN→EN candidate
+  generation (xlate leg weighting), not post-hoc rerank.
+
+**Memory fix:** Indexer.embedder is now lazy (`requireEmbedder()`) —
+watchers on fully-embedded indexes went from ~1GB phys_footprint each
+to ~20-57MB; 6 launchd watchers restarted, ~208MB RSS total.
