@@ -1,0 +1,134 @@
+[
+ {
+  "id": "seo-01",
+  "hit": true,
+  "rank": 3,
+  "gold": "scripts/p8_canonical_check.py"
+ },
+ {
+  "id": "seo-02",
+  "hit": true,
+  "rank": 6,
+  "gold": "scripts/p8_link_health.py"
+ },
+ {
+  "id": "seo-03",
+  "hit": true,
+  "rank": 1,
+  "gold": "scripts/p8_utm_builder.py"
+ },
+ {
+  "id": "seo-04",
+  "hit": false,
+  "rank": 0,
+  "gold": "scripts/p8_image_worker.py"
+ },
+ {
+  "id": "seo-05",
+  "hit": true,
+  "rank": 7,
+  "gold": "factory/sitectl.py"
+ },
+ {
+  "id": "seo-06",
+  "hit": true,
+  "rank": 2,
+  "gold": "docs-fleet/doi-ngu.md"
+ },
+ {
+  "id": "seo-07",
+  "hit": false,
+  "rank": 0,
+  "gold": "WORKFLOW.md"
+ },
+ {
+  "id": "seo-08",
+  "hit": false,
+  "rank": 0,
+  "gold": "scripts/p8_fix_featured_images.py"
+ },
+ {
+  "id": "crm-01",
+  "hit": true,
+  "rank": 5,
+  "gold": "crm-nam-pham/09-build/cham_cong.py"
+ },
+ {
+  "id": "crm-02",
+  "hit": false,
+  "rank": 0,
+  "gold": "crm-nam-pham/09-build/so_tay.py"
+ },
+ {
+  "id": "crm-03",
+  "hit": true,
+  "rank": 1,
+  "gold": "crm-nam-pham/09-build/tin_lead.py"
+ },
+ {
+  "id": "crm-04",
+  "hit": true,
+  "rank": 1,
+  "gold": "crm-nam-pham/09-build/dong_vong.py"
+ },
+ {
+  "id": "crm-05",
+  "hit": true,
+  "rank": 1,
+  "gold": "crm-nam-pham/functions/_middleware.js"
+ },
+ {
+  "id": "crm-06",
+  "hit": true,
+  "rank": 1,
+  "gold": "crm-nam-pham/07-docs/DANG_NHAP.md"
+ },
+ {
+  "id": "crm-07",
+  "hit": true,
+  "rank": 3,
+  "gold": "crm-nam-pham/09-build/nap_serp.py"
+ },
+ {
+  "id": "crm-08",
+  "hit": false,
+  "rank": 0,
+  "gold": "crm-nam-pham/09-build/ghi_so.py"
+ },
+ {
+  "id": "seo-09",
+  "hit": true,
+  "rank": 1,
+  "gold": "scripts/p8_brain.py"
+ },
+ {
+  "id": "seo-10",
+  "hit": false,
+  "rank": 0,
+  "gold": "scripts/ghost_link_builder_apply.py"
+ },
+ {
+  "id": "seo-11",
+  "hit": true,
+  "rank": 3,
+  "gold": "docs-fleet/ke-hoach.md"
+ },
+ {
+  "id": "crm-09",
+  "hit": true,
+  "rank": 1,
+  "gold": "crm-nam-pham/09-build/kiem_he_thiet_ke.py"
+ },
+ {
+  "id": "crm-10",
+  "hit": true,
+  "rank": 7,
+  "gold": "crm-nam-pham/09-build/vaid_issues.py"
+ },
+ {
+  "id": "crm-11",
+  "hit": true,
+  "rank": 1,
+  "gold": "crm-nam-pham/09-build/log_activity_live.py"
+ }
+]

@@ -1,4 +1,94 @@
-# ctxe — Field feedback (2026-09-18)
+# ctxe — Field feedback
+
+Two rounds of evidence-based feedback, measured on this machine.
+Round 2 (2026-09-21) adds operational KPIs from ~1 week of dual-engine
+use; Round 1 (2026-09-18) lists reproducible defects. Ordered by user
+impact.
+
+---
+
+## Round 2 — operational KPI comparison (2026-09-21)
+
+All numbers measured, not estimated. Method: same query manifests run
+blind against both engines (hash pre-registered before scoring),
+`R@k`/MRR via `tools/swctx/bench/strict_score.py`, latency via wall-clock
+on real agent calls. Full harness described at the bottom — it is
+reusable for ctxe-side evals.
+
+### Headline numbers
+
+| KPI | ctxe | swctx (local reimpl) | Note |
+|---|---|---|---|
+| Blind recall, 48-query holdout | 38/48 R@5 | **39/48** | hash-locked manifest |
+| Filename-intent queries | 16/24 | **22/24** | incl. repeated `page.tsx` dirs |
+| VN body-only semantic | **17/19** | 13/19 | ctxe still leads this stratum |
+| p50 ask latency | **~35s** (p95 ~122s) | ~142ms | wall clock, real calls |
+| Observed ask volume | ~42 asks/week | — | from `~/.ctxe/record_refs.db` |
+| Failed asks observed | 3 (rounds consumed) | — | records show terminal `failed` |
+| Determinism | nondeterministic | reproducible | same query → different results |
+
+### Feature suggestions (impact order)
+
+1. **Free/non-LLM `search` tool.** Highest-impact gap. Agents need a
+   lexical/hybrid lookup that does not run the planner — most everyday
+   calls ("where does X live") do not need synthesis. Also cuts server
+   LLM load on your side.
+2. **Path/directory-aware ranking.** Filename-intent misses cluster on
+   convention-heavy repos: `checkin/page.tsx` vs `events/page.tsx` —
+   the discriminator lives in the directory segment. Weight path atoms,
+   split camelCase. Fixed in swctx via a planner path-probe leg;
+   mechanism is cheap and deterministic.
+3. **Deterministic retrieval layer.** Retrieval should be reproducible;
+   nondeterminism belongs to synthesis only. Users can then cache,
+   regression-test, and trust results.
+4. **Result/similarity cache.** ~42 asks/week with near-duplicate
+   queries across sessions. A query-embedding cache cuts both latency
+   and your server cost.
+5. **Planner latency.** p50 35s kills agent loops. Parallel retrieval
+   legs + early-return when confidence suffices + bound rounds.
+   Retrieval itself is milliseconds; the cost is sequential rounds.
+6. **Cross-language filename atoms.** Measured this week: EN queries
+   against Vietnamese filenames were a blind spot (0/3 on an unseen
+   repo). Fixed locally with a zero-cost deterministic lexicon leg
+   ("finished"→{xong,biet}, "daily report"→{bao,cao,ngay}) gated on the
+   corpus actually containing VN morphemes — unseen-repo score went
+   8/13 → 13/13. Worth checking whether the same gap exists ctxe-side.
+7. **Degraded/offline mode.** Network+OAuth failure currently means
+   zero retrieval. A cached-index fallback keeps the product alive
+   offline.
+8. **Per-user usage dashboard.** Users cannot see their own ask/cost
+   telemetry today — we had to mine `record_refs.db` to get the
+   42-asks/week figure above.
+
+### Where ctxe is genuinely ahead
+
+- VN body-only semantic recall (17/19 vs 13/19) — keep the multilingual
+  stack; it is the differentiator.
+- `compose_answer` re-synthesis from stored records.
+- Multi-round planner on broad/ambiguous queries, when it converges.
+
+### Evaluation harness (open for reuse)
+
+The scoring mechanism used above, if useful for your own regression
+suite:
+
+- `bench/strict_score.py` — R@1/R@5/R@10 + MRR against a manifest of
+  `{query, expected_paths}`; manifest SHA is recorded before scoring so
+  the test cannot be tuned to itself.
+- `bench/optimize.py --tune-on/--confirm-on` — parameter sweeps with a
+  tune/confirm split + 4-gate adoption (no improvement ⇒ reject).
+- `bench/mine_queries.py` — mines real `usage_events` (search→fetch
+  causal pairs, zero-hit queries) into new manifests, so evals grow from
+  actual usage rather than hand-written queries.
+- Unseen-repo discipline: tune on known workspaces, confirm once on a
+  repository the engine has never indexed (`20.aiteam`, 13 blind
+  queries — that is where the EN→VN gap surfaced).
+
+Bug-level findings from the first audit remain below, unchanged.
+
+---
+
+## Round 1 — defect findings (2026-09-18)
 
 Tested ctxe 0.4.4 against a local reimplementation (`swctx`) on 6 real
 workspaces. Findings below are reproducible on this machine; each has a
