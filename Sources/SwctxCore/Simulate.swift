@@ -142,6 +142,21 @@ public enum Simulate {
         testPathRx.firstMatch(in: p, range: NSRange(p.startIndex..., in: p)) != nil
     }
 
+    private static let paramsRx = try! NSRegularExpression(
+        pattern: #"[A-Za-z_]\w*\s*\(([^)]*)\)"#)
+
+    /// Rough arity from a declaration line: `name(a, b = 1)` → 2.
+    static func paramCount(_ line: String, name: String) -> Int? {
+        guard let i = line.range(of: name + "(") else { return nil }
+        let tail = String(line[i.lowerBound...])
+        guard let m = paramsRx.firstMatch(
+            in: tail, range: NSRange(tail.startIndex..., in: tail)),
+              let r = Range(m.range(at: 1), in: tail) else { return nil }
+        let inner = tail[r].trimmingCharacters(in: .whitespaces)
+        if inner.isEmpty { return 0 }
+        return inner.filter { $0 == "," }.count + 1
+    }
+
     /// Run simulation against a store. `diff` is unified-diff text.
     /// Returns a JSON-encodable dictionary.
     public static func run(store: Store, diff: String,
@@ -155,6 +170,7 @@ public enum Simulate {
 
         struct SymHit {
             var name: String; var file: String; var changeKind: String
+            var definitions = 0; var arity: String?
             var callers: [[String: Any]] = []
             var implementers: [[String: Any]] = []
         }
@@ -162,23 +178,30 @@ public enum Simulate {
         var bodyChanges: [[String: Any]] = []
 
         try store.pool.read { db in
-            func dependents(of name: String,
-                            kinds: [String]) throws -> [[String: Any]] {
+            func defChunks(_ name: String) throws -> Set<Int64> {
+                Set(try Int64.fetchAll(db, sql:
+                    "SELECT chunk_id FROM symbols WHERE name = ?",
+                    arguments: [name]))
+            }
+            func dependents(of name: String, kinds: [String],
+                            defs: Set<Int64>) throws -> [[String: Any]] {
                 let ph = kinds.map { _ in "?" }.joined(separator: ",")
                 var args: [DatabaseValueConvertible] = [name]
                 args.append(contentsOf: kinds)
                 return try Row.fetchAll(db, sql: """
-                    SELECT e.line, e.kind, f.path, e.src_chunk
+                    SELECT e.line, e.kind, f.path, e.src_chunk, e.dst_chunk
                     FROM edges e
                     JOIN chunks c ON c.id = e.src_chunk
                     JOIN files f ON f.id = c.file_id
                     WHERE e.dst_name = ? AND e.kind IN (\(ph))
                     ORDER BY f.path LIMIT ?
                     """, arguments: StatementArguments(args + [maxCallers]))
-                    .map { ["path": $0["path"] as String,
-                            "line": $0["line"] as Int,
-                            "edge": $0["kind"] as String,
-                            "chunk_id": $0["src_chunk"] as Int64] }
+                    .map { ["path": ($0["path"] as? String) ?? "",
+                            "line": ($0["line"] as? Int) ?? 0,
+                            "edge": ($0["kind"] as? String) ?? "",
+                            "chunk_id": ($0["src_chunk"] as? Int64) ?? -1,
+                            "resolved": ($0["dst_chunk"] as? Int64)
+                                .map { defs.contains($0) } ?? false] }
             }
 
             for fd in fileDiffs {
@@ -190,13 +213,26 @@ public enum Simulate {
                 // Same name redeclared on the + side = signature changed;
                 // absent = symbol removed outright. Both can break callers.
                 for name in decls {
+                    let defs = try defChunks(name)
                     var hit = SymHit(name: name, file: fd.path,
                         changeKind: addedDecls.contains(name)
                             ? "signature" : "removed")
+                    hit.definitions = defs.count
+                    // arity change: `-` decl vs `+` decl param counts
+                    if addedDecls.contains(name),
+                       let old = fd.hunks.flatMap({ $0.removedLines })
+                           .first(where: { $0.contains(name + "(") }),
+                       let new = fd.hunks.flatMap({ $0.addedLines })
+                           .first(where: { $0.contains(name + "(") }),
+                       let po = paramCount(old, name: name),
+                       let pn = paramCount(new, name: name), po != pn {
+                        hit.arity = "\(po)→\(pn)"
+                    }
                     hit.callers = try dependents(of: name,
-                        kinds: ["calls", "instantiates", "uses_type"])
+                        kinds: ["calls", "instantiates", "uses_type"],
+                        defs: defs)
                     hit.implementers = try dependents(of: name,
-                        kinds: ["implements", "extends"])
+                        kinds: ["implements", "extends"], defs: defs)
                     symbols.append(hit)
                 }
 
@@ -219,7 +255,8 @@ public enum Simulate {
                         "enclosing_chunk": row["id"] as Int64,
                         "dependent_callers": sym == "?" ? [] :
                             try dependents(of: sym,
-                                kinds: ["calls", "instantiates", "uses_type"])])
+                                kinds: ["calls", "instantiates", "uses_type"],
+                                defs: defChunks(sym))])
                 }
             }
         }
@@ -232,12 +269,19 @@ public enum Simulate {
         return [
             "files_changed": fileDiffs.count,
             "symbols": symbols.map { s in
-                ["name": s.name, "file": s.file, "change": s.changeKind,
-                 "callers": s.callers, "implementers": s.implementers] as [String: Any]
+                var d = ["name": s.name, "file": s.file,
+                         "change": s.changeKind,
+                         "definitions": s.definitions,
+                         "callers": s.callers,
+                         "implementers": s.implementers] as [String: Any]
+                if let a = s.arity { d["arity"] = a }
+                return d
             },
             "body_changes": bodyChanges,
             "risk": [
                 "broken_call_sites": allCallers.count,
+                "resolved_call_sites": allCallers
+                    .filter { ($0["resolved"] as? Bool) == true }.count,
                 "affected_prod_files": prodFiles.sorted(),
                 "affected_test_files": testFiles.sorted(),
             ],

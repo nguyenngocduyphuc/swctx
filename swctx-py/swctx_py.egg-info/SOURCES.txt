@@ -4,12 +4,14 @@ swctx_py/__init__.py
 swctx_py/__main__.py
 swctx_py/chunker.py
 swctx_py/discover.py
+swctx_py/edges.py
 swctx_py/embedder.py
 swctx_py/fold.py
 swctx_py/indexer.py
 swctx_py/lexicon.py
 swctx_py/mcp_server.py
 swctx_py/search.py
+swctx_py/simulate.py
 swctx_py/store.py
 swctx_py.egg-info/PKG-INFO
 swctx_py.egg-info/SOURCES.txt

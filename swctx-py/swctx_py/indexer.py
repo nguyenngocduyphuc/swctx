@@ -62,6 +62,9 @@ class Indexer:
             removed += 1
 
         self._backfill_edges()
+        if changed or removed or s.meta("edges_resolved") != "1":
+            self._resolve_edges()
+            s.set_meta("edges_resolved", "1")
 
         embedded = 0
         if not skip_embed and model_installed(model_id):
@@ -144,6 +147,22 @@ class Indexer:
                 [(cid, n, k, ln)
                  for n, k, ln in edges.extract(content or "", lang, start)])
         s.set_meta("edges_built", "1")
+        s.db.commit()
+
+    def _resolve_edges(self) -> None:
+        """Fill dst_chunk by symbol name — prefer a same-file definition."""
+        s = self.store
+        s.db.execute("""
+            UPDATE edges SET dst_chunk = (
+                SELECT s.chunk_id FROM symbols s
+                JOIN chunks c ON c.id = edges.src_chunk
+                WHERE s.name = edges.dst_name
+                ORDER BY (s.file_id = c.file_id) DESC, s.chunk_id
+                LIMIT 1)
+            WHERE dst_chunk IS NULL
+              AND EXISTS (SELECT 1 FROM symbols s
+                          WHERE s.name = edges.dst_name)
+            """)
         s.db.commit()
 
     def embed_all(self, model_id: str) -> int:

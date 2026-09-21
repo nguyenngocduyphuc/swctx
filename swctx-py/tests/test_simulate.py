@@ -39,10 +39,13 @@ def test_all():
         r = run(s, diff)
         assert r["symbols"][0]["name"] == "greet"
         assert r["symbols"][0]["change"] == "signature"
+        assert r["symbols"][0]["arity"] == "1→2"
         callers = r["symbols"][0]["callers"]
         assert len(callers) == 2, callers
+        assert all(c["resolved"] for c in callers)
         risk = r["risk"]
         assert risk["broken_call_sites"] == 2
+        assert risk["resolved_call_sites"] == 2
         assert risk["affected_prod_files"] == ["b.py"]
         assert risk["affected_test_files"] == ["test_a.py"]
 

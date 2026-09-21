@@ -141,22 +141,48 @@ def _lang_of(path: str) -> str | None:
     return lang_of(path)
 
 
+_PARAMS_RX = re.compile(r"[A-Za-z_]\w*\s*\(([^)]*)\)")
+
+
+def _param_count(decl_line: str, name: str) -> int | None:
+    """Rough arity from a declaration line: `name(a, b=1)` → 2."""
+    i = decl_line.find(name + "(")
+    if i < 0:
+        return None
+    m = _PARAMS_RX.search(decl_line, i)
+    if not m:
+        return None
+    inner = m.group(1).strip()
+    if not inner:
+        return 0
+    # strip defaults/generics noise; count top-level commas
+    return inner.count(",") + 1
+
+
 def run(store: Store, diff: str, max_callers: int = 50) -> dict:
     file_diffs = parse_diff(diff)
     if not file_diffs:
         return {"files_changed": 0, "symbols": [], "body_changes": [],
                 "risk": {}, "note": "no unified-diff hunks parsed"}
 
-    def dependents(name: str, kinds: list[str]) -> list[dict]:
+    def def_chunks(name: str) -> set[int]:
+        return {r[0] for r in store.db.execute(
+            "SELECT chunk_id FROM symbols WHERE name=?", (name,))}
+
+    def dependents(name: str, kinds: list[str],
+                   defs: set[int]) -> list[dict]:
         ph = ",".join("?" * len(kinds))
         rows = store.db.execute(
-            f"SELECT e.line, e.kind, c.file_id AS path, e.src_chunk "
+            f"SELECT e.line, e.kind, c.file_id AS path, e.src_chunk, "
+            f"e.dst_chunk "
             f"FROM edges e JOIN chunks c ON c.id = e.src_chunk "
             f"WHERE e.dst_name = ? AND e.kind IN ({ph}) "
             f"ORDER BY path LIMIT ?",
             [name, *kinds, max_callers]).fetchall()
         return [{"path": r[2], "line": r[0], "edge": r[1],
-                 "chunk_id": r[3]} for r in rows]
+                 "chunk_id": r[3],
+                 "resolved": r[4] in defs if r[4] is not None else False}
+                for r in rows]
 
     symbols: list[dict] = []
     body_changes: list[dict] = []
@@ -169,13 +195,27 @@ def run(store: Store, diff: str, max_callers: int = 50) -> dict:
         added_decls = set(_removed_decls(lang, added))
 
         for name in decls:
-            symbols.append({
+            defs = def_chunks(name)
+            # arity change: `-` decl vs `+` decl param counts
+            arity = None
+            if name in added_decls:
+                old = next((ln for ln in removed if name + "(" in ln), "")
+                new = next((ln for ln in added if name + "(" in ln), "")
+                po, pn = _param_count(old, name), _param_count(new, name)
+                if po is not None and pn is not None and po != pn:
+                    arity = f"{po}→{pn}"
+            entry = {
                 "name": name, "file": fd.path,
                 "change": "signature" if name in added_decls else "removed",
-                "callers": dependents(name,
-                                      ["calls", "instantiates", "uses_type"]),
-                "implementers": dependents(name, ["implements", "extends"]),
-            })
+                "definitions": len(defs),
+                "callers": dependents(
+                    name, ["calls", "instantiates", "uses_type"], defs),
+                "implementers": dependents(
+                    name, ["implements", "extends"], defs),
+            }
+            if arity:
+                entry["arity"] = arity
+            symbols.append(entry)
 
         for h in fd.hunks:
             if _removed_decls(lang, h.removed):
@@ -194,18 +234,21 @@ def run(store: Store, diff: str, max_callers: int = 50) -> dict:
                 "file": fd.path, "old_line": h.old_start,
                 "enclosing_symbol": sym, "enclosing_chunk": row[0],
                 "dependent_callers": [] if sym == "?" else dependents(
-                    sym, ["calls", "instantiates", "uses_type"]),
+                    sym, ["calls", "instantiates", "uses_type"],
+                    def_chunks(sym)),
             })
 
     all_callers = [c for s in symbols for c in s["callers"]]
     broken = {c["path"] for c in all_callers}
     test_files = {p for p in broken if _TEST_RX.search(p)}
+    resolved_n = sum(1 for c in all_callers if c["resolved"])
     return {
         "files_changed": len(file_diffs),
         "symbols": symbols,
         "body_changes": body_changes,
         "risk": {
             "broken_call_sites": len(all_callers),
+            "resolved_call_sites": resolved_n,
             "affected_prod_files": sorted(broken - test_files),
             "affected_test_files": sorted(test_files),
         },

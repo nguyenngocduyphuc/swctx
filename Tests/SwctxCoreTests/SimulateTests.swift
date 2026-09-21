@@ -27,6 +27,10 @@ final class SimulateTests: XCTestCase {
                                        kind, symbol, content, tokens)
                     VALUES(?,1,0,?,?, 'function', ?, 'x', 0)
                     """, arguments: [id, s, e, sym])
+                try db.execute(sql: """
+                    INSERT INTO symbols(file_id, chunk_id, name, kind, line)
+                    VALUES(1,?,?,?,?)
+                    """, arguments: [id, sym, "def", s])
             }
             // b.py chunk 3 calls greet at line 12; test chunk 4 calls greet
             for (id, fid, line) in [(3, 2, 12), (4, 3, 4)] {
@@ -64,10 +68,13 @@ final class SimulateTests: XCTestCase {
         XCTAssertEqual(syms.count, 1)
         XCTAssertEqual(syms[0]["name"] as? String, "greet")
         XCTAssertEqual(syms[0]["change"] as? String, "signature")
+        XCTAssertEqual(syms[0]["arity"] as? String, "1→2")
         let callers = syms[0]["callers"] as? [[String: Any]] ?? []
         XCTAssertEqual(callers.count, 2)
+        XCTAssertEqual(callers.first?["resolved"] as? Bool, true)
         let risk = r["risk"] as? [String: Any] ?? [:]
         XCTAssertEqual(risk["broken_call_sites"] as? Int, 2)
+        XCTAssertEqual(risk["resolved_call_sites"] as? Int, 2)
         XCTAssertEqual(risk["affected_prod_files"] as? [String], ["b.py"])
         XCTAssertEqual(risk["affected_test_files"] as? [String], ["tests/test_a.py"])
     }
