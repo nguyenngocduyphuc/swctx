@@ -60,7 +60,7 @@ macOS. See `swctx-py/README.md`.
   neighbors / paths / transitive impact. `extends` vs `implements` is
   split after resolution: concrete type targets become `extends`,
   protocol/interface/trait targets stay `implements`.
-- **MCP server** on stdio with 20 tools; also usable directly as a CLI.
+- **MCP server** on stdio with 21 tools; also usable directly as a CLI.
 
 Languages: swift, python, javascript, typescript, tsx, go, rust, json, yaml,
 html, css, bash, markdown/text. Data formats (json/yaml/html/css) get
@@ -97,6 +97,7 @@ swctx discover <path>            # debug: which files discovery would index
 swctx model            # list known models + installed status
 swctx model install [<id>] [--from <dir>]  # install the bge-base default (~210MB) or a converted CoreML dir
 swctx ask <path> "question"   # evidence pack -> local agent CLI (claude/codex/gemini) -> cited answer + record
+swctx simulate <path> [--diff file.patch]   # pre-flight a unified diff: broken callers/implementers/tests before writing
 swctx mcp              # stdio MCP server
 swctx mcp-config       # print client config snippet
 swctx install-agent [--dry-run]  # register swctx MCP in claude/codex/gemini/cursor/windsurf/devin configs
@@ -145,6 +146,7 @@ Any MCP client: point it at the built binary, or run
 | graph_expand | scored-seed neighborhood expansion (depth ≤2, score decay) |
 | graph_paths | frontier-batched BFS paths between chunks (≤500-id queries, no full-table load); `max_hops`, `max_paths`, `include_content` |
 | get_impact | transitive dependents ("what breaks if I change this"); `include_content` |
+| simulate_patch | speculative pre-flight: unified `diff`/`diff_file` → changed/removed declarations → every indexed caller, implementer and test that would break — before the patch touches disk |
 | context_pack | deterministic multi-round retrieval: hybrid hits + 1-hop call-graph expansion; persists a `records` row |
 | get_record | one record by id; `scope` (workspace default, global, all = workspace first then global); `stale` flag when anchors no longer resolve post-HEAD-move |
 | list_records | records ledger, filters + pagination + `scope` (workspace/global/all); per-record `stale`/`stale_reasons` |
@@ -184,9 +186,10 @@ a multi-megabyte payload.
 
 ## Differences vs ctxe
 
-- Tool surface is 20 (19 retrieval + index_workspace): 16 tools are shared parity; each side has two the
+- Tool surface is 21 (20 retrieval + index_workspace): 16 tools are shared parity; each side has tools the
   other lacks — swctx: `search` (workspace-wide retrieval), `context_pack`
-  (deterministic evidence pack); ctxe: `ask_context`, `compose_answer`
+  (deterministic evidence pack), `simulate_patch` (speculative diff
+  pre-flight over the call graph); ctxe: `ask_context`, `compose_answer`
   (server-side LLM planner, consumes account credits).
 - No cloud server, no OAuth, no credits — embeddings run on-device
   (bge-base CoreML, `NLEmbedding` fallback), planning/reasoning is done by
