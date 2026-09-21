@@ -203,6 +203,15 @@ public enum MCPServer {
                                   ("required", .array([.string("chunk_id")]))]),
                 annotations: .init(readOnlyHint: true)),
             Tool(
+                name: "simulate_patch",
+                description: "Pre-flight a unified diff: symbols whose declarations change or vanish, plus every indexed caller/implementer/test that would break — before writing the patch.",
+                inputSchema: obj([wsProp,
+                                  ("diff", prop("string", "Unified-diff text (git diff format)")),
+                                  ("diff_file", prop("string", "Path to a .diff/.patch file — alternative to inline diff")),
+                                  ("max_callers", prop("integer", "Default 50 per symbol")),
+                                  budgetProp, ("type", .string("object"))]),
+                annotations: .init(readOnlyHint: true)),
+            Tool(
                 name: "get_record",
                 description: "Retrieve one durable record by its integer ID. scope=workspace (default) reads the workspace ledger; scope=global reads the repo-wide ledger shared by all git worktrees (no indexed workspace needed); scope=all checks workspace first then global.",
                 inputSchema: obj([wsProp,

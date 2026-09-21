@@ -846,6 +846,20 @@ public enum SwctxTools {
                      }])
     }
 
+    /// `simulate_patch` (v0): unified diff in → dependents that would break,
+    /// before the patch touches disk. Read-only; never mutates the index.
+    static func simulatePatch(_ args: [String: Value]) throws -> String {
+        let store = try store(args)
+        var diff = args["diff"]?.str
+        if diff == nil, let f = args["diff_file"]?.str {
+            diff = try? String(contentsOfFile: f, encoding: .utf8)
+        }
+        guard let diff, !diff.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        else { throw ToolError.missingArg("diff or diff_file") }
+        return json(try Simulate.run(store: store, diff: diff,
+                                     maxCallers: args["max_callers"]?.int ?? 50))
+    }
+
     static func contextPack(_ args: [String: Value]) throws -> String {
         let store = try store(args)
         guard let q = args["query"]?.str else { throw ToolError.missingArg("query") }
@@ -1634,6 +1648,7 @@ public enum SwctxTools {
         case "graph_expand": return try graphExpand(arguments)
         case "graph_paths": return try graphPaths(arguments)
         case "get_impact": return try getImpact(arguments)
+        case "simulate_patch": return try simulatePatch(arguments)
         case "fast_understand": return try fastUnderstand(arguments)
         case "get_record": return try getRecord(arguments)
         case "list_records": return try listRecords(arguments)

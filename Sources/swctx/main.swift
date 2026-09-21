@@ -13,7 +13,7 @@ struct Swctx: AsyncParsableCommand {
         commandName: "swctx",
         abstract: "Local semantic code index + MCP server (Swift reimplementation of the ctxe model).",
         version: "0.1.0",
-        subcommands: [IndexCmd.self, StatusCmd.self, PrimeCmd.self, SearchCmd.self, RerankCmd.self, Rerank2Cmd.self, Rerank3Cmd.self, TreeCmd.self, EmbedCmd.self, DiscoverCmd.self, WatchCmd.self, AskCmd.self, AnswerCmd.self, ModelCmd.self, McpCmd.self, McpConfigCmd.self, InstallAgentCmd.self, GcCmd.self, StatsCmd.self],
+        subcommands: [IndexCmd.self, StatusCmd.self, PrimeCmd.self, SearchCmd.self, RerankCmd.self, Rerank2Cmd.self, Rerank3Cmd.self, TreeCmd.self, EmbedCmd.self, DiscoverCmd.self, WatchCmd.self, AskCmd.self, AnswerCmd.self, SimulateCmd.self, ModelCmd.self, McpCmd.self, McpConfigCmd.self, InstallAgentCmd.self, GcCmd.self, StatsCmd.self],
         defaultSubcommand: nil)
 }
 
@@ -939,6 +939,30 @@ struct AnswerCmd: AsyncParsableCommand {
         if let lim = d["limitations"] as? String, !lim.isEmpty {
             FileHandle.standardError.write("limitations: \(lim)\n".data(using: .utf8)!)
         }
+    }
+}
+
+struct SimulateCmd: ParsableCommand {
+    static let configuration = CommandConfiguration(commandName: "simulate",
+        abstract: "Pre-flight a unified diff: which callers/implementers/tests would break.")
+    @Argument(help: "Workspace path (default: current directory)") var path: String = "."
+    @Option(name: .long, help: "Path to a .diff/.patch file (default: read stdin)") var diff: String?
+    @Option(name: .long, help: "Max callers per symbol") var maxCallers: Int = 50
+
+    func run() throws {
+        let text: String
+        if let diff {
+            text = try String(contentsOfFile: diff, encoding: .utf8)
+        } else {
+            text = String(data: FileHandle.standardInput.readDataToEndOfFile(),
+                          encoding: .utf8) ?? ""
+        }
+        let root = URL(fileURLWithPath: path).resolvingSymlinksInPath()
+        let store = try Store(workspaceRoot: root)
+        let result = try Simulate.run(store: store, diff: text, maxCallers: maxCallers)
+        let data = try JSONSerialization.data(withJSONObject: result,
+                                              options: [.prettyPrinted, .sortedKeys])
+        print(String(data: data, encoding: .utf8)!)
     }
 }
 
