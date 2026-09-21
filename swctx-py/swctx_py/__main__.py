@@ -59,6 +59,11 @@ def main() -> None:
                     help="test file — lists the symbols it covers")
     pc.add_argument("--limit", type=int, default=50)
 
+    ptr = sub.add_parser("trace")
+    ptr.add_argument("path")
+    ptr.add_argument("--file", default=None,
+                     help="trace file (default: stdin)")
+
     args = p.parse_args()
 
     if args.cmd == "index":
@@ -122,6 +127,12 @@ def main() -> None:
         print(json.dumps(coverage.run(s, symbol_name=args.symbol,
                                     path=args.file, limit=args.limit),
                          ensure_ascii=False, indent=1))
+    elif args.cmd == "trace":
+        from . import trace
+        text = (open(args.file, encoding="utf-8").read() if args.file
+                else sys.stdin.read())
+        s = Store(args.path, create=False)
+        print(json.dumps(trace.run(s, text), ensure_ascii=False, indent=1))
 
 
 if __name__ == "__main__":

@@ -75,6 +75,14 @@ def tool_defs() -> list[dict]:
                       "description": "test file — lists covered symbols"},
              "limit": {"type": "integer", "default": 50}},
              "required": ["workspace"]}},
+        {"name": "trace_lookup",
+         "description": "Paste a crash stack trace -> frames resolved to indexed chunks (file:line -> enclosing symbol) + suspects: callers of the deepest matched frame, flagged when recently commit-touched.",
+         "inputSchema": {"type": "object", "properties": {
+             "workspace": ws,
+             "trace": {"type": "string", "description": "Raw stack-trace text"},
+             "trace_file": {"type": "string",
+                            "description": "Path to a file with the trace"}},
+             "required": ["workspace"]}},
     ]
 
 
@@ -161,6 +169,15 @@ def call(name: str, args: dict) -> str:
             s, symbol_name=args.get("symbol_name"),
             path=args.get("path"),
             limit=int(args.get("limit", 50))))
+    if name == "trace_lookup":
+        from . import trace
+        text = args.get("trace") or ""
+        if not text and args.get("trace_file"):
+            try:
+                text = open(args["trace_file"], encoding="utf-8").read()
+            except OSError:
+                return _j({"error": f"cannot read {args['trace_file']}"})
+        return _j(trace.run(s, text))
     return _j({"error": f"unknown tool {name}"})
 
 

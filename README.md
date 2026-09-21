@@ -149,6 +149,7 @@ Any MCP client: point it at the built binary, or run
 | *(edge kind)* | `api_call` links frontend call sites to backend route defs across files: `fetch('/api/users')` resolves to the chunk holding `@app.get('/api/users')` — route paths are indexed as `route` symbols, so `find_usages("/api/x")` and impact traversal cross the HTTP boundary for free |
 | simulate_patch | speculative pre-flight: unified `diff`/`diff_file` → changed/removed declarations → every indexed caller, implementer and test that would break — before the patch touches disk |
 | test_coverage | static test↔symbol map over call edges: `symbol_name` → test chunks that exercise it ("which tests to run for this change"); `path` → non-test symbols that file covers ("what this test actually tests") |
+| trace_lookup | paste a crash stack trace (`trace`/`trace_file`) → Python/JS/Go/generic frames suffix-matched to indexed files and mapped to enclosing symbols; `suspects` = callers of the deepest matched frame, flagged when the file was touched by a recent commit |
 | context_pack | deterministic multi-round retrieval: hybrid hits + 1-hop call-graph expansion; persists a `records` row |
 | get_record | one record by id; `scope` (workspace default, global, all = workspace first then global); `stale` flag when anchors no longer resolve post-HEAD-move |
 | list_records | records ledger, filters + pagination + `scope` (workspace/global/all); per-record `stale`/`stale_reasons` |
@@ -195,11 +196,12 @@ a multi-megabyte payload.
 
 ## Differences vs ctxe
 
-- Tool surface is 23 (22 retrieval + index_workspace): 16 tools are shared parity; each side has tools the
+- Tool surface is 24 (23 retrieval + index_workspace): 16 tools are shared parity; each side has tools the
   other lacks — swctx: `search` (workspace-wide retrieval), `context_pack`
   (deterministic evidence pack), `simulate_patch` (speculative diff
-  pre-flight over the call graph), `test_coverage` (symbol↔test map);
-  ctxe: `ask_context`, `compose_answer`
+  pre-flight over the call graph), `test_coverage` (symbol↔test map),
+  `trace_lookup` (stack trace → indexed frames); ctxe: `ask_context`,
+  `compose_answer`
   (server-side LLM planner, consumes account credits).
 - No cloud server, no OAuth, no credits — embeddings run on-device
   (bge-base CoreML, `NLEmbedding` fallback), planning/reasoning is done by

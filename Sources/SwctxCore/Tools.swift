@@ -932,6 +932,36 @@ public enum SwctxTools {
                            + "and string-keyed tests are not modeled"])
     }
 
+    /// `trace_lookup`: paste a stack trace -> frames resolved to indexed
+    /// chunks (file:line -> enclosing symbol) plus suspects = callers of
+    /// the deepest matched frame, flagged when recently commit-touched.
+    static func traceLookup(_ args: [String: Value]) throws -> String {
+        let store = try store(args)
+        var text = args["trace"]?.str ?? ""
+        if text.isEmpty, let tf = args["trace_file"]?.str {
+            guard let data = try? Data(contentsOf: URL(fileURLWithPath: tf)),
+                  let s = String(data: data, encoding: .utf8) else {
+                return json(["error": "cannot read \(tf)"])
+            }
+            text = s
+        }
+        let frames = Trace.parse(text)
+        if frames.isEmpty {
+            return json(["frames": [], "count": 0,
+                         "note": "no frames parsed — expected Python/JS/Go "
+                               + "traceback lines or path:line references"])
+        }
+        let resolved = Trace.resolve(store: store, frames: frames)
+        let matched = resolved.filter { ($0["matched"] as? Bool) == true }
+        return json([
+            "frames": resolved,
+            "count": resolved.count,
+            "matched": matched.count,
+            "suspects": Trace.suspects(store: store, resolved: resolved),
+            "note": "static mapping — inlined calls, source maps and "
+                  + "native frames are not recoverable"])
+    }
+
     static func contextPack(_ args: [String: Value]) throws -> String {
         let store = try store(args)
         guard let q = args["query"]?.str else { throw ToolError.missingArg("query") }
@@ -1726,6 +1756,7 @@ public enum SwctxTools {
         case "get_impact": return try getImpact(arguments)
         case "simulate_patch": return try simulatePatch(arguments)
         case "test_coverage": return try testCoverage(arguments)
+        case "trace_lookup": return try traceLookup(arguments)
         case "fast_understand": return try fastUnderstand(arguments)
         case "get_record": return try getRecord(arguments)
         case "list_records": return try listRecords(arguments)

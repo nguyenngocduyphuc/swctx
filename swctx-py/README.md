@@ -32,6 +32,7 @@ swctx-py mcp                          # stdio MCP server
 swctx-py simulate /path --diff f.patch  # pre-flight a diff: broken callers/implementers/tests
 swctx-py coverage /path --symbol foo    # which tests call foo
 swctx-py coverage /path --file tests/test_x.py  # what this test covers
+cat crash.log | swctx-py trace /path          # stack frames -> indexed symbols
 ```
 
 MCP client config:
@@ -47,7 +48,8 @@ MCP client config:
 `find_usages` · `workspace_tree` · `search_records` · `simulate_patch`
 (speculative diff → broken dependents, via the call/extends edge graph) ·
 `test_coverage` (symbol↔test map over the same edges: `symbol_name` →
-covering tests, `path` → covered production symbols)
+covering tests, `path` → covered production symbols) · `trace_lookup`
+(stack trace → indexed frames + suspects, `recent_commit`-flagged)
 
 ## What it does
 

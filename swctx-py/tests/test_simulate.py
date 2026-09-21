@@ -74,7 +74,18 @@ def test_all():
         assert r["covers"][0]["symbol"] == "greet"
         assert r["covers"][0]["path"] == "a.py"
 
-        print("simulate + coverage OK")
+        # trace_lookup: py frame resolves to greet's chunk; callers
+        # of the crash site surface as suspects
+        from swctx_py.trace import run as tr
+        r = tr(s, 'Traceback (most recent call last):\n'
+                 '  File "/x/site-packages/os.py", line 9, in makedirs\n'
+                 '  File "/x/a.py", line 2, in greet\n')
+        assert r["matched"] == 1, r
+        assert r["frames"][1]["symbol"] == "greet"
+        assert r["frames"][0]["matched"] is False
+        assert any(sp["path"] == "b.py" for sp in r["suspects"])
+
+        print("simulate + coverage + trace OK")
         return 0
 
 

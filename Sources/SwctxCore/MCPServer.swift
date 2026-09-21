@@ -221,6 +221,14 @@ public enum MCPServer {
                                   budgetProp, ("type", .string("object"))]),
                 annotations: .init(readOnlyHint: true)),
             Tool(
+                name: "trace_lookup",
+                description: "Paste a crash stack trace -> each frame resolved to its indexed chunk (file:line -> enclosing symbol), app frames flagged vs library noise, plus suspects: callers of the deepest matched frame, marked when recently commit-touched.",
+                inputSchema: obj([wsProp,
+                                  ("trace", prop("string", "Raw stack-trace text (Python/JS/Go/generic path:line)")),
+                                  ("trace_file", prop("string", "Path to a file containing the trace")),
+                                  budgetProp, ("type", .string("object"))]),
+                annotations: .init(readOnlyHint: true)),
+            Tool(
                 name: "get_record",
                 description: "Retrieve one durable record by its integer ID. scope=workspace (default) reads the workspace ledger; scope=global reads the repo-wide ledger shared by all git worktrees (no indexed workspace needed); scope=all checks workspace first then global.",
                 inputSchema: obj([wsProp,
