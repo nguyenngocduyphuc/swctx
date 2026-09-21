@@ -174,6 +174,9 @@ public enum Translation {
         ("ghi so", ["ledger"]),
         ("cong no", ["debt"]),
         ("tuyen dung", ["recruit"]),
+        ("so cai", ["ledger", "book"]),
+        ("giao viec", ["gui", "assign", "task"]),
+        ("doc", ["read", "reader"]),
         ("phan hoi", ["feedback"]),
         ("bi chan", ["blocked"]),
         ("ap dung", ["apply"]),
@@ -210,6 +213,171 @@ public enum Translation {
             for t in terms where seen.insert(t).inserted { out.append(t) }
         }
         return out
+    }
+
+    // MARK: - EN→VN lexicon (the missing direction)
+
+    /// English phrase/word → folded-VN filename atoms. The mirror of
+    /// `vnLexicon`: an English query against a repo whose files are named
+    /// in Vietnamese ("detecting when work finishes" → BietXong.swift)
+    /// carries zero VN atoms, so the filename probe and folded FTS can
+    /// never reach them. These atoms feed the same probe path the
+    /// vnLexicon terms use — deterministic, free, no model call.
+    /// Longest EN pattern wins on word boundaries of the lowercased
+    /// query; values are FOLDED VN atoms (diacritics stripped), matching
+    /// `pathTokenString` output.
+    static let enLexicon: [(String, [String])] = [
+        // multi-word first
+        ("one after another", ["noi", "tiep", "tuan", "tu"]),
+        ("daily report", ["bao", "cao", "ngay"]),
+        ("assigned work", ["giao", "gui", "viec", "xong"]),
+        ("finished", ["xong", "hoan", "thanh"]),
+        ("detecting", ["biet", "phat", "hien"]),
+        ("detect", ["biet", "phat", "hien"]),
+        ("assign", ["giao", "gui", "viec"]),
+        ("task", ["viec", "cong"]),
+        ("job", ["viec", "cong"]),
+        ("work", ["viec", "cong"]),
+        ("report", ["bao", "cao"]),
+        ("summary", ["tom", "tat", "tong", "hop"]),
+        ("daily", ["ngay", "hang"]),
+        ("command", ["lenh"]),
+        ("sequential", ["noi", "tiep", "tuan", "tu"]),
+        ("chain", ["noi", "tiep", "chuoi"]),
+        ("schedule", ["hen", "lich"]),
+        ("remind", ["nhac", "hen"]),
+        ("notification", ["thong", "bao"]),
+        ("ledger", ["so", "ghi"]),
+        ("read", ["doc", "xem"]),
+        ("record", ["ghi", "nhat", "ky"]),
+        ("log", ["nhat", "ky", "ghi"]),
+        ("count", ["dem"]),
+        ("token", ["token"]),
+        ("session", ["phien"]),
+        ("history", ["lich", "su"]),
+        ("conversation", ["hoi", "thoai"]),
+        ("chat", ["hoi", "thoai"]),
+        ("kanban", ["kanban", "bang"]),
+        ("board", ["bang"]),
+        ("keyboard", ["phim"]),
+        ("shortcut", ["tat", "phim"]),
+        ("config", ["cai", "dat", "cau", "hinh"]),
+        ("settings", ["cai", "dat"]),
+        ("monitor", ["giam", "sat", "theo", "doi"]),
+        ("resource", ["tai", "nguyen"]),
+        ("store", ["kho", "luu"]),
+        ("employee", ["nhan", "vien"]),
+        ("staff", ["nhan", "vien"]),
+        ("customer", ["khach", "hang"]),
+        ("order", ["don", "hang"]),
+        ("invoice", ["hoa", "don"]),
+        ("payment", ["thanh", "toan"]),
+        ("search", ["tim", "kiem"]),
+        ("sync", ["dong", "bo"]),
+        ("backup", ["sao", "luu"]),
+        ("login", ["dang", "nhap"]),
+        ("password", ["mat", "khau"]),
+        ("file", ["tep", "tin"]),
+        ("folder", ["thu", "muc"]),
+        ("user", ["nguoi", "dung"]),
+        ("team", ["doi", "nhom"]),
+        ("event", ["su", "kien"]),
+        ("attendance", ["diem", "danh"]),
+        ("checkin", ["diem", "danh"]),
+        ("error", ["loi"]),
+        ("image", ["anh", "hinh"]),
+        ("title", ["tieu", "de"]),
+        ("content", ["noi", "dung"]),
+        ("keyword", ["tu", "khoa"]),
+        ("security", ["bao", "mat"]),
+        ("auth", ["xac", "thuc"]),
+        ("auto", ["tu", "dong"]),
+        ("performance", ["hieu", "suat"]),
+        ("feedback", ["phan", "hoi"]),
+        ("blocked", ["bi", "chan"]),
+        ("plan", ["ke", "hoach"]),
+        ("tool", ["cong", "cu"]),
+        ("alert", ["canh", "bao"]),
+        ("check", ["kiem", "tra"]),
+        ("review", ["danh", "gia"]),
+        ("restore", ["khoi", "phuc"]),
+        ("website", ["trang", "web"]),
+        ("article", ["bai", "viet"]),
+        ("description", ["mo", "ta"]),
+        ("product", ["san", "pham"]),
+        ("supplier", ["nha", "cung", "cap"]),
+        ("inventory", ["ton", "kho"]),
+        ("warehouse", ["kho"]),
+        ("salary", ["luong", "tinh"]),
+        ("payroll", ["cham", "cong", "luong"]),
+        ("internal", ["noi", "bo"]),
+    ]
+
+    /// Folded-VN atoms for an English query, matched on word boundaries.
+    /// Fires regardless of query language — patterns are English words so
+    /// a VN query simply matches nothing.
+    static func vnTerms(for query: String) -> [String] {
+        let folded = " " + query.lowercased()
+            .components(separatedBy: CharacterSet.alphanumerics.inverted)
+            .filter { !$0.isEmpty }
+            .joined(separator: " ") + " "
+        var out: [String] = []
+        var seen: Set<String> = []
+        for (pattern, terms) in enLexicon.sorted(by: {
+            $0.0.count > $1.0.count
+        }) where folded.contains(" \(pattern) ") {
+            for t in terms where seen.insert(t).inserted { out.append(t) }
+        }
+        return out
+    }
+
+    /// VN morphemes seen in filenames — union of both lexicons' atom
+    /// vocabularies. Used to detect whether a corpus actually names files
+    /// in Vietnamese (BietXong.swift has no diacritics, so the diacritic
+    /// gate can't see it); only then is the EN→VN leg worth its atoms.
+    static let vnMorphemes: Set<String> = {
+        var s = Set<String>()
+        for (k, _) in vnLexicon {
+            for t in k.split(separator: " ") { s.insert(String(t)) }
+        }
+        for (_, vs) in enLexicon {
+            for v in vs { s.insert(v) }
+        }
+        return s
+    }()
+
+    private static let vnCorpusCache = VNCorpusCache()
+
+    final class VNCorpusCache: @unchecked Sendable {
+        private var map: [ObjectIdentifier: Bool] = [:]
+        private let lock = NSLock()
+        func get(_ store: Store) -> Bool? {
+            lock.lock(); defer { lock.unlock() }
+            return map[ObjectIdentifier(store)]
+        }
+        func put(_ store: Store, _ v: Bool) {
+            lock.lock(); defer { lock.unlock() }
+            map[ObjectIdentifier(store)] = v
+        }
+    }
+
+    /// True when ≥1 indexed file's folded path tokens contain a VN
+    /// morpheme. One basename scan per Store, cached for the process —
+    /// file lists change under the watcher but a corpus's language mix
+    /// is stable enough for a session.
+    static func corpusHasVNFilenames(store: Store) -> Bool {
+        if let c = vnCorpusCache.get(store) { return c }
+        let paths = (try? store.pool.read { db in
+            try String.fetchAll(db, sql: "SELECT path FROM files")
+        }) ?? []
+        var found = false
+        outer: for p in paths {
+            for tok in Search.pathTokenString(p).split(separator: " ") {
+                if vnMorphemes.contains(String(tok)) { found = true; break outer }
+            }
+        }
+        vnCorpusCache.put(store, found)
+        return found
     }
 
     // MARK: - Cache (bounded LRU, outside the index DB)

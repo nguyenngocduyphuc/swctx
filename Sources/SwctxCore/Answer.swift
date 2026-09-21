@@ -267,6 +267,13 @@ public enum Answer {
                           extraAtoms: [String] = []) throws -> [SearchHit] {
         var terms = extraAtoms
         terms += Translation.lexiconTerms(for: query)
+        // EN→VN rescue: an English query has no VN atoms to probe
+        // BietXong/GuiViec-style filenames; the enLexicon supplies them.
+        // Gated on the corpus actually using VN names so pure-English
+        // repos never pay the extra atoms.
+        if Translation.corpusHasVNFilenames(store: store) {
+            terms += Translation.vnTerms(for: query)
+        }
         if let t = Translation.activeCache.get(Translation.cacheKey(query)) {
             terms += t
         }

@@ -896,3 +896,34 @@ sets — honest generalization number:
 Gap direction is now precise: bilingual filename atoms / EN→VN query
 expansion — candidate for next optimize cycle. NOT a reranker fix
 (confirmed T8: pool coverage, not ranking).
+
+## EN→VN lexicon leg — CLOSED the unseen-repo gap [bge-m3 rejected]
+
+Follow-up on the aiteam 8/13: the fix was NOT a bigger embedding model —
+it was the missing translation direction.
+
+- **bge-m3 evaluated & rejected**: installed, `--model bge-m3` works, but
+  on-device embed p50=567ms (vs bge-base 12.6ms, distiluse 9ms) → query
+  latency +450ms min, aiteam re-embed projected ~45min CPU-bound. 45×
+  per-embed cost kills the latency edge. Killed after ~30min at 0/4511.
+- **distiluse reindex alone did NOT rescue** (8/13 unchanged): EN queries
+  still pulled EN docs over VN-named Swift files at corpus scale.
+- **Actual fix — `Translation.enLexicon`**: deterministic EN→VN morpheme
+  map (inverse of vnLexicon + domain words: finished→xong/biet,
+  assign→giao/gui/viec, "one after another"→noi/tiep, ledger→so/ghi…)
+  feeding the existing filename-probe path. Fires only when
+  `corpusHasVNFilenames` (cached basename scan vs morpheme set) so
+  English-only repos never pay. Also filled vnLexicon gaps:
+  "so cai"→ledger, "doc"→read/reader, "giao viec"→gui variant.
+- **Result on the SAME pre-registered manifest: 8/13 → 13/13 R@5**
+  (MRR 0.40→0.62). All 5 misses rescued: ai-01 GuiViec (giao↔gui),
+  ai-07 BietXong r1, ai-08 BaoCaoNgay r3, ai-09 LenhNoiTiep r2,
+  ai-13 LedgerReader r1.
+- **Regression sweep: zero.** vn22 18/22=, linkeldn 21→**22**/25 (+1 —
+  linkeldn also has VN names), fleet 17/23=. Aggregate 64→70/83.
+- aiteam index now bound to `distiluse-base-multilingual-cased-v2`
+  (reindexed 4511 chunks ~6min).
+
+Remaining honest gaps: vn22 seo-02/seo-07, linkeldn link-09, fleet
+body-only misses — next lever is corpus-mined lexicon growth
+(`usage_events` zero-hit + mine_queries), not bigger models.
