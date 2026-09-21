@@ -66,6 +66,15 @@ def tool_defs() -> list[dict]:
              "diff_file": {"type": "string", "description": "Path to .diff/.patch"},
              "max_callers": {"type": "integer", "default": 50}},
              "required": ["workspace"]}},
+        {"name": "test_coverage",
+         "description": "Static test<->symbol map over call edges. symbol_name -> test chunks that exercise it; path -> non-test symbols that file covers.",
+         "inputSchema": {"type": "object", "properties": {
+             "workspace": ws,
+             "symbol_name": {"type": "string"},
+             "path": {"type": "string",
+                      "description": "test file — lists covered symbols"},
+             "limit": {"type": "integer", "default": 50}},
+             "required": ["workspace"]}},
     ]
 
 
@@ -146,6 +155,12 @@ def call(name: str, args: dict) -> str:
         if not diff.strip():
             return _j({"error": "missing diff or diff_file"})
         return _j(simulate.run(s, diff, int(args.get("max_callers", 50))))
+    if name == "test_coverage":
+        from . import coverage
+        return _j(coverage.run(
+            s, symbol_name=args.get("symbol_name"),
+            path=args.get("path"),
+            limit=int(args.get("limit", 50))))
     return _j({"error": f"unknown tool {name}"})
 
 

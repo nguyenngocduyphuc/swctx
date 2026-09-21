@@ -860,6 +860,78 @@ public enum SwctxTools {
                                      maxCallers: args["max_callers"]?.int ?? 50))
     }
 
+    /// `test_coverage`: symbol <-> test map over call edges.
+    /// symbol_name -> test chunks whose calls reach it (resolved or
+    /// name-matched); path -> the non-test symbols that file exercises.
+    /// Answers "which tests cover this change" and "what does this test
+    /// file actually cover" — static approximation, no runtime data.
+    static func testCoverage(_ args: [String: Value]) throws -> String {
+        let store = try store(args)
+        let limit = min(args["limit"]?.int ?? 50, 200)
+        if let name = args["symbol_name"]?.str, !name.isEmpty {
+            let rows = try store.pool.read { db in
+                try Row.fetchAll(db, sql: """
+                    SELECT DISTINCT f.path, c.id, c.symbol, c.start_line,
+                           c.end_line, e.kind
+                    FROM edges e
+                    JOIN chunks c ON c.id = e.src_chunk
+                    JOIN files f ON f.id = c.file_id
+                    WHERE (e.dst_name = ?
+                       OR e.dst_chunk IN (
+                           SELECT chunk_id FROM symbols WHERE name = ?))
+                    ORDER BY f.path, e.line LIMIT ?
+                    """, arguments: [name, name, limit * 4])
+            }
+            var tests: [[String: Any]] = []
+            for r in rows {
+                guard let path = r["path"] as? String,
+                      Simulate.isTestPath(path) else { continue }
+                tests.append([
+                    "chunk_id": (r["id"] as? Int64) ?? -1,
+                    "path": path,
+                    "symbol": (r["symbol"] as? String) ?? NSNull(),
+                    "lines": "\((r["start_line"] as? Int64) ?? 0)-\((r["end_line"] as? Int64) ?? 0)",
+                    "edge": (r["kind"] as? String) ?? ""])
+                if tests.count >= limit { break }
+            }
+            return json(["symbol": name, "tests": tests,
+                         "count": tests.count,
+                         "note": "static call-edge map — dynamic dispatch "
+                               + "and string-keyed tests are not modeled"])
+        }
+        guard let path = args["path"]?.str, !path.isEmpty else {
+            throw ToolError.missingArg("symbol_name or path")
+        }
+        // What a test file covers: resolved outgoing edges -> symbols in
+        // non-test files (in-file helpers drop out via the same filter).
+        let rows = try store.pool.read { db in
+            try Row.fetchAll(db, sql: """
+                SELECT DISTINCT s.name AS sname, sf.path AS spath, e.kind
+                FROM edges e
+                JOIN chunks c ON c.id = e.src_chunk
+                JOIN files f ON f.id = c.file_id
+                JOIN symbols s ON s.chunk_id = e.dst_chunk
+                JOIN files sf ON sf.id = s.file_id
+                WHERE f.path = ? AND e.dst_chunk IS NOT NULL
+                ORDER BY s.name LIMIT ?
+                """, arguments: [path, limit * 4])
+        }
+        var covers: [[String: Any]] = []
+        for r in rows {
+            guard let sp = r["spath"] as? String,
+                  !Simulate.isTestPath(sp) else { continue }
+            covers.append([
+                "symbol": (r["sname"] as? String) ?? "",
+                "path": sp,
+                "edge": (r["kind"] as? String) ?? ""])
+            if covers.count >= limit { break }
+        }
+        return json(["path": path, "covers": covers,
+                     "count": covers.count,
+                     "note": "static call-edge map — dynamic dispatch "
+                           + "and string-keyed tests are not modeled"])
+    }
+
     static func contextPack(_ args: [String: Value]) throws -> String {
         let store = try store(args)
         guard let q = args["query"]?.str else { throw ToolError.missingArg("query") }
@@ -1653,6 +1725,7 @@ public enum SwctxTools {
         case "graph_paths": return try graphPaths(arguments)
         case "get_impact": return try getImpact(arguments)
         case "simulate_patch": return try simulatePatch(arguments)
+        case "test_coverage": return try testCoverage(arguments)
         case "fast_understand": return try fastUnderstand(arguments)
         case "get_record": return try getRecord(arguments)
         case "list_records": return try listRecords(arguments)

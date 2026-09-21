@@ -135,10 +135,11 @@ public enum Simulate {
 
     // MARK: - impact lookup against the index
 
-    private static let testPathRx = try! NSRegularExpression(
+    static let testPathRx = try! NSRegularExpression(
         pattern: #"(?i)(test|tests|spec|__tests__|testing)"#, options: [])
 
-    private static func isTestPath(_ p: String) -> Bool {
+    /// Shared test-path heuristic — Simulate risk split + test_coverage.
+    static func isTestPath(_ p: String) -> Bool {
         testPathRx.firstMatch(in: p, range: NSRange(p.startIndex..., in: p)) != nil
     }
 

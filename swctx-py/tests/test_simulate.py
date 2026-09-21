@@ -62,7 +62,19 @@ def test_all():
         assert r["body_changes"][0]["enclosing_symbol"] == "greet"
         assert len(r["body_changes"][0]["dependent_callers"]) == 2
 
-        print("simulate OK")
+        # test_coverage: symbol -> tests (only test_a.py, not b.py)
+        from swctx_py.coverage import run as cov
+        r = cov(s, symbol_name="greet")
+        assert r["count"] == 1, r
+        assert r["tests"][0]["path"] == "test_a.py"
+
+        # test_coverage: path -> covers (greet in a.py, not test files)
+        r = cov(s, path="test_a.py")
+        assert r["count"] == 1, r
+        assert r["covers"][0]["symbol"] == "greet"
+        assert r["covers"][0]["path"] == "a.py"
+
+        print("simulate + coverage OK")
         return 0
 
 

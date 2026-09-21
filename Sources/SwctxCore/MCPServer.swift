@@ -212,6 +212,15 @@ public enum MCPServer {
                                   budgetProp, ("type", .string("object"))]),
                 annotations: .init(readOnlyHint: true)),
             Tool(
+                name: "test_coverage",
+                description: "Static test<->symbol map over call edges. symbol_name -> test chunks that exercise it (which tests to run for a change); path -> non-test symbols that file covers (what a test actually tests).",
+                inputSchema: obj([wsProp,
+                                  ("symbol_name", prop("string", "Symbol to find covering tests for")),
+                                  ("path", prop("string", "Test file path — lists the symbols it covers")),
+                                  ("limit", prop("integer", "Default 50, max 200")),
+                                  budgetProp, ("type", .string("object"))]),
+                annotations: .init(readOnlyHint: true)),
+            Tool(
                 name: "get_record",
                 description: "Retrieve one durable record by its integer ID. scope=workspace (default) reads the workspace ledger; scope=global reads the repo-wide ledger shared by all git worktrees (no indexed workspace needed); scope=all checks workspace first then global.",
                 inputSchema: obj([wsProp,

@@ -30,6 +30,8 @@ swctx-py status /path/to/repo
 swctx-py watch /path/to/repo          # polling watcher (mtime, ~2s)
 swctx-py mcp                          # stdio MCP server
 swctx-py simulate /path --diff f.patch  # pre-flight a diff: broken callers/implementers/tests
+swctx-py coverage /path --symbol foo    # which tests call foo
+swctx-py coverage /path --file tests/test_x.py  # what this test covers
 ```
 
 MCP client config:
@@ -43,7 +45,9 @@ MCP client config:
 `prime` (orientation card — call first) · `get_status` · `list_workspaces` ·
 `index_workspace` · `search` · `fetch_chunks` · `find_definitions` ·
 `find_usages` · `workspace_tree` · `search_records` · `simulate_patch`
-(speculative diff → broken dependents, via the call/extends edge graph)
+(speculative diff → broken dependents, via the call/extends edge graph) ·
+`test_coverage` (symbol↔test map over the same edges: `symbol_name` →
+covering tests, `path` → covered production symbols)
 
 ## What it does
 

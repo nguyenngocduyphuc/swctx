@@ -52,6 +52,13 @@ def main() -> None:
                      help="path to .diff/.patch (default: stdin)")
     pim.add_argument("--max-callers", type=int, default=50)
 
+    pc = sub.add_parser("coverage")
+    pc.add_argument("path")
+    pc.add_argument("--symbol", default=None)
+    pc.add_argument("--file", default=None,
+                    help="test file — lists the symbols it covers")
+    pc.add_argument("--limit", type=int, default=50)
+
     args = p.parse_args()
 
     if args.cmd == "index":
@@ -108,6 +115,12 @@ def main() -> None:
             text = sys.stdin.read()
         s = Store(args.path, create=False)
         print(json.dumps(simulate.run(s, text, args.max_callers),
+                         ensure_ascii=False, indent=1))
+    elif args.cmd == "coverage":
+        from . import coverage
+        s = Store(args.path, create=False)
+        print(json.dumps(coverage.run(s, symbol_name=args.symbol,
+                                    path=args.file, limit=args.limit),
                          ensure_ascii=False, indent=1))
 
 
