@@ -10,6 +10,7 @@ hybrid (SQLite FTS5 + ONNX embeddings + symbol/path/lexicon legs, RRF-fused).
 pip install .            # from this directory
 # or: pipx install . / uv tool install .
 swctx-py model install   # downloads bge-base-en-v1.5 ONNX (~420MB) from HF
+# weak machines / CI: swctx-py model install potion-multi-int8 (~83MB, ~1ms/embed)
 ```
 
 Optional AST-aware chunking (recommended — symbol-level chunks):
@@ -78,6 +79,7 @@ Data lives in `~/.swctx-py/` (indexes per workspace, models, catalog).
 | `bge-base-en-v1.5` (default) | 768 | en | fast CPU embedder |
 | `distiluse-base-multilingual-cased-v2` | 768 | 50+ incl. vi | best balance for VN repos |
 | `bge-m3` | 1024 | 100+ | heavy — ~450ms/embed on CPU |
+| `potion-multi-int8` | 128 | 101 incl. vi | static tier (Model2Vec, distilled from bge-m3) — ~83MB, ~1ms/embed, no neural inference; trades some semantic depth for ~50x faster indexing |
 
 `swctx-py model install [id]` downloads the ONNX export + tokenizer from
 HuggingFace. Per-index binding: `swctx-py index <path> --model <id>`.

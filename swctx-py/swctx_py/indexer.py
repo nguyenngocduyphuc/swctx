@@ -36,7 +36,12 @@ class Indexer:
             model_id: str | None = None) -> dict:
         s = self.store
         model_id = model_id or s.meta("embedding_model") or "bge-base-en-v1.5"
-        if s.meta("embedding_model") is None:
+        # Explicit --model wins over the stored choice; a dim change makes
+        # existing vectors stale, so wipe them when the model differs.
+        if s.meta("embedding_model") != model_id:
+            if s.meta("embedding_model") is not None:
+                s.db.execute("DELETE FROM embeddings")
+                s.db.commit()
             s.set_meta("embedding_model", model_id)
             s.set_meta("embedding_dim", str(MODELS_KNOWN[model_id]["dim"]))
         t0 = time.time()
