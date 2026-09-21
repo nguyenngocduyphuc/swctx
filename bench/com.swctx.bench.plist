@@ -1,26 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!--
-  com.swctx.bench — launchd job running bench/nightly.sh at 03:30 daily:
-  the cold-cwd MCP smoke plus the recall_mcp.py --ratchet gates.
-
-  Install (files only — nothing here is loaded automatically):
-
-      cp bench/com.swctx.bench.plist ~/Library/LaunchAgents/
-      launchctl load ~/Library/LaunchAgents/com.swctx.bench.plist
-
-      # modern equivalent on current macOS:
-      # launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.swctx.bench.plist
-
-  IMPORTANT: ProgramArguments[1] is an ABSOLUTE path into this checkout —
-  EDIT IT if the repo moves. StandardOutPath/StandardErrorPath are also
-  absolute; adjust as needed (the script itself always logs gate failures
-  to ~/.swctx/bench_failures.log).
-
-  Unload:
-      launchctl unload ~/Library/LaunchAgents/com.swctx.bench.plist
-      # or: launchctl bootout gui/$(id -u)/com.swctx.bench
--->
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- com.swctx.bench: runs bench/nightly.sh at 03:30 daily (cold-cwd MCP smoke + recall ratchet).
+     Install via: swctx watchd install writes its own plist; this one is installed manually:
+     launchctl bootstrap gui/UID ~/Library/LaunchAgents/com.swctx.bench.plist
+     NOTE: XML comments cannot contain double-hyphens; keep this comment free of them.
+     ProgramArguments[1] is an ABSOLUTE path into this checkout; edit if the repo moves.
+     Failures are logged to ~/.swctx/bench_failures.log. -->
 <plist version="1.0">
 <dict>
     <key>Label</key>

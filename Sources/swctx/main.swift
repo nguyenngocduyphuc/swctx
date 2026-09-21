@@ -13,7 +13,7 @@ struct Swctx: AsyncParsableCommand {
         commandName: "swctx",
         abstract: "Local semantic code index + MCP server (Swift reimplementation of the ctxe model).",
         version: "0.1.0",
-        subcommands: [IndexCmd.self, StatusCmd.self, PrimeCmd.self, SearchCmd.self, RerankCmd.self, Rerank2Cmd.self, Rerank3Cmd.self, TreeCmd.self, EmbedCmd.self, DiscoverCmd.self, WatchCmd.self, AskCmd.self, AnswerCmd.self, SimulateCmd.self, ModelCmd.self, McpCmd.self, McpConfigCmd.self, InstallAgentCmd.self, GcCmd.self, StatsCmd.self],
+        subcommands: [IndexCmd.self, StatusCmd.self, PrimeCmd.self, SearchCmd.self, RerankCmd.self, Rerank2Cmd.self, Rerank3Cmd.self, TreeCmd.self, EmbedCmd.self, DiscoverCmd.self, WatchCmd.self, WatchAllCmd.self, AskCmd.self, AnswerCmd.self, SimulateCmd.self, ModelCmd.self, McpCmd.self, McpConfigCmd.self, InstallAgentCmd.self, GcCmd.self, StatsCmd.self],
         defaultSubcommand: nil)
 }
 
@@ -600,21 +600,138 @@ struct DiscoverCmd: AsyncParsableCommand {
     }
 }
 
+/// `swctx watch` is dual-purpose. With a workspace path it foregrounds
+/// one IndexWatcher exactly as it always has (scripts and muscle memory
+/// rely on it). With a lifecycle verb it manages the shared
+/// `com.swctx.watchd` daemon that runs `swctx watch-all` — the single
+/// LaunchAgent replacing the per-workspace com.swctx.watch.* plists:
+///   install    write ~/Library/LaunchAgents/com.swctx.watchd.plist and
+///              `launchctl bootstrap` it (one login item, one notification)
+///   uninstall  bootout + remove the plist
+///   restart    `launchctl kickstart -k` — apply watchd.json edits
+///   status     plist presence, launchd state, configured workspaces
+///   add/remove <path>   edit ~/.swctx/watchd.json (dedupe, resolve symlinks)
 struct WatchCmd: AsyncParsableCommand {
     static let configuration = CommandConfiguration(commandName: "watch",
-        abstract: "Watch a workspace via FSEvents and keep its index fresh (foreground).")
-    @Argument(help: "Workspace path") var path: String = "."
+        abstract: "Watch a workspace via FSEvents and keep its index fresh (foreground). Lifecycle verbs manage the shared com.swctx.watchd daemon instead: `swctx watch install|uninstall|restart|status` or `swctx watch add|remove <path>`. Any other argument is a workspace path.")
+    @Argument(help: "Workspace path — or a lifecycle verb: install | uninstall | restart | status | add | remove")
+    var path: String = "."
+    @Argument(help: "Workspace path for the `add`/`remove` verbs") var target: String?
     @Flag(name: .long, help: "Run a single incremental index pass and exit (no watching)") var once = false
 
     func run() async throws {
-        let root = URL(fileURLWithPath: path).resolvingSymlinksInPath()
-        let store = try Store(workspaceRoot: root)
-        let watcher = IndexWatcher(store: store)
-        if once {
-            try watcher.indexOnce()
-            return
+        switch path {
+        case "add":
+            guard let target else {
+                throw ValidationError("`swctx watch add` needs a workspace path")
+            }
+            let r = try Watchd.addWorkspace(target)
+            print(r.added
+                ? "watching \(Watchd.normalize(target).path) "
+                    + "(\(r.workspaces.count) total — `swctx watch restart` to apply)"
+                : "already watched: \(Watchd.normalize(target).path)")
+        case "remove":
+            guard let target else {
+                throw ValidationError("`swctx watch remove` needs a workspace path")
+            }
+            let r = try Watchd.removeWorkspace(target)
+            print(r.removed
+                ? "removed \(Watchd.normalize(target).path) "
+                    + "(\(r.workspaces.count) left — `swctx watch restart` to apply)"
+                : "not in \(Watchd.listURL.path): \(Watchd.normalize(target).path)")
+        case "install", "uninstall", "restart", "status":
+            guard target == nil else {
+                throw ValidationError("`swctx watch \(path)` takes no path argument")
+            }
+            let lines: [String]
+            switch path {
+            case "install":
+                let bin = resolveExecutableOnPATH(CommandLine.arguments[0])
+                lines = try Watchd.install(binaryPath: bin)
+            case "uninstall": lines = Watchd.uninstall()
+            case "restart":   lines = try Watchd.restart()
+            default:          lines = Watchd.status()
+            }
+            for line in lines { print(line) }
+        default:
+            guard target == nil else {
+                throw ValidationError("unexpected extra argument '\(target!)'")
+            }
+            let root = URL(fileURLWithPath: path).resolvingSymlinksInPath()
+            let store = try Store(workspaceRoot: root)
+            let watcher = IndexWatcher(store: store)
+            if once {
+                try watcher.indexOnce()
+                return
+            }
+            try await watcher.start()
         }
-        try await watcher.start()
+    }
+}
+
+/// `swctx watch-all` — the process `com.swctx.watchd` actually runs.
+/// Reads the workspace list at ~/.swctx/watchd.json and holds one
+/// IndexWatcher per entry, each on its own Swift task. A watcher whose
+/// start throws is logged and dropped — one bad workspace must not kill
+/// the fleet — while a watcher's schema-drift abort() still takes the
+/// whole process down so launchd respawns watchd into the new binary.
+struct WatchAllCmd: AsyncParsableCommand {
+    static let configuration = CommandConfiguration(commandName: "watch-all",
+        abstract: "Watch every workspace in ~/.swctx/watchd.json from one process (run by the com.swctx.watchd LaunchAgent — see `swctx watch install`).")
+
+    func run() async throws {
+        let workspaces = try Watchd.loadWorkspaces()
+        guard !workspaces.isEmpty else {
+            FileHandle.standardError.write(
+                ("swctx: watch-all: no workspaces in \(Watchd.listURL.path) — "
+                    + "add one with `swctx watch add <path>` and install the "
+                    + "daemon with `swctx watch install`\n").data(using: .utf8)!)
+            throw ExitCode(2)
+        }
+        var watchers: [(path: String, watcher: IndexWatcher)] = []
+        for path in workspaces {
+            do {
+                let store = try Store(workspaceRoot: URL(fileURLWithPath: path))
+                watchers.append((path, IndexWatcher(store: store)))
+            } catch {
+                FileHandle.standardError.write(
+                    "swctx: watch-all: skipping \(path): \(error.localizedDescription)\n"
+                        .data(using: .utf8)!)
+            }
+        }
+        guard !watchers.isEmpty else {
+            FileHandle.standardError.write(
+                "swctx: watch-all: every listed workspace failed to open\n"
+                    .data(using: .utf8)!)
+            throw ExitCode(1)
+        }
+        FileHandle.standardError.write(
+            ("swctx: watch-all: \(watchers.count) workspace(s) active: "
+                + "\(watchers.map { $0.path }.joined(separator: ", "))\n")
+                .data(using: .utf8)!)
+        // IndexWatcher.start() never returns once streaming, so the group
+        // ends only when every watcher has died. Exit non-zero in that
+        // case: the daemon is useless with zero live watchers.
+        await withTaskGroup(of: Void.self) { group in
+            for (path, watcher) in watchers {
+                group.addTask {
+                    do {
+                        try await watcher.start()
+                        FileHandle.standardError.write(
+                            "swctx: watch-all: watcher for \(path) exited\n"
+                                .data(using: .utf8)!)
+                    } catch {
+                        FileHandle.standardError.write(
+                            ("swctx: watch-all: watcher for \(path) failed: "
+                                + "\(error.localizedDescription)\n").data(using: .utf8)!)
+                    }
+                }
+            }
+            await group.waitForAll()
+        }
+        FileHandle.standardError.write(
+            "swctx: watch-all: all watchers ended — exiting\n".data(using: .utf8)!)
+        throw ExitCode(1)
     }
 }
 

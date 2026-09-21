@@ -1018,3 +1018,55 @@ are genuinely ambiguous (CHECKLIST.md vs PublishReadiness for "…checklist"
 the weaker free resource when a stronger paid one exists (the Ollama
 incident). Skill updated: `answer` documented, tool count 26, routing
 row now prefers `answer backend="cli:*"` over ctxe for composed reports.
+
+## 2026-09-22 — watchd: một LaunchAgent cho cả watch fleet
+
+**Thay 6 plist thủ công bằng một daemon duy nhất.** Trước đây mỗi
+workspace một `~/Library/LaunchAgents/com.swctx.watch.<name>.plist`
+riêng → mỗi plist thêm một "Background Items Added" notification.
+Giờ chỉ `com.swctx.watchd` — one login item, one notification,
+self-managing:
+
+- **`swctx watch-all`** (command mới): đọc `~/.swctx/watchd.json`
+  (`{"workspaces": ["/abs/path", ...]}`), mở `Store` + `IndexWatcher`
+  per path, chạy tất cả trong MỘT process qua `withTaskGroup` — một
+  Swift task/watcher. start() của một watcher fail → log stderr + drop
+  watcher đó, fleet vẫn chạy; schema-drift `abort()` vẫn giết cả
+  process → launchd respawn watchd (schema bump là global, đúng
+  semantics). List missing/rỗng → error chỉ `swctx watch add|install`,
+  exit 2.
+- **`swctx watch <verb>`** (`WatchCmd` giữ dual-purpose, `watch <path>`
+  foreground vẫn nguyên — arg không trùng verb = workspace path):
+  `install` ghi `~/Library/LaunchAgents/com.swctx.watchd.plist`
+  (KeepAlive {Crashed:true} + RunAtLoad, binary path qua
+  `resolveExecutableOnPATH(argv[0])`, logs → `~/.swctx/logs/watchd.log`)
+  rồi `launchctl bootstrap gui/<uid>` (idempotent: bootout trước);
+  `uninstall` bootout + xóa plist; `restart` = `kickstart -k` (áp
+  watchd.json edits); `status` in plist presence + `launchctl print`
+  summary + workspace list; `add|remove <path>` sửa watchd.json (dedupe
+  sau `~`/symlink/`..` resolve, validate dir tồn tại).
+- **`Sources/SwctxCore/Watchd.swift`** mới: list IO + plist write +
+  `launchctl` wrapper (Process + concurrent pipe drain theo pattern
+  `Prime.probe`). Legacy `com.swctx.watch.*` plists chỉ được LIỆT KÊ
+  làm migration hint trong `install` output — không tự động vào.
+- Tests: 4 `WatchdTests` (add/dedupe/normalize/remove/error paths);
+  launchctl verbs không test (cần gui domain thật). **212 tests green**,
+  SchemaContract vẫn 26 tools (watch-all/lifecycle là CLI-only, không
+  MCP tool).
+- Verify tay: `watch status` (missing plist/not loaded) · `add /tmp/x`
+  + dedupe `/tmp/x/` + `.` → abs path · `remove` · `watch-all` trên
+  tools/swctx: index pass → FSEvents streaming, touch file → reindex
+  fired. **Chưa bootstrap launchd** — migration còn lại cho lead:
+  bootout + xóa 6 plist `com.swctx.watch.*`, `swctx watch install`, và
+  seed `watchd.json` từ ProgramArguments của plists cũ (cms, crm,
+  linkeldn, p8, qr, sitem).
+
+**Migration đã chạy** (cùng ngày): 6 workspace vào `watchd.json`,
+`swctx watch install` bootstrap `com.swctx.watchd` (pid live,
+`state = running`), 6 legacy plist bootout + xóa (backup ở
+`~/.swctx/legacy-plists/`). `launchctl list | grep com.swctx` → đúng 1
+item. Freshness E2E: tạo `12.CMS/watchd-probe*.ts` → watcher bắt create
+(`indexed 1 files chunks=1`) lẫn delete. `com.swctx.bench` cũng gỡ —
+plist cũ malformed (XML comment chứa `--` → launchd không parse, job
+chưa từng chạy); template đã sửa trong repo, cài lại bằng
+`launchctl bootstrap` khi cần nightly bench.

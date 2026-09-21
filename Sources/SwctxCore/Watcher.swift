@@ -282,12 +282,13 @@ public final class IndexWatcher: @unchecked Sendable {
     /// before every Indexer.run — one meta+ledger read per batch. On
     /// forward drift it logs and self-terminates so launchd respawns the
     /// watcher into the current on-disk binary. Termination must be a
-    /// crash-signal death, not a clean exit: the com.swctx.watch.* plists
-    /// split KeepAlive — cms/crm/qr use {Crashed:true} (respawn only on
-    /// signal death, launchd.plist(5)) while linkeldn/p8/sitem use
-    /// {SuccessfulExit:false} (respawn on any non-clean termination).
-    /// SIGABRT satisfies both policies; exit() would leave the Crashed
-    /// group permanently dead.
+    /// crash-signal death, not a clean exit: the managed
+    /// com.swctx.watchd LaunchAgent (`swctx watch-all`, installed by
+    /// `swctx watch install`) runs KeepAlive {Crashed:true} — respawn
+    /// only on signal death (launchd.plist(5)) — and the legacy
+    /// per-workspace com.swctx.watch.* plists it replaces split
+    /// {Crashed:true} vs {SuccessfulExit:false}. SIGABRT satisfies every
+    /// policy; exit() would leave a Crashed-policy job permanently dead.
     private func exitIfIndexSchemaDrifted() {
         guard let indexVersion = indexSchemaVersion(),
               IndexWatcher.shouldExitForSchema(indexVersion: indexVersion,

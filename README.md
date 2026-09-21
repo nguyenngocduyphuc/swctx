@@ -93,6 +93,9 @@ swctx rerank2 <path> "query" [--limit N]  # same pool via bge-reranker-v2-m3 —
 swctx tree <path> [--root subdir]
 swctx embed <path> [--reindex] [--model <id>]  # fill on-device vectors (index auto-embeds all pending; --skip-embed opts out)
 swctx watch <path> [--once]      # FSEvents watcher: auto reindex on change (foreground)
+swctx watch add|remove <path>    # edit the shared watch list (~/.swctx/watchd.json)
+swctx watch install|uninstall|restart|status  # manage the ONE com.swctx.watchd LaunchAgent
+swctx watch-all                  # what watchd runs: one process watching every listed workspace
 swctx discover <path>            # debug: which files discovery would index
 swctx model            # list known models + installed status
 swctx model install [<id>] [--from <dir>]  # install the bge-base default (~210MB) or a converted CoreML dir
@@ -211,7 +214,11 @@ a multi-megabyte payload.
   (bge-base CoreML, `NLEmbedding` fallback), planning/reasoning is done by
   your agent CLI, not by us.
 - `swctx watch` covers the daemon-watch use case in-process (FSEvents + debounce +
-  incremental reindex). Note: FSEvents does not reliably fire under `/tmp`.
+  incremental reindex). For login persistence, `swctx watch install` registers a
+  single LaunchAgent (`com.swctx.watchd` → `swctx watch-all`, workspace list in
+  `~/.swctx/watchd.json`, logs in `~/.swctx/logs/watchd.log`) — one login item, one
+  notification, replacing the per-workspace `com.swctx.watch.*` plists.
+  Note: FSEvents does not reliably fire under `/tmp`.
 - `context_pack` is the inspectable-evidence half of `ask_context`; the LLM
   compose/planner half stays in your agent CLI by design.
 - Symbol extraction also covers markdown headings and top-level json keys —
