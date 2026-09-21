@@ -116,10 +116,34 @@ public final class Embedder: @unchecked Sendable {
     /// `makeBackend` instead (fresh MLModel — see init).
     private static func backend(for id: String) -> BGEEmbedder? {
         lock.lock(); defer { lock.unlock() }
+        armPressureEvictionLocked()
         if let cached = backends[id] { return cached }
         let b = makeBackend(for: id)
         backends[id] = b
         return b
+    }
+
+    /// Memory-pressure eviction for the shared backend cache. Each cached
+    /// MLModel pins ~0.3-1GB; a long-lived process (watcher, mcp) would
+    /// otherwise hold it forever — macOS then swaps/compresses the pages
+    /// but the process still owns them. Under warning/critical pressure we
+    /// drop the cache; the next embed() reloads on demand (~1-2s, only
+    /// while the system is actually straining). Armed lazily on first
+    /// backend cache so one-shot CLI processes never install it.
+    nonisolated(unsafe) private static var pressureSource: DispatchSourceMemoryPressure?
+    nonisolated(unsafe) private static var pressureArmed = false
+    private static func armPressureEvictionLocked() {
+        if pressureArmed { return }
+        pressureArmed = true
+        let src = DispatchSource.makeMemoryPressureSource(
+            eventMask: [.warning, .critical])
+        src.setEventHandler {
+            Embedder.lock.lock()
+            Embedder.backends.removeAll()
+            Embedder.lock.unlock()
+        }
+        src.activate()
+        pressureSource = src
     }
 
     /// Construct a backend without touching the cache — callers that need a

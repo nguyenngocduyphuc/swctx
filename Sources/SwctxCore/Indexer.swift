@@ -267,11 +267,15 @@ public final class Indexer {
             }
         }
         report.pendingEmbeddings = (try? pendingEmbeddings()) ?? 0
-        if autoEmbed, report.pendingEmbeddings > 0,
-           let e = embedder, e.isAvailable {
+        if autoEmbed, report.pendingEmbeddings > 0 {
             report.errors.append(
                 "embed: \(report.pendingEmbeddings) chunks still pending — run `swctx embed`")
         }
+        // Release the embedder: a long-lived watcher holding the ~1GB
+        // model idles it into swap/compressed RAM while the process still
+        // owns the footprint. Next embed pass recreates it on demand.
+        embedder = nil
+        malloc_zone_pressure_relief(nil, 0)
 
         report.durationMs = Int(Date().timeIntervalSince(started) * 1000)
         try? store.bumpEmbeddingsEpoch()
@@ -974,6 +978,14 @@ public final class Indexer {
             try db.execute(sql: "DROP TABLE IF EXISTS vec_snapshot")
         }
         try? store.bumpEmbeddingsEpoch()
+        // Drop the model on the way out — callers in long-lived processes
+        // (watcher) must not keep ~1GB of MLModel alive between bursts.
+        embedder = nil
+        // Freed tensor/workspace pages stay in the malloc zones as dirty
+        // memory; pressure relief hands them back to the OS so a watcher
+        // actually shrinks after an embed burst instead of idling at
+        // ~500MB RSS forever.
+        malloc_zone_pressure_relief(nil, 0)
         return total
     }
 
