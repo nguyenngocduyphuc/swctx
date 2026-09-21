@@ -131,7 +131,7 @@ Any MCP client: point it at the built binary, or run
 
 | Tool | Purpose |
 |---|---|
-| prime | ~300-token orientation card — call first each session (branch, counts, freshness, watcher, hub symbols, warnings); also surfaces newest shared-ledger records so a fresh session notices prior work in sibling workspaces |
+| prime | ~300-token orientation card — call first each session (branch, counts, freshness, watcher, hub symbols, warnings); surfaces newest shared-ledger records + `Resume:` from the latest session checkpoint so a fresh session picks up where the last stopped |
 | get_status | index state, counts, capabilities |
 | fast_understand | deterministic workspace digest: langs, hub symbols, hot files, communities, recent files, optional `query` → top hybrid hits |
 | index_workspace | create/update index (the only mutating tool); also ingests `git log` into `kind="commit"` records — sha, author, date, changed paths, workspace-relative for nested repos |
@@ -156,6 +156,7 @@ Any MCP client: point it at the built binary, or run
 | list_records | records ledger, filters + pagination + `scope` (workspace/global/all); per-record `stale`/`stale_reasons` |
 | search_records | FTS5 over record titles/payloads, same filters + `scope` + `stale` flags |
 | put_record | agent-writable memory: kind + title + payload; dual-writes workspace + cross-worktree global ledger; captures git head_sha + resolvable anchors (symbols/paths) so later reads can flag stale |
+| checkpoint | one-call session memory: `summary` + `next` + auto HEAD/branch/dirty-files → dual-write; the next session's `prime` card surfaces it as `Resume:` |
 
 ### Record scopes
 

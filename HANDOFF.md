@@ -927,3 +927,27 @@ it was the missing translation direction.
 Remaining honest gaps: vn22 seo-02/seo-07, linkeldn link-09, fleet
 body-only misses — next lever is corpus-mined lexicon growth
 (`usage_events` zero-hit + mine_queries), not bigger models.
+
+## 2026-09-21 — Session memory: `checkpoint` + `prime` Resume + py global ledger
+
+Gap found: Swift had fleet memory (`put_record` dual-write +
+`prime` prior_work) but **no one-call session handoff** — agents had to
+hand-craft records, and the py port had no global ledger or `put_record`
+at all.
+
+- **`checkpoint` tool** (both engines): `summary` + optional `next` +
+  `files`; auto-captures `head_sha`, branch and `git status --porcelain`
+  dirty files (cap 50) into a JSON payload, dual-writes workspace +
+  shared ledgers as `kind=session_checkpoint`.
+- **`prime` resume**: newest session_checkpoint's `next` renders as
+  `Resume: <summary> → next: <…>`; session_checkpoint also joined the
+  prior_work kinds (note/finding/decision/todo).
+- **py port parity**: new `swctx_py/records.py` — shared ledger at
+  `~/.swctx-py/records.db` (ws = git common-dir hash → worktrees share),
+  `put_record` tool + `checkpoint`, `search_records scope=global`,
+  CLI `swctx-py checkpoint|put-record`. Py engine previously had **no**
+  agent-writable record path at all — indexer wrote `commit` rows only.
+- Verified E2E: `testCheckpointSurfacesResume` (Swift) + py
+  `test_memory.py` + live MCP stdio against the release binary
+  (checkpoint → prime shows `Resume:` + `Prior work`).
+- MCP server instructions now step 3 = "checkpoint at task end".

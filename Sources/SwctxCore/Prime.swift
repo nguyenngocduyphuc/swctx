@@ -131,14 +131,16 @@ public enum Prime {
            let rows = try? g.pool.read({ db in
                try Row.fetchAll(db, sql: """
                    SELECT kind, title FROM records
-                   WHERE kind IN ('note','finding','decision','todo')
+                   WHERE kind IN ('note','finding','decision','todo',
+                                  'session_checkpoint')
                    ORDER BY id DESC LIMIT 3
                    """)
            }), !rows.isEmpty {
             let total = (try? g.pool.read { db in
                 try Int.fetchOne(db, sql: """
                     SELECT COUNT(*) FROM records
-                    WHERE kind IN ('note','finding','decision','todo')
+                    WHERE kind IN ('note','finding','decision','todo',
+                                   'session_checkpoint')
                     """)
             }) ?? rows.count
             // put_record dual-writes: skip titles the workspace ledger
@@ -153,6 +155,24 @@ public enum Prime {
                  "title": Understand.truncHead(
                     (r["title"] as? String) ?? "", 60)]
             }
+        }
+        // Resume: newest session_checkpoint carries a next-step so the
+        // incoming session picks up exactly where the last one stopped.
+        if let g = GlobalRecords.shared,
+           let row = try? g.pool.read({ db in
+               try Row.fetchOne(db, sql: """
+                   SELECT title, payload FROM records
+                   WHERE kind='session_checkpoint' ORDER BY id DESC LIMIT 1
+                   """)
+           }) {
+            var resume = (row["title"] as? String) ?? ""
+            if let payload = (row["payload"] as? String)?.data(using: .utf8),
+               let obj = try? JSONSerialization.jsonObject(with: payload)
+                       as? [String: Any],
+               let next = obj["next"] as? String, !next.isEmpty {
+                resume += " → next: " + Understand.truncHead(next, 120)
+            }
+            out["resume"] = resume
         }
         // Freshness: the same shallow stat probe get_status runs by default
         // (indexed rows only — no directory walk).
@@ -218,6 +238,9 @@ public enum Prime {
                 if r["stale"] as? Bool == true { md += " ·stale" }
                 md += "\n"
             }
+        }
+        if let resume = s["resume"] as? String, !resume.isEmpty {
+            md += "Resume: \(resume)\n"
         }
         if let prior = s["prior_work"] as? [[String: Any]], !prior.isEmpty {
             md += "Prior work (\(s["prior_work_total"] ?? prior.count) shared records"

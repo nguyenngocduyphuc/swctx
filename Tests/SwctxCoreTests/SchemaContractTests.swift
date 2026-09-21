@@ -12,7 +12,7 @@ final class SchemaContractTests: XCTestCase {
     /// root type=object, a `properties` dict, `required` ⊆ property names,
     /// and each property a {type, description} object.
     func testAllToolSchemasAreValidJSONObjectSchemas() throws {
-        XCTAssertEqual(MCPServer.toolList.count, 25, "tool count drifted — update expectations")
+        XCTAssertEqual(MCPServer.toolList.count, 26, "tool count drifted — update expectations")
         for tool in MCPServer.toolList {
             let schema = tool.inputSchema
             guard case .object(let root) = schema else {

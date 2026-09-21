@@ -68,6 +68,19 @@ def main() -> None:
     po.add_argument("path")
     po.add_argument("file")
 
+    pck = sub.add_parser("checkpoint")
+    pck.add_argument("path")
+    pck.add_argument("summary")
+    pck.add_argument("--next", default="")
+    pck.add_argument("--file", action="append", dest="files", default=None)
+
+    ppr = sub.add_parser("put-record")
+    ppr.add_argument("path")
+    ppr.add_argument("kind")
+    ppr.add_argument("title")
+    ppr.add_argument("payload")
+    ppr.add_argument("--status", default="completed")
+
     args = p.parse_args()
 
     if args.cmd == "index":
@@ -137,6 +150,17 @@ def main() -> None:
                 else sys.stdin.read())
         s = Store(args.path, create=False)
         print(json.dumps(trace.run(s, text), ensure_ascii=False, indent=1))
+    elif args.cmd == "checkpoint":
+        from .mcp_server import call
+        print(call("checkpoint", {"workspace": args.path,
+                                  "summary": args.summary,
+                                  "next": args.next,
+                                  "files": args.files}))
+    elif args.cmd == "put-record":
+        from .mcp_server import call
+        print(call("put_record", {"workspace": args.path, "kind": args.kind,
+                                  "title": args.title, "payload": args.payload,
+                                  "status": args.status}))
     elif args.cmd == "outline":
         from .slice import signature
         s = Store(args.path, create=False)

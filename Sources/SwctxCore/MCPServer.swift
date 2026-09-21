@@ -284,6 +284,16 @@ public enum MCPServer {
                                   budgetProp, ("type", .string("object")),
                                   ("required", .array([.string("kind"), .string("title"), .string("payload")]))])),
             Tool(
+                name: "checkpoint",
+                description: "Session checkpoint — call before ending work. Auto-captures HEAD, branch and dirty files around your summary + next-step, then dual-writes the workspace and repo-wide ledgers. The next session's prime card surfaces it as `resume:` so work continues instead of re-discovering.",
+                inputSchema: obj([wsProp,
+                                  ("summary", prop("string", "What was done/decided this session — becomes the record title")),
+                                  ("next", prop("string", "Exact next step for whoever resumes")),
+                                  ("files", .object(["type": .string("array"), "items": .object(["type": .string("string")]),
+                                                   "description": .string("Files touched (default: git status --porcelain)")])),
+                                  budgetProp, ("type", .string("object")),
+                                  ("required", .array([.string("summary")]))])),
+            Tool(
                 name: "prime",
                 description: "Orientation card for this workspace (~300 tokens): branch, index counts, freshness, watcher state, hub symbols, recent records, warnings. Call FIRST at session start — cheaper and broader than get_status + fast_understand + list_records separately. format=json returns the structured snapshot instead of markdown.",
                 inputSchema: obj([wsProp,
@@ -491,7 +501,7 @@ public enum MCPServer {
         let server = Server(
             name: "swctx",
             version: "0.1.0",
-            instructions: "Local semantic code index (free, on-device, ms-level). Workflow: 1) prime — call FIRST for the workspace orientation card (freshness, watcher, hub symbols, recent records, warnings; workspace arg optional — resolves to nearest indexed ancestor of server cwd). If the card warns the index is stale, run index_workspace before trusting retrieval. 2) search (mode=auto handles identifier vs prose automatically), find_definitions/find_usages/graph_* for structure, fetch_chunks to read source bodies — list tools return metadata only. 3) put_record at task end for decisions/findings other agents should inherit; search_records scope=global reads fleet memory shared across git worktrees. All tools accept max_tokens to bound response size.",
+            instructions: "Local semantic code index (free, on-device, ms-level). Workflow: 1) prime — call FIRST for the workspace orientation card (freshness, watcher, hub symbols, recent records, warnings; workspace arg optional — resolves to nearest indexed ancestor of server cwd). If the card warns the index is stale, run index_workspace before trusting retrieval. 2) search (mode=auto handles identifier vs prose automatically), find_definitions/find_usages/graph_* for structure, fetch_chunks to read source bodies — list tools return metadata only. 3) checkpoint at task end — one call saves summary+next-step with HEAD/branch/dirty files so the next session resumes via prime's `resume:` line; put_record for standalone decisions/findings; search_records scope=global reads fleet memory shared across git worktrees. All tools accept max_tokens to bound response size.",
             capabilities: .init(tools: .init(listChanged: false))
         )
         await server.withMethodHandler(ListTools.self) { _ in

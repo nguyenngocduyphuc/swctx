@@ -1220,7 +1220,7 @@ public enum SwctxTools {
     /// telemetry kinds agents may also file deliberately.
     static let putRecordKinds: Set<String> = [
         "note", "finding", "decision", "todo", "context_pack", "ask",
-        "engine_eval",
+        "engine_eval", "session_checkpoint",
     ]
 
     /// put_record anchor capture. Symbol anchors: identifier tokens (≥3
@@ -1343,6 +1343,56 @@ public enum SwctxTools {
         }
         return json([
             "record_id": id, "kind": kind,
+            "scope": sharedID != nil ? "workspace+global" : "workspace",
+            "ws": ws,
+        ])
+    }
+
+    /// checkpoint: one-call session memory — auto-captures HEAD, branch
+    /// and dirty files around the agent's summary/next-step, then
+    /// dual-writes workspace + shared ledgers. The next session's prime
+    /// card surfaces it as `resume:`.
+    static func checkpoint(_ args: [String: Value]) throws -> String {
+        let store = try store(args)
+        guard let summary = args["summary"]?.str, !summary.isEmpty else {
+            throw ToolError.missingArg("summary")
+        }
+        let next = args["next"]?.str ?? ""
+        let root = store.workspaceRoot
+        let headSHA = GlobalRecords.git(["rev-parse", "HEAD"], cwd: root)
+        let branch = GlobalRecords.git(["branch", "--show-current"],
+                                       cwd: root) ?? ""
+        var dirty = args["files"]?.strList ?? []
+        if dirty.isEmpty,
+           let st = GlobalRecords.git(["status", "--porcelain"], cwd: root) {
+            dirty = st.split(separator: "\n")
+                .map { String($0.dropFirst(3)) }
+            if dirty.count > 50 { dirty = Array(dirty.prefix(50)) }
+        }
+        let payload: [String: Any] = [
+            "summary": summary, "next": next, "branch": branch,
+            "dirty_files": dirty,
+        ]
+        let payloadJSON = String(
+            data: try JSONSerialization.data(withJSONObject: payload),
+            encoding: .utf8) ?? "{}"
+        let title = Understand.truncHead(summary, 80)
+        let anchors = (try? recordAnchors(
+            store: store, text: title + "\n" + payloadJSON)) ?? []
+        let id = try store.insertRecord(
+            kind: "session_checkpoint", source: "mcp", status: "completed",
+            title: title, payloadJSON: payloadJSON,
+            headSHA: headSHA, anchors: anchors)
+        let ws = GlobalRecords.repoKey(for: root)
+        var sharedID: Int64? = nil
+        if let global = GlobalRecords.shared {
+            sharedID = try? global.insert(
+                ws: ws, kind: "session_checkpoint", source: "mcp",
+                status: "completed", title: title, payload: payloadJSON,
+                headSHA: headSHA, anchors: anchors)
+        }
+        return json([
+            "record_id": id, "kind": "session_checkpoint",
             "scope": sharedID != nil ? "workspace+global" : "workspace",
             "ws": ws,
         ])
@@ -1810,6 +1860,7 @@ public enum SwctxTools {
         case "list_records": return try listRecords(arguments)
         case "search_records": return try searchRecords(arguments)
         case "put_record": return try putRecord(arguments)
+        case "checkpoint": return try checkpoint(arguments)
         case "prime": return try primeTool(arguments)
         default: throw ToolError.unknownTool(name)
         }

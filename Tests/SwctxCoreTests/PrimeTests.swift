@@ -93,6 +93,41 @@ final class PrimeTests: XCTestCase {
         XCTAssertTrue(card.contains("scope=global"))
     }
 
+    /// checkpoint writes a session_checkpoint record (workspace + shared
+    /// ledger) and the next prime card surfaces its next-step as Resume.
+    func testCheckpointSurfacesResume() async throws {
+        guard let g = GlobalRecords.shared else {
+            throw XCTSkip("global ledger unavailable")
+        }
+        let (dir, store) = try makeWorkspace()
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let ws = GlobalRecords.repoKey(for: dir)
+        defer {
+            try? g.pool.write { db in
+                try db.execute(
+                    sql: "DELETE FROM records WHERE ws = ?", arguments: [ws])
+            }
+        }
+        let tag = UUID().uuidString.prefix(8)
+        let out = try await SwctxTools.call(name: "checkpoint", arguments: [
+            "workspace": .string(dir.path),
+            "summary": .string("session memory work \(tag)"),
+            "next": .string("ship swift engine \(tag)"),
+        ])
+        let payload = try XCTUnwrap(
+            JSONSerialization.jsonObject(with: Data(out.utf8))
+                as? [String: Any])
+        XCTAssertEqual(payload["kind"] as? String, "session_checkpoint")
+        XCTAssertEqual(payload["scope"] as? String, "workspace+global")
+
+        let snap = try Prime.snapshot(store: store, root: store.workspaceRoot)
+        let resume = try XCTUnwrap(snap["resume"] as? String)
+        XCTAssertTrue(resume.contains("session memory work \(tag)"))
+        XCTAssertTrue(resume.contains("next: ship swift engine \(tag)"))
+        let card = try Prime.card(store: store, root: store.workspaceRoot)
+        XCTAssertTrue(card.contains("Resume:"))
+    }
+
     /// snapshot emits JSON-safe values for --format json consumers.
     func testPrimeSnapshotJSON() throws {
         let (dir, store) = try makeWorkspace()
