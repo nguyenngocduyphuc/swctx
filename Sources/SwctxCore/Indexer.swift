@@ -13,6 +13,7 @@ public struct IndexReport: Codable, Sendable {
     public var edges: Int = 0
     public var edgesResolved: Int = 0
     public var embeddedChunks: Int = 0
+    public var commitsIngested: Int = 0
     public var pendingEmbeddings: Int = 0
     /// Force reindex only: vectors re-attached from the pre-wipe snapshot.
     public var vectorsPreserved: Int = 0
@@ -276,6 +277,10 @@ public final class Indexer {
         // owns the footprint. Next embed pass recreates it on demand.
         embedder = nil
         malloc_zone_pressure_relief(nil, 0)
+
+        // Git history → commit records (temporal queries via
+        // search_records; changed paths become staleness anchors).
+        report.commitsIngested = GitHistory.ingest(store: store)
 
         report.durationMs = Int(Date().timeIntervalSince(started) * 1000)
         try? store.bumpEmbeddingsEpoch()

@@ -103,7 +103,7 @@ public enum Prime {
             // Records table may be absent on pre-v2 DBs — degrade to [].
             recent = (try? Row.fetchAll(db, sql: """
                 SELECT kind, title, head_sha, anchors
-                FROM records ORDER BY id DESC LIMIT 5
+                FROM records ORDER BY (kind = 'commit'), id DESC LIMIT 5
                 """)) ?? []
         }
         // Staleness marking: the card flags records whose captured anchors

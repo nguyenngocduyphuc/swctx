@@ -128,7 +128,8 @@ def call(name: str, args: dict) -> str:
         q = f"%{args['query']}%"
         rows = s.db.execute(
             "SELECT kind,title,body,created_at FROM records "
-            "WHERE title LIKE ? OR body LIKE ? ORDER BY id DESC LIMIT 20",
+            "WHERE title LIKE ? OR body LIKE ? "
+            "ORDER BY (kind='commit'), id DESC LIMIT 20",
             (q, q)).fetchall()
         evs = s.db.execute(
             "SELECT tool,query,top_paths,hit_count,ts FROM usage_events "

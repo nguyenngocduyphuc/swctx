@@ -1294,7 +1294,8 @@ public enum SwctxTools {
                     try Row.fetchAll(db, sql: """
                         SELECT id, kind, source, status, title, payload, created_at,
                                head_sha, anchors
-                        FROM records\(whereClause) ORDER BY id DESC
+                        FROM records\(whereClause)
+                        ORDER BY (kind = 'commit'), id DESC
                         """, arguments: StatementArguments(params))
                 } ?? []
                 var merged = wsRows.map { recordDict($0) }
@@ -1304,7 +1305,8 @@ public enum SwctxTools {
                         try Row.fetchAll(db, sql: """
                             SELECT id, ws, kind, source, status, title, payload, created_at,
                                    head_sha, anchors
-                            FROM records\(wsClause) ORDER BY id DESC
+                            FROM records\(wsClause)
+                            ORDER BY (kind = 'commit'), id DESC
                             """, arguments: StatementArguments(params + wsParams))
                     }
                     for r in gRows {
@@ -1329,7 +1331,8 @@ public enum SwctxTools {
                     let r = try Row.fetchAll(db, sql: """
                         SELECT id, ws, kind, source, status, title, payload, created_at,
                                head_sha, anchors
-                        FROM records\(wsClause) ORDER BY id DESC LIMIT ? OFFSET ?
+                        FROM records\(wsClause)
+                        ORDER BY (kind = 'commit'), id DESC LIMIT ? OFFSET ?
                         """, arguments: StatementArguments(gParams + [limit, offset]))
                     return (r, t)
                 }
@@ -1346,7 +1349,8 @@ public enum SwctxTools {
                 let r = try Row.fetchAll(db, sql: """
                     SELECT id, kind, source, status, title, payload, created_at,
                            head_sha, anchors
-                    FROM records\(whereClause) ORDER BY id DESC LIMIT ? OFFSET ?
+                    FROM records\(whereClause)
+                    ORDER BY (kind = 'commit'), id DESC LIMIT ? OFFSET ?
                     """, arguments: StatementArguments(params + [limit, offset]))
                 return (r, t)
             }

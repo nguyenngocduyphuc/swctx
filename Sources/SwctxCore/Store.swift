@@ -378,6 +378,7 @@ public final class Store: @unchecked Sendable {
         "finding": 200,
         "decision": 200,
         "todo": 200,
+        "commit": 500,
     ]
     public static let recordDefaultQuota = 100
     public static func recordQuota(for kind: String) -> Int {

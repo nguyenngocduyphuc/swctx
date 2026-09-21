@@ -66,11 +66,14 @@ class Indexer:
             self._resolve_edges()
             s.set_meta("edges_resolved", "1")
 
+        stats_commits = self._ingest_git()
+
         embedded = 0
         if not skip_embed and model_installed(model_id):
             embedded = self.embed_all(model_id)
         stats = {"changed": changed, "removed": removed,
-                 "embedded": embedded, "ms": int((time.time() - t0) * 1000)}
+                 "embedded": embedded, "commits": stats_commits,
+                 "ms": int((time.time() - t0) * 1000)}
         s.set_meta("last_index", str(time.time()))
         s.set_meta("file_count", str(len(found)))
         return stats
@@ -164,6 +167,74 @@ class Indexer:
                           WHERE s.name = edges.dst_name)
             """)
         s.db.commit()
+
+    def _ingest_git(self, limit: int = 300) -> int:
+        """git log -> commit records (temporal queries via search_records).
+
+        Incremental via meta git_history_head; rebase falls back to a
+        bounded walk with per-sha dedup. Non-git workspaces return 0.
+        """
+        import json as _json
+        import subprocess
+        s = self.store
+
+        def git(*a: str) -> str | None:
+            try:
+                r = subprocess.run(["git", "-C", s.workspace, *a],
+                                   capture_output=True, text=True,
+                                   timeout=60)
+                return r.stdout if r.returncode == 0 else None
+            except (OSError, subprocess.TimeoutExpired):
+                return None
+
+        if git("rev-parse", "--git-dir") is None:
+            return 0
+        # nested workspace inside a bigger repo: scope log to this subtree
+        # and strip the repo-relative prefix so paths stay workspace-relative
+        prefix = (git("rev-parse", "--show-prefix") or "").strip()
+
+        def gitlog(spec: list[str]) -> str | None:
+            return git("log", *spec,
+                       "--format=\x1e%H\x1f%s\x1f%an\x1f%aI",
+                       "--name-only", "--", ".")
+
+        head = s.meta("git_history_head")
+        spec = [f"{head}..HEAD"] if head else ["-n", str(limit)]
+        out = gitlog(spec)
+        if out is None and head:
+            out = gitlog(["-n", str(limit)])
+        if not out:
+            return 0
+
+        known = {r[0] for r in s.db.execute(
+            "SELECT substr(title,1,12) FROM records WHERE kind='commit'")}
+        inserted = 0
+        newest: str | None = None
+        for block in out.split("\x1e"):
+            lines = [ln for ln in block.splitlines() if ln.strip()]
+            if not lines:
+                continue
+            f = lines[0].split("\x1f")
+            if len(f) < 4:
+                continue
+            sha = f[0]
+            if newest is None:
+                newest = sha
+            if sha[:12] in known:
+                continue
+            files = [ln[len(prefix):] for ln in lines[1:]
+                     if ln.startswith(prefix)][:50]
+            body = _json.dumps({"sha": sha, "author": f[2], "date": f[3],
+                                "files": files})
+            s.db.execute(
+                "INSERT INTO records(kind,title,body,created_at) "
+                "VALUES ('commit',?,?,?)",
+                (f"{sha[:12]} {f[1]}", body, time.time()))
+            inserted += 1
+        if newest:
+            s.set_meta("git_history_head", newest)
+        s.db.commit()
+        return inserted
 
     def embed_all(self, model_id: str) -> int:
         """Embed all pending chunks, then release the model (RAM hygiene)."""
