@@ -875,3 +875,24 @@ credit. seo-05 → r6 deterministic.
 **Memory fix:** Indexer.embedder is now lazy (`requireEmbedder()`) —
 watchers on fully-embedded indexes went from ~1GB phys_footprint each
 to ~20-57MB; 6 launchd watchers restarted, ~208MB RSS total.
+
+## Unseen-repo VERIFY — 20.aiteam [one-shot, pre-registered]
+
+First truly-unseen test per Codex gate: `bench/aiteam_holdout.json`
+(sha256 2bbd7421…, authored from tree listing BEFORE any query; index
+built fresh: 617 files/4511 chunks/88s).
+
+**Result: search R@5 8/13, MRR 0.40, p50 860ms.** Lower than tuned
+sets — honest generalization number:
+
+- VN in_path: 5/6 (miss ai-01: "giao việc" vs `GuiViec` — vocab gap,
+  not a retrieval bug)
+- EN→VN cross-lingual: 0/3 — **new failure class found**: query EN,
+  filename VN (`BietXong`); xlate leg only runs VN→EN. Verified: same
+  intent in VN hits rank 1.
+- VN→EN body-only (ai-13 `LedgerReader`): miss — cross-lingual again.
+- EN in_path + symbol_lookup: 3/3 (rank 1 each).
+
+Gap direction is now precise: bilingual filename atoms / EN→VN query
+expansion — candidate for next optimize cycle. NOT a reranker fix
+(confirmed T8: pool coverage, not ranking).

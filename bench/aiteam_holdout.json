@@ -1,0 +1,21 @@
+{
+ "version": 1,
+ "created": "2026-09-21",
+ "description": "BLIND unseen-repo holdout — 13 queries on 20.aiteam authored from tree listing BEFORE first query. True generalization evidence (Codex one-shot VERIFY): never indexed or tuned before this run. Swift app with Vietnamese filenames — tests VN-in-path + EN->VN cross-lingual.",
+ "workspaces": {"aiteam": "/Users/phuongnam/02.AI/NP_AI_macos/20.aiteam"},
+ "queries": [
+  {"id":"ai-01","workspace":"/Users/phuongnam/02.AI/NP_AI_macos/20.aiteam","kind":"search","lang":"vi","tags":["vi"],"query_intent":"find_file","path_signal":"in_path","query":"file giao việc cho các agent trong đội","expected_path":"Sources/AIteamCore/ControlPlane/GuiViec.swift"},
+  {"id":"ai-02","workspace":"/Users/phuongnam/02.AI/NP_AI_macos/20.aiteam","kind":"search","lang":"vi","tags":["vi"],"query_intent":"find_file","path_signal":"in_path","query":"đếm số token đã tiêu trong phiên làm việc","expected_path":"Sources/AIteamCore/Models/DemToken.swift"},
+  {"id":"ai-03","workspace":"/Users/phuongnam/02.AI/NP_AI_macos/20.aiteam","kind":"search","lang":"vi","tags":["vi"],"query_intent":"find_file","path_signal":"in_path","query":"nhật ký hoạt động của phiên","expected_path":"Sources/AIteamCore/Models/NhatKyPhien.swift"},
+  {"id":"ai-04","workspace":"/Users/phuongnam/02.AI/NP_AI_macos/20.aiteam","kind":"search","lang":"vi","tags":["vi"],"query_intent":"find_file","path_signal":"in_path","query":"bảng kanban trạng thái công việc của phiên","expected_path":"Sources/AIteamCore/Models/KanbanPhien.swift"},
+  {"id":"ai-05","workspace":"/Users/phuongnam/02.AI/NP_AI_macos/20.aiteam","kind":"search","lang":"vi","tags":["vi"],"query_intent":"find_file","path_signal":"in_path","query":"lưu cấu hình phím tắt bàn phím","expected_path":"Sources/AIteamCore/Models/PhimTatStore.swift"},
+  {"id":"ai-06","workspace":"/Users/phuongnam/02.AI/NP_AI_macos/20.aiteam","kind":"search","lang":"vi","tags":["vi"],"query_intent":"find_file","path_signal":"in_path","query":"sổ ghi lại các hội thoại","expected_path":"Sources/AIteamCore/Models/SoHoiThoai.swift"},
+  {"id":"ai-07","workspace":"/Users/phuongnam/02.AI/NP_AI_macos/20.aiteam","kind":"search","lang":"en","tags":["en","xling"],"query_intent":"concept_flow","path_signal":"in_body_only","query":"detecting when an agent has finished its assigned work","expected_path":"Sources/AIteamCore/ControlPlane/BietXong.swift"},
+  {"id":"ai-08","workspace":"/Users/phuongnam/02.AI/NP_AI_macos/20.aiteam","kind":"search","lang":"en","tags":["en","xling"],"query_intent":"find_file","path_signal":"in_body_only","query":"daily summary report model for a team","expected_path":"Sources/AIteamCore/Models/BaoCaoNgay.swift"},
+  {"id":"ai-09","workspace":"/Users/phuongnam/02.AI/NP_AI_macos/20.aiteam","kind":"search","lang":"en","tags":["en","xling"],"query_intent":"find_file","path_signal":"in_body_only","query":"sequential chained commands that run one after another","expected_path":"Sources/AIteamCore/Models/LenhNoiTiep.swift"},
+  {"id":"ai-10","workspace":"/Users/phuongnam/02.AI/NP_AI_macos/20.aiteam","kind":"search","lang":"en","tags":["en"],"query_intent":"find_file","path_signal":"in_path","query":"resource monitor tracking cpu and memory usage","expected_path":"Sources/AIteamCore/Models/ResourceMonitor.swift"},
+  {"id":"ai-11","workspace":"/Users/phuongnam/02.AI/NP_AI_macos/20.aiteam","kind":"symbol_lookup","lang":"en","tags":["en"],"query_intent":"symbol_lookup","path_signal":"in_path","query":"OrchestrationStore","expected_path":"Sources/AIteamCore/Models/Orchestration.swift"},
+  {"id":"ai-12","workspace":"/Users/phuongnam/02.AI/NP_AI_macos/20.aiteam","kind":"symbol_lookup","lang":"en","tags":["en"],"query_intent":"symbol_lookup","path_signal":"in_path","query":"StartupCommandStore","expected_path":"Sources/AIteamCore/Models/StartupCommandStore.swift"},
+  {"id":"ai-13","workspace":"/Users/phuongnam/02.AI/NP_AI_macos/20.aiteam","kind":"search","lang":"vi","tags":["vi"],"query_intent":"find_file","path_signal":"in_body_only","query":"đọc sổ cái ghi nhận việc đã làm","expected_path":"Sources/AIteamCore/ControlPlane/LedgerReader.swift"}
+ ]
+}
