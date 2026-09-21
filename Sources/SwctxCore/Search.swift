@@ -24,6 +24,18 @@ public enum Search {
         return tokens.prefix(12).map { "\"\($0)\"*" }.joined(separator: " OR ")
     }
 
+    /// Test-path heuristic shared by the probe demotion and the fused
+    /// post-hoc penalty: test files share the subject's vocabulary but
+    /// are rarely the answer to a NL query.
+    static func isTestLikePath(_ lp: String) -> Bool {
+        lp.hasPrefix("tests/") || lp.hasPrefix("test/")
+            || lp.hasPrefix("__tests__/")
+            || lp.contains("/tests/") || lp.contains("/test/")
+            || lp.contains("/__tests__/")
+            || lp.contains(".test.") || lp.contains(".spec.")
+            || lp.contains("_test.")
+    }
+
     /// Query tokens whose diacritic fold differs ("chấm" → "cham",
     /// "công" → "cong"). unicode61 folds case but never folds đ (U+0111),
     /// so Vietnamese needs these app-level variants.
@@ -429,11 +441,15 @@ public enum Search {
             // (chong-lap/index.html ← "duyet") don't qualify: the name
             // itself must claim the concept.
             let stemAtoms = stemTokens.compactMap { claimedAtom($0) }
-            let surgical = rarityMatters
+            // A test file naming the atom is real but weaker intent
+            // evidence: it verifies the subject, it is not the subject.
+            // Demote below same-coverage source files and strip surgical.
+            let testLike = isTestLikePath(h.path.lowercased())
+            let surgical = !testLike && rarityMatters
                 && stemAtoms.contains { (pathDF[$0] ?? 0) == 1 }
             scored.append((h, surgical, effectiveCover, stemDensity,
-                           rank, idfScore, Set(matchedAtoms),
-                           stemTokens.count))
+                           rank - (testLike ? 0.5 : 0), idfScore,
+                           Set(matchedAtoms), stemTokens.count))
         }
         scored.sort {
             if $0.surgical != $1.surgical { return $0.surgical }
@@ -909,8 +925,18 @@ public enum Search {
     static func symbolTokens(_ s: String) -> Set<String> {
         var out: Set<String> = []
         var cur = ""
-        for ch in s {
-            if ch.isUppercase, let last = cur.last, last.isLowercase {
+        let chars = Array(s)
+        for (i, ch) in chars.enumerated() {
+            // Acronym-run boundary: "CMSRedirects" splits before the last
+            // uppercase char of the run when a lowercase follows → "CMS" +
+            // "Redirects"; "P8Catalog" splits at digit→upper when a
+            // lowercase follows → "P8" + "Catalog".
+            if ch.isUppercase, let last = cur.last,
+               last.isLowercase
+                || (cur.count > 1 && last.isUppercase
+                    && i + 1 < chars.count && chars[i + 1].isLowercase)
+                || (last.isNumber
+                    && i + 1 < chars.count && chars[i + 1].isLowercase) {
                 out.insert(cur.lowercased()); cur = ""
             }
             if ch.isLetter || ch.isNumber { cur.append(ch) } else if !cur.isEmpty {
@@ -1194,6 +1220,7 @@ public enum Search {
                 .filter { $0.count >= 2 })
             boost += 0.015 * Double(termsFolded.intersection(pathTokens).count)
             if lp.hasPrefix("archive/") { boost -= 0.01 }
+            if isTestLikePath(lp) { boost -= 0.02 }
             // Atom coverage: +0.01 per DISTINCT folded query term present
             // in the candidate's folded token set (content+symbol+path),
             // sub-capped at +0.03 — on 10+ term natural-language queries

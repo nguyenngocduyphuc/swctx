@@ -1,0 +1,317 @@
+{
+ "created": "2026-09-21T16:58:28.137147+00:00",
+ "queries_file": "linkeldn_holdout.json",
+ "search_window": 20,
+ "answer_backend": "cli:agy",
+ "answer_plan": false,
+ "legs": {
+  "answer": {
+   "n": 25,
+   "recall@1": 15,
+   "recall@5": 21,
+   "recall@10": 21,
+   "mrr": 0.72
+  },
+  "answer_cited": {
+   "n": 25,
+   "recall@1": 17,
+   "recall@5": 21,
+   "recall@10": 21,
+   "mrr": 0.76
+  },
+  "union": {
+   "n": 25,
+   "recall@1": 15,
+   "recall@5": 21,
+   "recall@10": 21,
+   "mrr": 0.72
+  }
+ },
+ "latency_ms": {
+  "search": {
+   "median": 0.0,
+   "p95": 0.0
+  },
+  "answer": {
+   "median": 9262.5,
+   "p95": 12788.1
+  }
+ },
+ "results": [
+  {
+   "id": "link-01",
+   "gold": "Sources/LinkedInAdminApp/LoopbackOAuthServer.swift",
+   "query_intent": "concept_flow",
+   "path_signal": "in_path",
+   "lang": "en",
+   "answer_rank": 1,
+   "answer_cited_rank": 1,
+   "answer_ms": 10277.5,
+   "union_rank": 1
+  },
+  {
+   "id": "link-02",
+   "gold": "Sources/LinkedInAdminCore/BackupService.swift",
+   "query_intent": "concept_flow",
+   "path_signal": "in_path",
+   "lang": "en",
+   "answer_rank": 2,
+   "answer_cited_rank": 1,
+   "answer_ms": 9262.5,
+   "union_rank": 2
+  },
+  {
+   "id": "link-03",
+   "gold": "Sources/LinkedInAdminCore/CrossPostSimilarity.swift",
+   "query_intent": "concept_flow",
+   "path_signal": "in_body_only",
+   "lang": "vi",
+   "answer_rank": 2,
+   "answer_cited_rank": 2,
+   "answer_ms": 11999.6,
+   "union_rank": 2
+  },
+  {
+   "id": "link-04",
+   "gold": "Sources/LinkedInAdminCore/VoiceContentGate.swift",
+   "query_intent": "concept_flow",
+   "path_signal": "in_body_only",
+   "lang": "vi",
+   "answer_rank": 1,
+   "answer_cited_rank": 1,
+   "answer_ms": 12788.1,
+   "union_rank": 1
+  },
+  {
+   "id": "link-05",
+   "gold": "Sources/LinkedInAdminCore/EditorialQualityScan.swift",
+   "query_intent": "concept_flow",
+   "path_signal": "in_path",
+   "lang": "en",
+   "answer_rank": 1,
+   "answer_cited_rank": 1,
+   "answer_ms": 9361.1,
+   "union_rank": 1
+  },
+  {
+   "id": "link-06",
+   "gold": "Sources/LinkedInAdminCore/PublishReadiness.swift",
+   "query_intent": "concept_flow",
+   "path_signal": "in_path",
+   "lang": "en",
+   "answer_rank": 2,
+   "answer_cited_rank": 1,
+   "answer_ms": 11432.9,
+   "union_rank": 2
+  },
+  {
+   "id": "link-07",
+   "gold": "Sources/LinkedInAdminCore/ReviewQueue.swift",
+   "query_intent": "concept_flow",
+   "path_signal": "in_body_only",
+   "lang": "vi",
+   "answer_rank": 1,
+   "answer_cited_rank": 1,
+   "answer_ms": 8861.9,
+   "union_rank": 1
+  },
+  {
+   "id": "link-08",
+   "gold": "Sources/LinkedInAdminCore/SourceIntake.swift",
+   "query_intent": "concept_flow",
+   "path_signal": "in_path",
+   "lang": "en",
+   "answer_rank": 1,
+   "answer_cited_rank": 1,
+   "answer_ms": 8983.6,
+   "union_rank": 1
+  },
+  {
+   "id": "link-09",
+   "gold": "Sources/LinkedInAdminCore/LocalP8SourceAdapter.swift",
+   "query_intent": "concept_flow",
+   "path_signal": "in_path",
+   "lang": "en",
+   "answer_rank": 2,
+   "answer_cited_rank": 1,
+   "answer_ms": 8083.2,
+   "union_rank": 2
+  },
+  {
+   "id": "link-10",
+   "gold": "Sources/LinkedInAdminCore/SecureStore.swift",
+   "query_intent": "concept_flow",
+   "path_signal": "in_body_only",
+   "lang": "vi",
+   "answer_rank": 1,
+   "answer_cited_rank": 1,
+   "answer_ms": 7214.5,
+   "union_rank": 1
+  },
+  {
+   "id": "link-11",
+   "gold": "Sources/LinkedInAdminCore/SettingsMigration.swift",
+   "query_intent": "concept_flow",
+   "path_signal": "in_path",
+   "lang": "en",
+   "answer_rank": 1,
+   "answer_cited_rank": 1,
+   "answer_ms": 8923.7,
+   "union_rank": 1
+  },
+  {
+   "id": "link-12",
+   "gold": "Sources/LinkedInAdminCore/ImageGeneration.swift",
+   "query_intent": "concept_flow",
+   "path_signal": "in_body_only",
+   "lang": "vi",
+   "answer_rank": 1,
+   "answer_cited_rank": 1,
+   "answer_ms": 9882.5,
+   "union_rank": 1
+  },
+  {
+   "id": "link-13",
+   "gold": "Sources/LinkedInAdminCore/LinkedInHistoryStore.swift",
+   "query_intent": "concept_flow",
+   "path_signal": "in_path",
+   "lang": "en",
+   "answer_rank": 0,
+   "answer_cited_rank": 0,
+   "answer_ms": 11714.9,
+   "union_rank": 0
+  },
+  {
+   "id": "link-14",
+   "gold": "Sources/LinkedInAdminCore/VoicePresetLibrary.swift",
+   "query_intent": "concept_flow",
+   "path_signal": "in_path",
+   "lang": "en",
+   "answer_rank": 1,
+   "answer_cited_rank": 1,
+   "answer_ms": 9105.3,
+   "union_rank": 1
+  },
+  {
+   "id": "link-15",
+   "gold": "Sources/LinkedInAdminCore/P8Catalog.swift",
+   "query_intent": "concept_flow",
+   "path_signal": "in_body_only",
+   "lang": "vi",
+   "answer_rank": 0,
+   "answer_cited_rank": 0,
+   "answer_ms": 9050.1,
+   "union_rank": 0
+  },
+  {
+   "id": "link-16",
+   "gold": "Sources/LinkedInAdminCore/GateReasonCopy.swift",
+   "query_intent": "concept_flow",
+   "path_signal": "in_path",
+   "lang": "en",
+   "answer_rank": 1,
+   "answer_cited_rank": 1,
+   "answer_ms": 9287.2,
+   "union_rank": 1
+  },
+  {
+   "id": "link-17",
+   "gold": "Sources/LinkedInAdminCore/CommandIntent.swift",
+   "query_intent": "concept_flow",
+   "path_signal": "in_path",
+   "lang": "en",
+   "answer_rank": 1,
+   "answer_cited_rank": 2,
+   "answer_ms": 8048.2,
+   "union_rank": 1
+  },
+  {
+   "id": "link-18",
+   "gold": "Sources/LinkedInAdminCore/OneMktCredentialBridge.swift",
+   "query_intent": "concept_flow",
+   "path_signal": "in_body_only",
+   "lang": "vi",
+   "answer_rank": 0,
+   "answer_cited_rank": 0,
+   "answer_ms": 9859.9,
+   "union_rank": 0
+  },
+  {
+   "id": "link-19",
+   "gold": "Sources/LinkedInAdminCore/AccountCredentials.swift",
+   "query_intent": "concept_flow",
+   "path_signal": "in_path",
+   "lang": "en",
+   "answer_rank": 1,
+   "answer_cited_rank": 1,
+   "answer_ms": 10567.9,
+   "union_rank": 1
+  },
+  {
+   "id": "link-20",
+   "gold": "Sources/LinkedInAdminCore/PublishReadiness.swift",
+   "query_intent": "concept_flow",
+   "path_signal": "in_body_only",
+   "lang": "en",
+   "answer_rank": 0,
+   "answer_cited_rank": 0,
+   "answer_ms": 8741.6,
+   "union_rank": 0
+  },
+  {
+   "id": "link-21",
+   "gold": "Sources/LinkedInAdminCore/CommandIntent.swift",
+   "query_intent": "symbol_lookup",
+   "path_signal": "in_body_only",
+   "lang": "en",
+   "answer_rank": 1,
+   "answer_cited_rank": 2,
+   "answer_ms": 8475.2,
+   "union_rank": 1
+  },
+  {
+   "id": "link-22",
+   "gold": "Sources/LinkedInAdminCore/ContentBrief.swift",
+   "query_intent": "symbol_lookup",
+   "path_signal": "in_body_only",
+   "lang": "vi",
+   "answer_rank": 2,
+   "answer_cited_rank": 2,
+   "answer_ms": 8355.2,
+   "union_rank": 2
+  },
+  {
+   "id": "link-23",
+   "gold": "Sources/LinkedInAdminApp/LoopbackOAuthServer.swift",
+   "query_intent": "symbol_lookup",
+   "path_signal": "in_body_only",
+   "lang": "en",
+   "answer_rank": 1,
+   "answer_cited_rank": 1,
+   "answer_ms": 8323.0,
+   "union_rank": 1
+  },
+  {
+   "id": "link-24",
+   "gold": "Sources/LinkedInAdminCore/BackupService.swift",
+   "query_intent": "symbol_lookup",
+   "path_signal": "in_body_only",
+   "lang": "en",
+   "answer_rank": 2,
+   "answer_cited_rank": 1,
+   "answer_ms": 9475.3,
+   "union_rank": 2
+  },
+  {
+   "id": "link-25",
+   "gold": "Sources/LinkedInAdminCore/ReviewQueue.swift",
+   "query_intent": "symbol_lookup",
+   "path_signal": "in_body_only",
+   "lang": "vi",
+   "answer_rank": 1,
+   "answer_cited_rank": 1,
+   "answer_ms": 27551.6,
+   "union_rank": 1
+  }
+ ]
+}

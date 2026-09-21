@@ -20,6 +20,23 @@ final class RankingSignalTests: XCTestCase {
         try text.write(to: url, atomically: true, encoding: .utf8)
     }
 
+    /// symbolTokens: acronym-run boundary — "CMSRedirects" must yield
+    /// "cms"+"redirects" (previously one fused token, so "redirects"
+    /// never matched); digit→upper boundary "P8Catalog" → "p8"+"catalog".
+    /// Pure acronyms and ordinary camelCase must not over-split.
+    func testSymbolTokensAcronymBoundary() {
+        XCTAssertTrue(Search.symbolTokens("CMSRedirects")
+            .isSuperset(of: ["cms", "redirects"]))
+        XCTAssertTrue(Search.symbolTokens("P8Catalog")
+            .isSuperset(of: ["p8", "catalog"]))
+        XCTAssertTrue(Search.symbolTokens("URLSession")
+            .isSuperset(of: ["url", "session"]))
+        XCTAssertEqual(Search.symbolTokens("runPipeline"),
+                       ["run", "pipeline"])
+        XCTAssertEqual(Search.symbolTokens("AB"), ["ab"])
+        XCTAssertEqual(Search.symbolTokens("base64"), ["base64"])
+    }
+
     /// BM25F: a term hit in the 5.0-weighted symbol_names column must
     /// outrank a higher-tf hit in the 1.0-weighted content column —
     /// the same rows unweighted order the other way, so the weighting

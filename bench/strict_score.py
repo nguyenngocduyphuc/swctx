@@ -85,14 +85,21 @@ def leg_search(bin_path, ws, query):
     return [norm_path(h.get("path")) for h in payload.get("hits", [])], lat, None
 
 
-def leg_answer(bin_path, ws, query):
-    payload, lat, err = run_json(
-        [bin_path, "answer", "--workspace", ws, "--query", query,
-         "--format", "json"], timeout=180)
+def leg_answer(bin_path, ws, query, backend=None, plan=False):
+    argv = [bin_path, "answer", "--workspace", ws, "--query", query,
+            "--format", "json"]
+    if backend:
+        argv += ["--backend", backend]
+    if plan:
+        argv.append("--plan")
+    payload, lat, err = run_json(argv, timeout=600)
     if err:
-        return 0, lat, err
-    return [norm_path(e.get("path")) for e in payload.get("evidence", [])], \
-        lat, None
+        return 0, 0, lat, err
+    ev_paths = [norm_path(e.get("path"))
+                for e in payload.get("evidence", [])]
+    cited = [norm_path(c.get("path"))
+             for c in payload.get("citations", [])]
+    return ev_paths, cited, lat, None
 
 
 def leg_find_defs(sess, ws, symbol):
@@ -137,6 +144,11 @@ def main():
     ap.add_argument("--legs", default="search,answer,find_defs",
                     help="comma list: search,answer,find_defs — "
                          "sweeps use --legs search (~1s/query vs ~4s)")
+    ap.add_argument("--backend", default=None,
+                    help="answer leg: model backend, e.g. cli:agy (default "
+                         "ollama — engine default)")
+    ap.add_argument("--plan", action="store_true",
+                    help="answer leg: enable bounded planner loop")
     args = ap.parse_args()
     legs = set(args.legs.split(","))
     want_search = "search" in legs
@@ -167,8 +179,12 @@ def main():
                 row["search_err"] = err
 
         if want_answer:
-            paths, lat, err = leg_answer(args.swctx_bin, ws, query)
+            paths, cited, lat, err = leg_answer(
+                args.swctx_bin, ws, query,
+                backend=args.backend, plan=args.plan)
             row["answer_rank"] = rank_of(gold, paths) if not err else 0
+            row["answer_cited_rank"] = \
+                rank_of(gold, cited) if not err else 0
             row["answer_ms"] = round(lat, 1)
             if err:
                 row["answer_err"] = err
@@ -189,6 +205,7 @@ def main():
         rows.append(row)
         print(f"{row['id']:8s} s={row.get('search_rank', '-'):>2} "
               f"a={row.get('answer_rank', '-'):>2} "
+              f"c={row.get('answer_cited_rank', '-'):>2} "
               f"fd={row.get('find_defs_rank', '-')} "
               f"u={row['union_rank']:2d} "
               f"({row.get('search_ms', 0):.0f}ms/"
@@ -204,9 +221,13 @@ def main():
         "created": datetime.now(timezone.utc).isoformat(),
         "queries_file": os.path.basename(args.queries),
         "search_window": SEARCH_WINDOW,
+        "answer_backend": args.backend or "ollama (default)",
+        "answer_plan": args.plan,
         "legs": {k: v for k, v in {
             "search": agg("search_rank") if want_search else None,
             "answer": agg("answer_rank") if want_answer else None,
+            "answer_cited": agg("answer_cited_rank")
+                if want_answer else None,
             "find_defs": metrics([r["find_defs_rank"] for r in rows
                                   if "find_defs_rank" in r])
                         if want_fd else None,

@@ -974,3 +974,47 @@ validation + planner loop.
   full validator — real evidence IDs, real path:line.
 - 38 answer/planner/schema tests green; PlannerTests updated for the
   backend parameter.
+
+## 2026-09-22 — `answer` cli-backend eval + acronym tokenizer fix
+
+**Paired eval `answer --backend cli:agy`** (new `answer_cited` leg in
+strict_score.py = rank of gold path inside the model's resolved citations —
+the compose-quality proxy comparable to ctxe's ask_context path-in-answer):
+
+| set | leg | R@1 | R@5 | MRR | vs ctxe |
+|---|---|---|---|---|---|
+| linkeldn 25q | cited | 17 | 21 | 0.76 | ctxe 15/23/0.715 — cited R@1 +2 |
+| fleet 23q | cited | 15 | 16 | 0.67 | ctxe 14/15/0.63 — cited R@1 +1 |
+| vn 22q | cited | 17 | 18 | 0.80 | — |
+
+Consistent pattern: `answer_cited` > `answer` (evidence-pack rank) — the
+CLI model picks the right file out of the pack even when pack order is
+weak. Compose step adds measurable value at ~9-17s/query via agy.
+
+**Acronym tokenizer fix** (`symbolTokens`): "CMSRedirects" used to index
+as ONE token `cmsredirects` — camel split only fired on lower→upper, so
+acronym runs (CMS, URL, P8+digit) never yielded their tail words. Query
+"redirects" could not match the file at all. Fix adds acronym-run
+boundary (upper+upper→lower lookahead) and digit→upper boundary; py port
+`fold.py` ported to match. Requires `index --force` (path_tokens /
+symbol_names are index-time columns) — all 7 bench workspaces reindexed,
+vectors preserved.
+
+**Test-file demotion**: probe + fused ranking treated Tests/ paths as
+equal citizens; acronym fix suddenly let test files claim filename atoms
+("snapshot" → UICopySnapshotTests). `isTestLikePath` demotes: probe loses
+`surgical` + rank −0.5; fused boost −0.02. Probe's prepend path bypasses
+fused boosts entirely, which is why fused-side penalties alone (-5.0
+diagnostic) never moved it — the fix had to land in the probe sort.
+
+Net vs pre-change baseline: linkeldn R@5 21→22 (link-09 rescued 7→1),
+fleet R@5 17→18 + R@10 16→20 (cms-07/cms-08 rescued 0→9/0→8), vn R@5
+flat, MRR +0.04. Cost: 3 linkeldn queries slid 1→2 on surgical ties that
+are genuinely ambiguous (CHECKLIST.md vs PublishReadiness for "…checklist"
+— both defensible). Zero R@5 regressions on all 3 manifests.
+208 tests green incl. new `testSymbolTokensAcronymBoundary`.
+
+**Rule**: `AGENTS.md` gained a resource-selection rule — never default to
+the weaker free resource when a stronger paid one exists (the Ollama
+incident). Skill updated: `answer` documented, tool count 26, routing
+row now prefers `answer backend="cli:*"` over ctxe for composed reports.

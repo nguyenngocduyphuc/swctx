@@ -13,11 +13,22 @@ def fold_text(s: str) -> str:
 
 
 def symbol_tokens(s: str) -> set[str]:
-    """camelCase subtokens + non-alnum split, lowercased."""
+    """camelCase subtokens + non-alnum split, lowercased.
+
+    Acronym-run boundary: 'CMSRedirects' -> {'cms', 'redirects'} (the last
+    uppercase of a run starts a new word when lowercase follows);
+    digit->upper boundary 'P8Catalog' -> {'p8', 'catalog'}.
+    """
     out: set[str] = set()
     cur = ""
-    for ch in s:
-        if ch.isupper() and cur and cur[-1].islower():
+    chars = list(s)
+    for i, ch in enumerate(chars):
+        nxt_lower = i + 1 < len(chars) and chars[i + 1].islower()
+        if ch.isupper() and cur and (
+            cur[-1].islower()
+            or (len(cur) > 1 and cur[-1].isupper() and nxt_lower)
+            or (cur[-1].isdigit() and nxt_lower)
+        ):
             out.add(cur.lower())
             cur = ""
         if ch.isalnum():

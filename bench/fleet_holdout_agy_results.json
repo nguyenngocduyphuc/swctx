@@ -1,0 +1,295 @@
+{
+ "created": "2026-09-21T17:02:28.275429+00:00",
+ "queries_file": "fleet_holdout.json",
+ "search_window": 20,
+ "answer_backend": "cli:agy",
+ "answer_plan": false,
+ "legs": {
+  "answer": {
+   "n": 23,
+   "recall@1": 10,
+   "recall@5": 16,
+   "recall@10": 16,
+   "mrr": 0.5435
+  },
+  "answer_cited": {
+   "n": 23,
+   "recall@1": 15,
+   "recall@5": 16,
+   "recall@10": 16,
+   "mrr": 0.6739
+  },
+  "union": {
+   "n": 23,
+   "recall@1": 10,
+   "recall@5": 16,
+   "recall@10": 16,
+   "mrr": 0.5435
+  }
+ },
+ "latency_ms": {
+  "search": {
+   "median": 0.0,
+   "p95": 0.0
+  },
+  "answer": {
+   "median": 9661.1,
+   "p95": 13100.2
+  }
+ },
+ "results": [
+  {
+   "id": "sitem-01",
+   "gold": "engines/p8-core/scripts/p8_authority_watch.py",
+   "query_intent": "concept_flow",
+   "path_signal": "in_path",
+   "lang": "en",
+   "answer_rank": 1,
+   "answer_cited_rank": 1,
+   "answer_ms": 10331.2,
+   "union_rank": 1
+  },
+  {
+   "id": "sitem-02",
+   "gold": "engines/p8-core/scripts/p8_link_health.py",
+   "query_intent": "concept_flow",
+   "path_signal": "in_body_only",
+   "lang": "vi",
+   "answer_rank": 1,
+   "answer_cited_rank": 1,
+   "answer_ms": 8461.4,
+   "union_rank": 1
+  },
+  {
+   "id": "sitem-03",
+   "gold": "engines/p8-core/scripts/p8_daily_report.py",
+   "query_intent": "concept_flow",
+   "path_signal": "in_body_only",
+   "lang": "vi",
+   "answer_rank": 2,
+   "answer_cited_rank": 1,
+   "answer_ms": 12035.8,
+   "union_rank": 2
+  },
+  {
+   "id": "sitem-04",
+   "gold": "engines/p8-core/scripts/p8_analytics_pull.py",
+   "query_intent": "concept_flow",
+   "path_signal": "in_path",
+   "lang": "en",
+   "answer_rank": 1,
+   "answer_cited_rank": 1,
+   "answer_ms": 13100.2,
+   "union_rank": 1
+  },
+  {
+   "id": "sitem-05",
+   "gold": "engines/p8-core/scripts/p8_ai_visibility.py",
+   "query_intent": "concept_flow",
+   "path_signal": "in_body_only",
+   "lang": "vi",
+   "answer_rank": 0,
+   "answer_cited_rank": 0,
+   "answer_ms": 20958.6,
+   "union_rank": 0
+  },
+  {
+   "id": "sitem-06",
+   "gold": "Sources/SiteM/LogsView.swift",
+   "query_intent": "symbol_lookup",
+   "path_signal": "in_body_only",
+   "lang": "en",
+   "answer_rank": 0,
+   "answer_cited_rank": 0,
+   "answer_ms": 9661.1,
+   "union_rank": 0
+  },
+  {
+   "id": "sitem-07",
+   "gold": "engines/p8-core/scripts/p8_docs_governance_check.py",
+   "query_intent": "concept_flow",
+   "path_signal": "in_body_only",
+   "lang": "vi",
+   "answer_rank": 2,
+   "answer_cited_rank": 1,
+   "answer_ms": 12823.8,
+   "union_rank": 2
+  },
+  {
+   "id": "cms-01",
+   "gold": "nampham-cms/scripts/nampham_post_integrity_audit.py",
+   "query_intent": "concept_flow",
+   "path_signal": "in_path",
+   "lang": "en",
+   "answer_rank": 1,
+   "answer_cited_rank": 1,
+   "answer_ms": 11013.1,
+   "union_rank": 1
+  },
+  {
+   "id": "cms-02",
+   "gold": "nampham-cms/scripts/nampham_daily_report.py",
+   "query_intent": "concept_flow",
+   "path_signal": "in_body_only",
+   "lang": "vi",
+   "answer_rank": 1,
+   "answer_cited_rank": 1,
+   "answer_ms": 12766.3,
+   "union_rank": 1
+  },
+  {
+   "id": "cms-03",
+   "gold": "nampham-cms/scripts/nampham_index_manager.py",
+   "query_intent": "concept_flow",
+   "path_signal": "in_body_only",
+   "lang": "vi",
+   "answer_rank": 3,
+   "answer_cited_rank": 1,
+   "answer_ms": 9639.1,
+   "union_rank": 3
+  },
+  {
+   "id": "cms-04",
+   "gold": "nampham-cms/scripts/cms_content_quality_gate.ts",
+   "query_intent": "concept_flow",
+   "path_signal": "in_path",
+   "lang": "en",
+   "answer_rank": 2,
+   "answer_cited_rank": 1,
+   "answer_ms": 10512.6,
+   "union_rank": 2
+  },
+  {
+   "id": "cms-05",
+   "gold": "nampham-cms/src/admin/components/CMSEditor.tsx",
+   "query_intent": "concept_flow",
+   "path_signal": "in_path",
+   "lang": "en",
+   "answer_rank": 0,
+   "answer_cited_rank": 0,
+   "answer_ms": 10148.9,
+   "union_rank": 0
+  },
+  {
+   "id": "cms-06",
+   "gold": "nampham-cms/scripts/nampham_auto_optimizer.py",
+   "query_intent": "concept_flow",
+   "path_signal": "in_body_only",
+   "lang": "vi",
+   "answer_rank": 0,
+   "answer_cited_rank": 0,
+   "answer_ms": 9615.6,
+   "union_rank": 0
+  },
+  {
+   "id": "cms-07",
+   "gold": "nampham-cms/cms-patch/src/admin/pages/CMSRedirects.tsx",
+   "query_intent": "concept_flow",
+   "path_signal": "in_path",
+   "lang": "en",
+   "answer_rank": 0,
+   "answer_cited_rank": 0,
+   "answer_ms": 8683.1,
+   "union_rank": 0
+  },
+  {
+   "id": "cms-08",
+   "gold": "nampham-cms/cms-patch/src/admin/pages/CMSLeads.tsx",
+   "query_intent": "concept_flow",
+   "path_signal": "in_path",
+   "lang": "en",
+   "answer_rank": 0,
+   "answer_cited_rank": 0,
+   "answer_ms": 10586.3,
+   "union_rank": 0
+  },
+  {
+   "id": "qr-01",
+   "gold": "app/admin/(panel)/checkin/page.tsx",
+   "query_intent": "concept_flow",
+   "path_signal": "in_path",
+   "lang": "en",
+   "answer_rank": 1,
+   "answer_cited_rank": 1,
+   "answer_ms": 7924.5,
+   "union_rank": 1
+  },
+  {
+   "id": "qr-02",
+   "gold": "app/admin/(panel)/attendance/page.tsx",
+   "query_intent": "concept_flow",
+   "path_signal": "in_body_only",
+   "lang": "vi",
+   "answer_rank": 3,
+   "answer_cited_rank": 1,
+   "answer_ms": 8572.4,
+   "union_rank": 3
+  },
+  {
+   "id": "qr-03",
+   "gold": "app/api/qr/route.ts",
+   "query_intent": "concept_flow",
+   "path_signal": "in_path",
+   "lang": "en",
+   "answer_rank": 3,
+   "answer_cited_rank": 1,
+   "answer_ms": 8179.1,
+   "union_rank": 3
+  },
+  {
+   "id": "qr-04",
+   "gold": "app/api/auth/login/route.ts",
+   "query_intent": "concept_flow",
+   "path_signal": "in_body_only",
+   "lang": "vi",
+   "answer_rank": 0,
+   "answer_cited_rank": 0,
+   "answer_ms": 9585.7,
+   "union_rank": 0
+  },
+  {
+   "id": "qr-05",
+   "gold": "app/api/dashboard/summary/route.ts",
+   "query_intent": "concept_flow",
+   "path_signal": "in_path",
+   "lang": "en",
+   "answer_rank": 1,
+   "answer_cited_rank": 1,
+   "answer_ms": 7615.9,
+   "union_rank": 1
+  },
+  {
+   "id": "qr-06",
+   "gold": "app/admin/(panel)/reports/page.tsx",
+   "query_intent": "concept_flow",
+   "path_signal": "in_body_only",
+   "lang": "vi",
+   "answer_rank": 1,
+   "answer_cited_rank": 1,
+   "answer_ms": 10794.1,
+   "union_rank": 1
+  },
+  {
+   "id": "qr-07",
+   "gold": "app/registration-success/page.tsx",
+   "query_intent": "concept_flow",
+   "path_signal": "in_path",
+   "lang": "en",
+   "answer_rank": 1,
+   "answer_cited_rank": 2,
+   "answer_ms": 8332.5,
+   "union_rank": 1
+  },
+  {
+   "id": "qr-08",
+   "gold": "middleware.ts",
+   "query_intent": "concept_flow",
+   "path_signal": "in_path",
+   "lang": "en",
+   "answer_rank": 1,
+   "answer_cited_rank": 1,
+   "answer_ms": 8713.6,
+   "union_rank": 1
+  }
+ ]
+}
