@@ -1026,12 +1026,14 @@ public enum SwctxTools {
         return json(result)
     }
 
-    /// `answer` (W12): evidence pack → local Ollama synthesis → cited JSON
-    /// + durable `kind=ask` record. Ollama absent/model missing degrades to
-    /// the deterministic pack with a structured limitation — never throws,
-    /// never auto-pulls. `expected_path` is a harness oracle that is only
-    /// echoed into the response/record for scoring — it never reaches the
-    /// prompt. `source` is internal: the CLI passes "cli" so the ledger
+    /// `answer` (W12): evidence pack → synthesis → cited JSON + durable
+    /// `kind=ask` record. Default `backend` is "auto": first usable fleet
+    /// CLI (agy → codex → claude, free subscription compose) else local
+    /// Ollama; backend absent/model missing degrades to the deterministic
+    /// pack with a structured limitation — never throws, never auto-pulls,
+    /// never a paid service. `expected_path` is a harness oracle that is
+    /// only echoed into the response/record for scoring — it never reaches
+    /// the prompt. `source` is internal: the CLI passes "cli" so the ledger
     /// reflects the real caller (not in the MCP schema).
     static func answer(_ args: [String: Value]) throws -> String {
         let store = try store(args)

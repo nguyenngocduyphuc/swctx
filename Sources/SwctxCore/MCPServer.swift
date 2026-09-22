@@ -189,11 +189,14 @@ public enum MCPServer {
                 annotations: .init(readOnlyHint: true)),
             Tool(
                 name: "answer",
-                description: "Local synthesis over verified evidence (W12): packs cited chunks [E01]…, then asks a local Ollama model (default qwen2.5:3b) for STRICT JSON {answer, citations, limitations}. Server-side citation validation rejects ids outside the pack. Ollama absent/model missing → deterministic evidence pack + limitation, never an error. Writes a durable kind=ask record.",
+                description: "Local synthesis over verified evidence (W12): packs cited chunks [E01]…, then asks the resolved backend for STRICT JSON {answer, citations, limitations}. Default backend auto: first usable subscription fleet CLI (agy→codex→claude — free compose, no cloud credits), else local Ollama (qwen2.5:3b). Server-side citation validation rejects ids outside the pack. No backend available → deterministic evidence pack + limitation, never an error, never a paid service. Writes a durable kind=ask record; response `backend` field reports which one ran.",
                 inputSchema: obj([wsProp,
                                   ("query", prop("string", "Natural-language question about the codebase")),
                                   ("model", prop("string", "Ollama model override (default qwen2.5:3b; env SWCTX_ANSWER_MODEL)")),
-                                  ("backend", prop("string", "Synthesis backend: 'ollama' (default, offline) | 'cli:<name>' — agent CLI from the subscription fleet (cli:agy, cli:claude, cli:codex, cli:qwen, cli:opencode…). Env: SWCTX_ANSWER_BACKEND / SWCTX_ANSWER_CLI.")),
+                                  ("backend", .object([
+                                      "type": .string("string"),
+                                      "default": .string("auto"),
+                                      "description": .string("Synthesis backend: 'auto' (default) — probe fleet CLIs agy→codex→claude (PATH + <cli> --version, first usable wins), else local 'ollama'. Explicit 'ollama' | 'cli:<name>' (cli:agy, cli:claude, cli:codex, cli:qwen, cli:opencode…) pins one. Env: SWCTX_ANSWER_BACKEND / SWCTX_ANSWER_CLI.")])),
                                   ("timeout", prop("integer", "Per-attempt Ollama seconds, default 60 (one format-retry allowed)")),
                                   ("plan", prop("boolean", "Bounded planner loop (≤4 rounds, ≤3 queries/round): iterates retrieval before answering — rescue mode for retrieval misses. Default off = single-shot.")),
                                   ("plan_timeout", prop("integer", "Planner total wall-clock seconds, default 60 (~20s per planner call)")),

@@ -408,4 +408,247 @@ final class AnswerTests: SwctxTestCase {
         XCTAssertTrue(FileManager.default.fileExists(
             atPath: dir.appendingPathComponent("prompt_1.txt").path))
     }
+
+    // MARK: - backend auto-detection (`--backend auto`, the default)
+
+    /// Isolate process env for backend resolution: PATH becomes
+    /// `binDir` + /usr/bin + /bin — shell tools stay usable inside fake
+    /// scripts while the REAL fleet CLIs (live in ~/.local/bin) and real
+    /// ollama (/usr/local/bin) are hidden. Clears the SWCTX_ANSWER_*/
+    /// SWCTX_OLLAMA_BIN overrides and the once-per-process probe caches.
+    /// Returns a closure restoring the original env — always `defer` it:
+    /// a leaked PATH breaks every other test that spawns (git, ollama).
+    private func isolateBackendEnv(binDir: URL) -> () -> Void {
+        let keys = ["PATH", "SWCTX_ANSWER_BACKEND", "SWCTX_ANSWER_CLI",
+                    "SWCTX_OLLAMA_BIN", "SWCTX_ANSWER_MODEL"]
+        let saved = Dictionary(uniqueKeysWithValues: keys.compactMap { k in
+            getenv(k).map { (k, String(cString: $0)) }
+        })
+        setenv("PATH", "\(binDir.path):/usr/bin:/bin", 1)
+        for k in keys where k != "PATH" { unsetenv(k) }
+        Answer.resetPreflightCache()
+        return {
+            for k in keys {
+                if let v = saved[k] { setenv(k, v, 1) } else { unsetenv(k) }
+            }
+            Answer.resetPreflightCache()
+        }
+    }
+
+    /// A fake fleet CLI named `name` inside `binDir`: `--version` prints
+    /// a banner (what the probe calls); any other argv captures the last
+    /// element (the prompt) into `<name>_prompt.txt` then prints a strict
+    /// JSON reply identifying the CLI.
+    @discardableResult
+    private func fakeCLI(_ name: String, in binDir: URL,
+                         answer: String? = nil) throws -> String {
+        let reply = answer ?? "\(name) answered the question."
+        let script = """
+        #!/bin/sh
+        if [ "$1" = "--version" ]; then
+          echo "fake-\(name) 1.0"
+          exit 0
+        fi
+        for last in "$@"; do :; done
+        printf '%s' "$last" > "\(binDir.path)/\(name)_prompt.txt"
+        printf '%s' '{"answer": "\(reply)", "citations": [{"evidence_id": "E01"}], "limitations": ""}'
+        exit 0
+        """
+        let bin = binDir.appendingPathComponent(name)
+        try script.write(to: bin, atomically: true, encoding: .utf8)
+        try FileManager.default.setAttributes(
+            [.posixPermissions: 0o755], ofItemAtPath: bin.path)
+        return bin.path
+    }
+
+    /// A fake `ollama` binary on PATH (same protocol as `fakeOllama`:
+    /// `list` advertises qwen2.5:3b, `run` captures the prompt and prints
+    /// a strict JSON reply) — the auto path's local fallback.
+    @discardableResult
+    private func fakeOllamaOnPath(in binDir: URL) throws -> String {
+        let script = """
+        #!/bin/sh
+        case "$1" in
+          list)
+            echo "NAME            ID    SIZE    MODIFIED"
+            echo "qwen2.5:3b      aaa   1.9GB   now"
+            exit 0
+            ;;
+          run)
+            for last in "$@"; do :; done
+            printf '%s' "$last" > "\(binDir.path)/ollama_prompt.txt"
+            printf '%s' '\(goodJSON)'
+            exit 0
+            ;;
+        esac
+        exit 1
+        """
+        let bin = binDir.appendingPathComponent("ollama")
+        try script.write(to: bin, atomically: true, encoding: .utf8)
+        try FileManager.default.setAttributes(
+            [.posixPermissions: 0o755], ofItemAtPath: bin.path)
+        return bin.path
+    }
+
+    /// Default (no backend arg) with a fake `agy` on PATH → auto probes
+    /// agy first (ahead of codex/claude, which also exist here) and
+    /// composes through it — `backend` reports "cli:agy".
+    func testAutoBackendResolvesFleetCLI() throws {
+        let (dir, store) = try makeWorkspace()
+        defer { cleanup(dir) }
+        let binDir = dir.appendingPathComponent("bin")
+        try FileManager.default.createDirectory(at: binDir, withIntermediateDirectories: true)
+        try fakeCLI("agy", in: binDir)
+        try fakeCLI("codex", in: binDir, answer: "codex should not run")
+        try fakeCLI("claude", in: binDir, answer: "claude should not run")
+        let restore = isolateBackendEnv(binDir: binDir)
+        defer { restore() }
+        let resp = try Answer.run(
+            store: store, query: "what does tom_tat do",
+            timeout: 15, source: "test")
+        XCTAssertEqual(resp["backend"] as? String, "cli:agy")
+        XCTAssertEqual(resp["model"] as? String, "cli:agy")
+        XCTAssertEqual(resp["answer"] as? String,
+                       "agy answered the question.")
+        XCTAssertEqual(resp["citation_valid"] as? Bool, true)
+        // The winner got the prompt; the probes never invoked the others.
+        XCTAssertTrue(FileManager.default.fileExists(
+            atPath: binDir.appendingPathComponent("agy_prompt.txt").path))
+        XCTAssertFalse(FileManager.default.fileExists(
+            atPath: binDir.appendingPathComponent("codex_prompt.txt").path))
+        XCTAssertFalse(FileManager.default.fileExists(
+            atPath: binDir.appendingPathComponent("claude_prompt.txt").path))
+        // Resolved backend lands in the durable ask-record payload.
+        let recordID = try XCTUnwrap(resp["record_id"] as? Int64)
+        let payloadStr = try store.pool.read { db in
+            try String.fetchOne(db, sql:
+                "SELECT payload FROM records WHERE id = ?",
+                arguments: [recordID])
+        }
+        let payload = try XCTUnwrap(try JSONSerialization.jsonObject(
+            with: Data((payloadStr ?? "").utf8)) as? [String: Any])
+        XCTAssertEqual(payload["backend"] as? String, "cli:agy")
+    }
+
+    /// No fleet CLI on PATH but ollama is → auto falls back to the local
+    /// backend (never a paid route) and reports ollama:<model>.
+    func testAutoBackendFallsBackToOllama() throws {
+        let (dir, store) = try makeWorkspace()
+        defer { cleanup(dir) }
+        let binDir = dir.appendingPathComponent("bin")
+        try FileManager.default.createDirectory(at: binDir, withIntermediateDirectories: true)
+        try fakeOllamaOnPath(in: binDir)
+        let restore = isolateBackendEnv(binDir: binDir)
+        defer { restore() }
+        let resp = try Answer.run(
+            store: store, query: "what does tom_tat do",
+            timeout: 15, source: "test")
+        XCTAssertEqual(resp["backend"] as? String, "ollama:qwen2.5:3b")
+        XCTAssertEqual(resp["answer"] as? String,
+                       "tom_tat uppercases a row for display.")
+        XCTAssertEqual(resp["citation_valid"] as? Bool, true)
+        XCTAssertTrue(FileManager.default.fileExists(
+            atPath: binDir.appendingPathComponent("ollama_prompt.txt").path))
+    }
+
+    /// PATH with no fleet CLI and no ollama → auto degrades to the
+    /// deterministic pack with an explicit "no compose backend available"
+    /// limitation — a clear limitation, never a silent paid call.
+    func testAutoBackendNothingAvailable() throws {
+        let (dir, store) = try makeWorkspace()
+        defer { cleanup(dir) }
+        let binDir = dir.appendingPathComponent("bin")
+        try FileManager.default.createDirectory(at: binDir, withIntermediateDirectories: true)
+        let restore = isolateBackendEnv(binDir: binDir)
+        defer { restore() }
+        let resp = try Answer.run(
+            store: store, query: "what does tom_tat do",
+            timeout: 15, source: "test")
+        XCTAssertTrue(resp["answer"] is NSNull)
+        let lim = resp["limitations"] as? String ?? ""
+        XCTAssertTrue(lim.contains("no compose backend available"), lim)
+        // Resolved fallback is still reported, and the pack still returns.
+        XCTAssertEqual(resp["backend"] as? String, "ollama:qwen2.5:3b")
+        XCTAssertEqual((resp["ollama"] as? [String: Any])?["available"]
+                       as? Bool, false)
+        XCTAssertFalse((resp["evidence"] as? [[String: Any]] ?? []).isEmpty)
+        XCTAssertNotNil(resp["record_id"])
+    }
+
+    /// An explicit backend beats auto: PATH offers agy first, but
+    /// `cli:codex` is what was asked for — agy never runs.
+    func testExplicitBackendBeatsAuto() throws {
+        let (dir, store) = try makeWorkspace()
+        defer { cleanup(dir) }
+        let binDir = dir.appendingPathComponent("bin")
+        try FileManager.default.createDirectory(at: binDir, withIntermediateDirectories: true)
+        try fakeCLI("agy", in: binDir, answer: "agy should not run")
+        try fakeCLI("codex", in: binDir, answer: "codex answered the question.")
+        let restore = isolateBackendEnv(binDir: binDir)
+        defer { restore() }
+        let resp = try Answer.run(
+            store: store, query: "what does tom_tat do",
+            timeout: 15, source: "test", backendSpec: "cli:codex")
+        XCTAssertEqual(resp["backend"] as? String, "cli:codex")
+        XCTAssertEqual(resp["answer"] as? String,
+                       "codex answered the question.")
+        XCTAssertTrue(FileManager.default.fileExists(
+            atPath: binDir.appendingPathComponent("codex_prompt.txt").path))
+        XCTAssertFalse(FileManager.default.fileExists(
+            atPath: binDir.appendingPathComponent("agy_prompt.txt").path))
+    }
+
+    /// Spec resolution, pure: "ollama"/"cli:<x>"/bare-name pin explicit
+    /// backends, and an explicit `ollamaBin` pins the local backend (that
+    /// argument exists solely to configure it — the seam existing tests
+    /// use to stay on the ollama path).
+    func testResolveBackendExplicitForms() throws {
+        let binDir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("swctx-answer-test-bin-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: binDir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: binDir) }
+        let restore = isolateBackendEnv(binDir: binDir)
+        defer { restore() }
+
+        let pinned = Answer.resolveBackend(nil, model: "m1",
+                                           ollamaBin: "/x/ollama")
+        XCTAssertFalse(pinned.auto)
+        guard case .ollama(let pbin, let pmodel) = pinned.backend else {
+            return XCTFail("ollamaBin must pin the ollama backend")
+        }
+        XCTAssertEqual(pbin, "/x/ollama")
+        XCTAssertEqual(pmodel, "m1")
+
+        let o = Answer.resolveBackend("ollama", model: nil,
+                                      ollamaBin: nil)
+        XCTAssertFalse(o.auto)
+        guard case .ollama = o.backend else {
+            return XCTFail("'ollama' must resolve to .ollama")
+        }
+
+        let c = Answer.resolveBackend("cli:qwen", model: nil,
+                                      ollamaBin: nil)
+        XCTAssertFalse(c.auto)
+        XCTAssertEqual(c.backend.label, "cli:qwen")
+
+        let bare = Answer.resolveBackend("codex", model: nil,
+                                         ollamaBin: nil)
+        XCTAssertFalse(bare.auto)
+        XCTAssertEqual(bare.backend.label, "cli:codex")
+    }
+
+    /// The literal spec "auto" takes the same fleet-probe path as the
+    /// default — here it finds the fake agy on the controlled PATH.
+    func testExplicitAutoSpecProbesFleet() throws {
+        let binDir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("swctx-answer-test-bin-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: binDir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: binDir) }
+        try fakeCLI("agy", in: binDir)
+        let restore = isolateBackendEnv(binDir: binDir)
+        defer { restore() }
+        let r = Answer.resolveBackend("auto", model: nil, ollamaBin: nil)
+        XCTAssertTrue(r.auto)
+        XCTAssertEqual(r.backend.label, "cli:agy")
+    }
 }

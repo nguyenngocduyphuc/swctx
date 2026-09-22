@@ -4,11 +4,13 @@ import GRDB
 
 /// W12 `swctx answer` — local synthesis over verified evidence: hybrid
 /// retrieval packs cited chunks (`[E01] path=… start_line=… end_line=…`),
-/// a local Ollama model answers with STRICT JSON `{answer, citations,
+/// a synthesis backend answers with STRICT JSON `{answer, citations,
 /// limitations}`, and a server-side validator rejects any citation whose
 /// evidence_id is not in the pack (or whose path/lines disagree with it).
-/// Ollama absent/model missing → deterministic pack + structured
-/// limitation, never a throw and never an auto-pull.
+/// Default backend is `auto`: first usable fleet CLI (agy → codex →
+/// claude, free subscription compose) else local Ollama. Backend absent/
+/// model missing → deterministic pack + structured limitation, never a
+/// throw and never an auto-pull — and never a paid service.
 public enum Answer {
 
     public static let defaultModel = "qwen2.5:3b"
@@ -706,11 +708,11 @@ public enum Answer {
 
     // MARK: - Model backend (ollama | agent CLI)
 
-    /// Synthesis backend. `ollama` = fully-offline local model (default).
-    /// `cli` = an agent CLI from the user's subscription fleet (agy,
-    /// claude, codex, qwen, opencode, grok…) — the CLI's configured model
-    /// synthesizes over the evidence pack; no cloud credits, no local
-    /// 3B quality ceiling.
+    /// Synthesis backend. `ollama` = fully-offline local model (the auto
+    /// fallback). `cli` = an agent CLI from the user's subscription fleet
+    /// (agy, claude, codex, qwen, opencode, grok…) — the CLI's configured
+    /// model synthesizes over the evidence pack; no cloud credits, no
+    /// local 3B quality ceiling.
     public enum ModelBackend {
         case ollama(bin: String, model: String)
         case cli(bin: String, argvPrefix: [String])
@@ -739,41 +741,142 @@ public enum Answer {
         "cline": [],
     ]
 
-    /// backend spec: explicit arg > SWCTX_ANSWER_BACKEND > "ollama".
-    /// Forms: "ollama" | "cli" (binary via SWCTX_ANSWER_CLI, default
-    /// "agy") | "cli:<bin>" | a bare known CLI name ("codex", "agy"…).
+    /// Fleet CLI probe order for `auto` — the subscription CLIs already
+    /// paid for, best compose quality first.
+    static let autoCLIOrder = ["agy", "codex", "claude"]
+    /// `<cli> --version` probe budget: agent CLIs answer in well under a
+    /// second when healthy; a CLI that can't do it in 2s is not a usable
+    /// non-interactive compose path anyway.
+    static let cliProbeTimeoutSeconds = 2
+
+    /// backend spec: explicit arg > SWCTX_ANSWER_BACKEND >
+    /// SWCTX_ANSWER_CLI > an explicit `ollamaBin` (that parameter exists
+    /// only to configure the local backend — passing one pins it; the
+    /// test seam) > "auto" — the DEFAULT. "auto" probes `autoCLIOrder`
+    /// once per process and takes the first usable fleet CLI, else falls
+    /// back to local ollama. It never routes to a paid service.
+    /// Forms: "auto" | "ollama" | "cli" (binary via SWCTX_ANSWER_CLI,
+    /// default "agy") | "cli:<bin>" | a bare CLI name ("codex", "agy"…).
+    /// `auto` in the result flags that no explicit backend was chosen —
+    /// the caller reports "no compose backend available" when even the
+    /// fallback probe fails.
     static func resolveBackend(_ explicit: String?, model: String?,
-                               ollamaBin: String?) -> ModelBackend {
+                               ollamaBin: String?)
+        -> (backend: ModelBackend, auto: Bool) {
         var spec = explicit ?? ""
         if spec.isEmpty {
             spec = ProcessInfo.processInfo.environment["SWCTX_ANSWER_BACKEND"] ?? ""
         }
         let envCLI = ProcessInfo.processInfo.environment["SWCTX_ANSWER_CLI"] ?? ""
         if spec.isEmpty && !envCLI.isEmpty { spec = "cli:\(envCLI)" }
-        if spec.isEmpty || spec == "ollama" {
-            return .ollama(bin: resolveBin(ollamaBin), model: resolveModel(model))
+        if spec.isEmpty, let ollamaBin, !ollamaBin.isEmpty {
+            spec = "ollama"
+        }
+        if spec.isEmpty || spec == "auto" {
+            if let cli = autoDetectCLI() { return (cli, true) }
+            return (.ollama(bin: resolveBin(ollamaBin),
+                            model: resolveModel(model)), true)
+        }
+        if spec == "ollama" {
+            return (.ollama(bin: resolveBin(ollamaBin),
+                            model: resolveModel(model)), false)
         }
         var name = spec
         if spec == "cli" { name = envCLI.isEmpty ? "agy" : envCLI }
         else if spec.hasPrefix("cli:") { name = String(spec.dropFirst(4)) }
-        return .cli(bin: name,
-                    argvPrefix: cliArgTemplates[name] ?? [])
+        return (.cli(bin: name,
+                     argvPrefix: cliArgTemplates[name] ?? []), false)
+    }
+
+    /// Once-per-process auto-probe result — `autoProbed` distinguishes
+    /// "not probed yet" from "probed, no fleet CLI usable".
+    nonisolated(unsafe) private static var autoProbed = false
+    nonisolated(unsafe) private static var autoResult: ModelBackend? = nil
+
+    /// `which <bin>`, in-process: PATH scan for an executable file — the
+    /// first half of the probe costs zero subprocesses. `getenv` (not
+    /// ProcessInfo) so the check reads the same live `environ` posix_spawnp
+    /// will resolve against; a `bin` containing "/" is a literal path —
+    /// spawnp skips PATH search for those too.
+    static func cliOnPath(_ bin: String) -> Bool {
+        if bin.contains("/") {
+            return FileManager.default.isExecutableFile(atPath: bin)
+        }
+        let path = getenv("PATH").map { String(cString: $0) } ?? ""
+        for dir in path.split(separator: ":") {
+            if FileManager.default.isExecutableFile(
+                atPath: "\(dir)/\(bin)") { return true }
+        }
+        return false
+    }
+
+    /// `<bin> --version` probe: PATH check first, then a bounded spawn
+    /// (concurrent pipe drain, process-group kill — the `spawn`
+    /// discipline). Success verdicts are cached in `preflightCache` so
+    /// `backendAvailable` on the resolved backend doesn't pay a second
+    /// subprocess; failures stay uncached so a later explicit
+    /// `--backend cli:x` gets a fresh probe instead of inheriting a
+    /// transient miss from the auto scan.
+    static func cliProbe(_ bin: String, timeout: Int)
+        -> (ok: Bool, detail: String) {
+        guard cliOnPath(bin) else {
+            return (false, "cli '\(bin)' not on PATH")
+        }
+        let key = "cli\u{1f}\(bin)"
+        preflightLock.lock()
+        if let c = preflightCache[key] {
+            preflightLock.unlock()
+            return c
+        }
+        preflightLock.unlock()
+        var result: (Bool, String)
+        do {
+            _ = try spawn(bin, argv: ["--version"], timeout: timeout)
+            result = (true, "ok")
+        } catch {
+            result = (false, "cli '\(bin)' unavailable: \(error.localizedDescription)")
+        }
+        if result.0 {
+            preflightLock.lock()
+            preflightCache[key] = result
+            preflightLock.unlock()
+        }
+        return result
+    }
+
+    /// Default backend: probe `autoCLIOrder` once per process — first
+    /// CLI answering `--version` within `cliProbeTimeoutSeconds` wins.
+    /// nil = no usable fleet CLI (caller falls back to local ollama).
+    static func autoDetectCLI() -> ModelBackend? {
+        preflightLock.lock()
+        if autoProbed {
+            let r = autoResult
+            preflightLock.unlock()
+            return r
+        }
+        preflightLock.unlock()
+        var found: ModelBackend? = nil
+        for name in autoCLIOrder
+            where cliProbe(name, timeout: cliProbeTimeoutSeconds).ok {
+            found = .cli(bin: name, argvPrefix: cliArgTemplates[name] ?? [])
+            break
+        }
+        preflightLock.lock()
+        autoProbed = true
+        autoResult = found
+        preflightLock.unlock()
+        return found
     }
 
     /// One probe per process: ollama checks binary+model via `list`; a
-    /// CLI backend just needs the binary to answer `--version`.
+    /// CLI backend just needs the binary on PATH answering `--version`.
     static func backendAvailable(_ backend: ModelBackend)
         -> (ok: Bool, detail: String) {
         switch backend {
         case .ollama(let bin, let model):
             return ollamaAvailable(bin: bin, model: model)
         case .cli(let bin, _):
-            do {
-                _ = try spawn(bin, argv: ["--version"], timeout: 15)
-                return (true, "ok")
-            } catch {
-                return (false, "cli '\(bin)' unavailable: \(error.localizedDescription)")
-            }
+            return cliProbe(bin, timeout: 15)
         }
     }
 
@@ -802,10 +905,13 @@ public enum Answer {
     nonisolated(unsafe) private static var preflightCache:
         [String: (ok: Bool, detail: String)] = [:]
 
-    /// Test hook: clear the once-per-process preflight cache.
+    /// Test hook: clear the once-per-process preflight cache AND the
+    /// auto-backend probe verdict.
     static func resetPreflightCache() {
         preflightLock.lock(); defer { preflightLock.unlock() }
         preflightCache.removeAll()
+        autoProbed = false
+        autoResult = nil
     }
 
     /// Resolve the ollama binary: explicit arg > SWCTX_OLLAMA_BIN > PATH.
@@ -937,7 +1043,7 @@ public enum Answer {
             try? out.fileHandleForReading.close()
             try? err.fileHandleForReading.close()
             _ = drain.wait(timeout: .now() + .seconds(2))
-            throw ToolError.invalidArg("ollama timed out after \(timeout)s")
+            throw ToolError.invalidArg("\(bin) timed out after \(timeout)s")
         }
         if drain.wait(timeout: .now() + .seconds(5)) == .timedOut {
             try? out.fileHandleForReading.close()
@@ -1082,9 +1188,14 @@ public enum Answer {
 
     // MARK: - Top level
 
-    /// Retrieve → (preflight) → [planner] → Ollama → validate → record.
-    /// Ollama-side failures degrade to the deterministic pack + a
-    /// structured `limitations` field; only index/retrieval errors throw.
+    /// Retrieve → (preflight) → [planner] → backend → validate → record.
+    /// `backendSpec` nil/empty resolves "auto" — first usable fleet CLI
+    /// (agy → codex → claude), else local ollama — and the resolved label
+    /// ("cli:agy", "ollama:qwen2.5:3b"…) is recorded as `backend` in the
+    /// response and durable record. Backend-side failures degrade to the
+    /// deterministic pack + a structured `limitations` field ("no compose
+    /// backend available" when auto finds nothing); only index/retrieval
+    /// errors throw.
     /// `plan` inserts the bounded planner loop between the initial pack
     /// and synthesis (default off = current single-shot behavior);
     /// `planTimeout` is the planner's total wall deadline — on expiry the
@@ -1098,8 +1209,9 @@ public enum Answer {
                            planTimeout: Int = defaultPlanTimeoutSeconds,
                            backendSpec: String? = nil) throws -> [String: Any] {
         let t0 = Date()
-        let backend = resolveBackend(backendSpec, model: model,
-                                     ollamaBin: ollamaBin)
+        let resolved = resolveBackend(backendSpec, model: model,
+                                      ollamaBin: ollamaBin)
+        let backend = resolved.backend
         // Records/reporting keep the bare model name for ollama
         // (back-compat); a CLI backend reports itself ("cli:agy").
         let modelID: String
@@ -1144,7 +1256,13 @@ public enum Answer {
         let pre = backendAvailable(backend)
         let ollamaOK = pre.ok
         if !pre.ok {
-            limitations.append("\(backend.label) unavailable — deterministic evidence pack only (\(pre.detail))")
+            if resolved.auto {
+                // auto resolved nothing usable: say so plainly — the
+                // caller must never suspect a silent paid-service route.
+                limitations.append("no compose backend available — auto probed fleet CLIs (\(Self.autoCLIOrder.joined(separator: ", "))) then \(backend.label): \(pre.detail) — deterministic evidence pack only")
+            } else {
+                limitations.append("\(backend.label) unavailable — deterministic evidence pack only (\(pre.detail))")
+            }
             planner?.stopped = "ollama_unavailable"
         }
 
@@ -1160,6 +1278,7 @@ public enum Answer {
                 limitations.append("another answer run held the local model semaphore")
                 planner?.stopped = "semaphore_busy"
                 return finish(store: store, query: query, model: modelID,
+                              backend: backend.label,
                               pack: acc.items, packTruncated: acc.truncated,
                               answer: nil, resolved: [], invalid: [],
                               citationValid: false, attempts: 0,
@@ -1234,7 +1353,8 @@ public enum Answer {
             }
         }
 
-        return finish(store: store, query: query, model: modelID, pack: pack,
+        return finish(store: store, query: query, model: modelID,
+                      backend: backend.label, pack: pack,
                       packTruncated: acc.truncated, answer: answer,
                       resolved: resolvedCitations, invalid: invalidCitations,
                       citationValid: citationValid, attempts: attempts,
@@ -1247,6 +1367,7 @@ public enum Answer {
     /// The record write is `try?` — a ledger failure must never lose the
     /// answer (plan F5).
     static func finish(store: Store, query: String, model: String,
+                       backend: String,
                        pack: [Evidence], packTruncated: Bool,
                        answer: String?, resolved: [[String: Any]],
                        invalid: [String], citationValid: Bool,
@@ -1269,7 +1390,8 @@ public enum Answer {
             .joined(separator: " | ")
 
         var resp: [String: Any] = [
-            "query": query, "model": model, "prompt_version": promptVersion,
+            "query": query, "model": model, "backend": backend,
+            "prompt_version": promptVersion,
             "answer": answer ?? NSNull(),
             "citations": resolved,
             "citation_valid": citationValid,
@@ -1297,7 +1419,8 @@ public enum Answer {
         // Durable record — same ledger path as contextPack/putRecord:
         // staleness evidence (HEAD + resolving anchors) included.
         var payload: [String: Any] = [
-            "query": query, "model": model, "prompt_version": promptVersion,
+            "query": query, "model": model, "backend": backend,
+            "prompt_version": promptVersion,
             "evidence": pack.map {
                 ["evidence_id": $0.id, "chunk_id": $0.chunkID, "path": $0.path,
                  "start_line": $0.startLine, "end_line": $0.endLine] as [String: Any]

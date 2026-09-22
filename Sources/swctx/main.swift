@@ -1009,17 +1009,19 @@ struct AskCmd: AsyncParsableCommand {
 }
 
 /// `swctx answer` (W12): thin wrapper over the same SwctxTools `answer`
-/// path the MCP tool uses — evidence pack → local Ollama JSON synthesis
-/// → server-side citation validation → durable `kind=ask` record.
+/// path the MCP tool uses — evidence pack → backend JSON synthesis →
+/// server-side citation validation → durable `kind=ask` record. Default
+/// backend is `auto`: first usable fleet CLI (agy → codex → claude),
+/// else local Ollama.
 /// `--expected-path` is an eval-harness oracle: recorded for scoring,
 /// never shown to the model.
 struct AnswerCmd: AsyncParsableCommand {
     static let configuration = CommandConfiguration(commandName: "answer",
-        abstract: "Answer a question over indexed evidence — cited JSON via a local LLM (Ollama, default) or an agent CLI backend (--backend cli:agy|claude|codex|…), no cloud credits.")
+        abstract: "Answer a question over indexed evidence — cited JSON via a subscription fleet CLI (default auto: agy→codex→claude) or local Ollama; --backend ollama|cli:<name> pins one. No cloud credits.")
     @Option(name: .long, help: "Workspace path (default: current directory)") var workspace: String = "."
     @Option(name: .long, help: "Question to answer") var query: String
     @Option(name: .long, help: "Ollama model (default qwen2.5:3b; env SWCTX_ANSWER_MODEL)") var model: String?
-    @Option(name: .long, help: "Synthesis backend: ollama (default) | cli:<name> — agent CLI (agy, claude, codex, qwen, opencode…); env SWCTX_ANSWER_BACKEND/SWCTX_ANSWER_CLI") var backend: String?
+    @Option(name: .long, help: "Synthesis backend: auto (default — probe agy→codex→claude, fall back to ollama) | ollama | cli:<name> — agent CLI (agy, claude, codex, qwen, opencode…); env SWCTX_ANSWER_BACKEND/SWCTX_ANSWER_CLI") var backend: String?
     @Option(name: .long, help: "Per-attempt model timeout seconds (one format-retry allowed)") var timeout: Int = Answer.defaultTimeoutSeconds
     @Flag(name: .long, help: "Bounded planner loop: iterate retrieval (≤4 rounds, VN+EN query variants) before answering — rescue mode for retrieval misses") var plan = false
     @Option(name: .long, help: "Planner total wall-clock seconds (default 60; ~20s per planner call)") var planTimeout: Int = Answer.defaultPlanTimeoutSeconds
