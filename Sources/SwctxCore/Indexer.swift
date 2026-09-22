@@ -107,6 +107,16 @@ public final class Indexer {
             if let star = dir.firstIndex(of: "*") {
                 dir = String(dir[dir.startIndex..<star])
                     .trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+                if dir.isEmpty {
+                    // `*.x/` has no static prefix — a "//" contains-check
+                    // would match every dir relPath ending in "/". Treat it
+                    // as a basename glob on the directory name instead.
+                    let stripped = relPath.hasSuffix("/")
+                        ? String(relPath.dropLast()) : relPath
+                    return wildcardMatch(
+                        String(p.dropLast()),
+                        (stripped as NSString).lastPathComponent)
+                }
             }
             return relPath == dir || relPath.hasPrefix(dir + "/")
                 || relPath.contains("/" + dir + "/")
@@ -149,10 +159,13 @@ public final class Indexer {
         for case let url as URL in en {
             guard let rv = try? url.resourceValues(forKeys: Set(keys)) else { continue }
             let absPath = url.path(percentEncoded: false)
-            let rel = candidates
+            // Directory URLs carry a trailing "/" ("Sources/") — strip it so
+            // the `rel + "/"` dir-check below does not produce "//".
+            var rel = candidates
                 .first(where: { absPath.hasPrefix($0 + "/") })
                 .map { String(absPath.dropFirst($0.count + 1)) }
                 ?? url.lastPathComponent
+            if rel.hasSuffix("/") { rel = String(rel.dropLast()) }
             let comps = rel.split(separator: "/").map(String.init)
             let name = comps.last ?? rel
             // dot components skipped except .github

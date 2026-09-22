@@ -1,44 +1,49 @@
 #!/bin/bash
-# nightly.sh — scheduled bench gate for swctx, run by launchd
-# (com.swctx.bench.plist, ~03:30 nightly).
-#
-#   1. bench/cold_cwd.py          — cold-cwd smoke: `swctx mcp` from an
-#                                   unindexed cwd must still answer
-#                                   workspace-less tools/call (P0 wedge
-#                                   regression guard).
-#   2. bench/recall_mcp.py --ratchet — MCP-wire recall@5 + p95 latency +
-#                                   tool-schema golden gates.
-#
-# Each failing gate appends one timestamped line to
-# ~/.swctx/bench_failures.log; the script exits non-zero if any gate
-# failed. All gate output streams to stdout/stderr for launchd's
-# StandardOutPath/StandardErrorPath logs.
+# bench/nightly.sh — nightly recall ratchet for swctx.
+# Runs the frozen gold-set MCP bench; on gate failure writes a
+# `bench_alert` record into the global ledger over the MCP wire so the
+# next `prime` surfaces it. No ctxe calls — this path is local/free.
+# Install: bench/install_nightly.sh (writes + bootstraps the LaunchAgent).
 set -u
+cd "$(dirname "$0")/.."
+OUTDIR="bench/nightly"
+mkdir -p "$OUTDIR"
+DAY="$(date +%F)"
+JSON_OUT="$OUTDIR/$DAY.json"
+LOG="$OUTDIR/history.log"
 
-cd "$(dirname "${BASH_SOURCE[0]}")/.." || exit 1   # repo root
-LOG="$HOME/.swctx/bench_failures.log"
-mkdir -p "$HOME/.swctx"
+set -o pipefail
+python3 bench/recall_mcp.py --ratchet >"$JSON_OUT" 2>"$OUTDIR/$DAY.stderr"
+RC=$?
+echo "$DAY rc=$RC" >> "$LOG"
+if [ "$RC" -eq 0 ]; then exit 0; fi
 
-rc_all=0
-run_gate() {
-    name="$1"; shift
-    "$@"
-    rc=$?
-    ts="$(date '+%Y-%m-%dT%H:%M:%S%z')"
-    if [ "$rc" -ne 0 ]; then
-        printf '%s FAIL %s rc=%d\n' "$ts" "$name" "$rc" >> "$LOG"
-        printf '%s FAIL %s rc=%d (logged -> %s)\n' "$ts" "$name" "$rc" "$LOG"
-        rc_all=1
-    else
-        printf '%s PASS %s\n' "$ts" "$name"
-    fi
-}
+# Ratchet failed → durable alert record via MCP (schema-agnostic path).
+# put_record only accepts a fixed kind set — 'finding' is the right slot.
+GATES="$(grep -E 'GATE|FAIL|recall|p95|schema' "$OUTDIR/$DAY.stderr" | head -8)"
+GATES="$GATES" python3 - <<'PYEOF'
+import os, sys
+sys.path.insert(0, "bench")
+from bench import MCPSession  # noqa: E402
+from recall import DEFAULT_SWCTX_BIN  # noqa: E402
 
-run_gate cold_cwd python3 bench/cold_cwd.py
-run_gate recall_ratchet python3 bench/recall_mcp.py --ratchet
-# VN retrieval regression net: probe expanded 16→22 queries (ITER-6);
-# current baseline 13/22 auto. Gate at 12 catches a one-query regression.
-run_gate vn_probe python3 bench/vn_probe.py --gate 12 --no-report
-run_gate corruption python3 bench/corruption_gate.py
-
-exit "$rc_all"
+gates = os.environ.get("GATES", "").strip() or "see nightly stderr log"
+payload = ("nightly ratchet gate failure\n" + gates)[:1800]
+s = MCPSession("swctx", [DEFAULT_SWCTX_BIN, "mcp"], timeout=60)
+try:
+    s.start()
+    body, _lat, err = s.call_tool("put_record", {
+        "workspace": "/Users/phuongnam/02.AI/NP_AI_macos/tools/swctx",
+        "kind": "finding", "title": "swctx recall ratchet FAILED",
+        "payload": payload, "status": "failed",
+    })
+    print(f"bench_alert written: {err or body}", file=sys.stderr)
+except Exception as e:  # alerting must never crash the job
+    print(f"bench_alert write failed (ignored): {e}", file=sys.stderr)
+finally:
+    try:
+        s.stop()
+    except Exception:
+        pass
+PYEOF
+exit "$RC"

@@ -12,3 +12,4 @@ __pycache__/
 .cursor/
 *.egg-info/
 *.pyc
+bench/nightly/

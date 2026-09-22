@@ -174,3 +174,18 @@ Both engines agree exactly on definitions and usages; the divergence shows
 up on semantic reranking (`inspect_path`) where swctx surfaces the live
 GSC pipeline files and ctxe's top-5 is dominated by `scripts/_legacy`
 chunks.
+
+## Nightly ratchet (installed 2026-09-22)
+
+`com.swctx.benchd` LaunchAgent runs `bench/nightly.sh` daily at 03:05:
+`recall_mcp.py --ratchet` over the frozen gold set → timestamped JSON +
+history.log under `bench/nightly/`; on gate failure a `finding` record
+is written to the global ledger (surfaces in `prime` next session).
+
+    bash bench/install_nightly.sh   # install/refresh
+    launchctl kickstart gui/$(id -u)/com.swctx.benchd   # run now
+    cat bench/nightly/history.log   # timeseries
+
+First run already caught signal: recall 34/36 — two vocabulary-bridge
+misses (acronym `gas`, suffix `+Comparison` vs parent) recorded as
+finding #105 — evidence for the probe-layer design, not gold-set tuning.

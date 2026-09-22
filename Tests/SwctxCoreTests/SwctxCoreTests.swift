@@ -571,9 +571,49 @@ final class SwctxCoreTests: SwctxTestCase {
         XCTAssertTrue(Indexer.matches("vendors/*/", relPath: "vendors/foo"))
         XCTAssertTrue(Indexer.matches("vendors/*/", relPath: "vendors/foo/deep.txt"))
         XCTAssertFalse(Indexer.matches("vendors/*/", relPath: "src/foo"))
-        // Plain `dir/` keeps working; bare `*/` matches nothing.
+        // Plain `dir/` keeps working.
         XCTAssertTrue(Indexer.matches("build/", relPath: "build/out.o"))
-        XCTAssertFalse(Indexer.matches("*/", relPath: "anything"))
+        // `*.x/` has no static prefix — it must glob the basename
+        // (`*.egg-info/` in this repo's .gitignore once pruned EVERY
+        // directory because the empty prefix produced a "//" contains-check
+        // against dir relPaths that already end in "/").
+        XCTAssertTrue(Indexer.matches("*.egg-info/", relPath: "pkg.egg-info/"))
+        XCTAssertTrue(Indexer.matches("*.egg-info/", relPath: "sub/pkg.egg-info/"))
+        XCTAssertFalse(Indexer.matches("*.egg-info/", relPath: "Sources/"))
+        XCTAssertFalse(Indexer.matches("*.egg-info/", relPath: "Sources/Core.swift"))
+        // Bare `*/` is git-consistent: it ignores every directory.
+        XCTAssertTrue(Indexer.matches("*/", relPath: "anything/"))
+    }
+
+    /// Directory URLs from the enumerator carry a trailing "/", so `rel`
+    /// for dirs arrives as "Sources/" — `rel + "/"` must not become "//"
+    /// and match an empty-prefix `*/` pattern. Full-pipeline regression:
+    /// a repo whose .gitignore has `*.egg-info/` must still index Sources/.
+    func testStarSlashGitignoreDoesNotPruneAllDirs() throws {
+        let dir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("swctx-test-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        try FileManager.default.createDirectory(
+            at: dir.appendingPathComponent("Sources"), withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(
+            at: dir.appendingPathComponent("pkg.egg-info"), withIntermediateDirectories: true)
+        try "def a(): return 1\n".write(
+            to: dir.appendingPathComponent("Sources/x.py"), atomically: true,
+            encoding: .utf8)
+        try "def b(): return 2\n".write(
+            to: dir.appendingPathComponent("pkg.egg-info/y.py"), atomically: true,
+            encoding: .utf8)
+        try "*.egg-info/\n*.pyc\n".write(
+            to: dir.appendingPathComponent(".gitignore"), atomically: true,
+            encoding: .utf8)
+
+        let store = try Store(workspaceRoot: dir)
+        try Indexer(store: store).run(force: true)
+        let paths = try store.pool.read { db in
+            try String.fetchAll(db, sql: "SELECT path FROM files ORDER BY path")
+        }
+        XCTAssertEqual(paths, ["Sources/x.py"])
     }
 
     /// Constructor-like callees emit `instantiates` in addition to `calls`;
