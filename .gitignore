@@ -7,3 +7,6 @@
 __pycache__/
 .worktrees/
 ~$*.xlsx
+.serena/
+.agent/
+.cursor/
