@@ -1,6 +1,9 @@
 # swctx — Lộ trình thay thế và vượt ctxe
 
-Date: 2026-09-22 · Status: post-audit (Codex round-2 done, Grok full audit đang chạy)
+Date: 2026-09-22 · Status: **Phase 0 DONE @ f3f3406** (219 tests green, 4
+model-gated skips) — joint audit verdict CONTINUE-WITH-CONDITIONS ·
+Phases 1–3 in flight
+
 Mục tiêu gốc: cắt credit ctxe mà không mất năng lực agent — rồi vượt ctxe ở các
 tính năng chủ động mà ctxe không có.
 
@@ -119,7 +122,8 @@ khác nhau (receipt có/không, queue, read/wait). Làm sau Phase 0, khi ba hệ
 - **`swctx watch restart` sau mỗi lần rebuild binary** — daemon 06:32 chạy
   binary cũ suốt 2 commit (eb41bff, tokenizer) vì không ai restart; launchd
   chỉ respawn khi crash. Cân nhắc `watch install` kiểm binary-hash-vs-running.
-- Fix `CTXE_REPLACEMENT.md` + `docs/05-GIOI-HAN.md` khi có JSON regenerate —
-  hai file đang overclaim ("100% replacement feasible", "không build planner").
-- `bench/tool_schemas.golden.json` còn 20 tools — actual là 26; artifact gate
-  cũ không đọc bởi test Swift.
+- ~~Fix `CTXE_REPLACEMENT.md` + `docs/05-GIOI-HAN.md`~~ — DONE 2026-09-22:
+  cả hai đã rewrite theo measured state (blind holdouts + telemetry; verdict
+  "chưa phải proven 100%").
+- ~~`bench/tool_schemas.golden.json` còn 20 tools~~ — DONE @ f3f3406:
+  regenerated 26 tools.

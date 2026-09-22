@@ -113,8 +113,11 @@ VN_LEXICON: list[tuple[str, list[str]]] = [
     ("nhap file", ["import"]),
     ("sap xep", ["sort"]),
     ("cap nhat", ["update"]),
-    # single-word fallbacks — no "dang" (đang/progressive vs đăng/post),
-    # no "mau" (màu/color vs mẫu/template): both fire on function words.
+    # single-word fallbacks — only when the phrase missed.
+    # Deliberately excluded — ambiguous folds that fire on function words:
+    # no "nao" (nào/which vs não/brain — the "bo nao" phrase carries brain),
+    # no "dang" (đang/progressive vs đăng/post),
+    # no "mau" (màu/color vs mẫu/template).
     ("luong", ["salary", "payroll"]),
     ("kho", ["warehouse", "stock"]),
     ("loi", ["error", "bug"]),

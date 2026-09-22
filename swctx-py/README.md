@@ -84,11 +84,36 @@ Data lives in `~/.swctx-py/` (indexes per workspace, models, catalog).
 `swctx-py model install [id]` downloads the ONNX export + tokenizer from
 HuggingFace. Per-index binding: `swctx-py index <path> --model <id>`.
 
-## Differences vs the Swift original
+## Status vs the Swift original (honest)
 
-The Swift build (repo root) runs CoreML on Apple Neural Engine and adds the
-full planner/graph/impact toolset. This port targets portability: CPU ONNX
-embeddings, the same retrieval shape and lexicon legs, and the core MCP
-toolset, plus a regex-based call/extends edge graph powering
-`simulate_patch` (speculative diff pre-flight). BFS graph traversal
-(`graph_paths`/`get_impact`) and the ask/evidence planner are not ported yet.
+The Swift build (repo root) runs CoreML on Apple Neural Engine and ships the
+full 26-tool surface. This port targets portability — CPU ONNX embeddings,
+the same retrieval shape and lexicon legs — and currently exposes **16 MCP
+tools**.
+
+**At parity:**
+
+- `search` — hybrid FTS5 + ONNX vectors + exact-symbol/path legs + the
+  deterministic EN↔VN lexicon legs (same entry set as `Translation.swift`),
+  RRF fusion.
+- Graph edges — regex-based call/extends/import extraction backing
+  `find_definitions`, `find_usages`, `simulate_patch`, `test_coverage`,
+  `trace_lookup`.
+- Records/memory — `put_record`, `search_records` (incl. `scope=global`
+  shared ledger), `checkpoint` + `prime` resume line.
+- Slicing — `outline`, `fetch_chunks mode=signature`.
+- Ops — `index_workspace`, `get_status`, `list_workspaces`,
+  `workspace_tree`, `prime`, polling `watch`.
+
+**Not ported (known gaps):**
+
+- **No `answer`/`ask` synthesis and no planner backends** — neither the
+  local `ollama` path nor the `cli:*` agent-fleet backend exists here. Use
+  the Swift build, or drive `search`/`fetch_chunks` from your agent loop.
+- `context_pack`, `fast_understand`.
+- BFS graph tools: `graph_neighbors`, `graph_expand`, `graph_paths`,
+  `get_impact`.
+- `get_record` / `list_records` (use `search_records` meanwhile).
+- `install-agent` client-config merger; the LaunchAgent `watchd` (py
+  `watch` is a foreground/polling loop).
+- CoreML/`NLEmbedding` embedders — ONNX only.

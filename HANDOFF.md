@@ -156,7 +156,7 @@ Date: 2026-09-17 (2nd pass: review + fixes) · Status: **working, verified end-t
 
 | Thứ | Đường dẫn |
 |---|---|
-| Source (repo riêng, nested) | `/Users/phuongnam/02.AI/NP_AI_macos/tools/swctx/` |
+| Source (repo riêng, nested) | `<workspace-root>/tools/swctx/` |
 | Binary release | `tools/swctx/.build/release/swctx` (~22MB) |
 | Index data | `~/.swctx/indexes/<key>/index.db` (P8 key `6e09ad5e9099`) |
 | Workspace registry | `~/.swctx/workspaces.json` |

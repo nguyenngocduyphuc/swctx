@@ -34,6 +34,33 @@ Cross-platform note: this repository also ships `swctx-py/` — a pure-Python
 port (SQLite FTS5 + ONNX embeddings + MCP) that runs on Windows, Linux and
 macOS. See `swctx-py/README.md`.
 
+## Share with your team
+
+Copy-paste setup for a colleague on macOS (Apple Silicon recommended):
+
+```sh
+git clone https://github.com/nguyenngocduyphuc/swctx.git && cd swctx
+swift build -c release
+cp .build/release/swctx ~/.local/bin/swctx   # or any dir on PATH
+swctx model install                          # ~210MB CoreML embedder, one time
+swctx index /path/to/repo                    # first index + embed
+swctx watch add /path/to/repo                # add to the shared watch list
+swctx watch install                          # one LaunchAgent keeps indexes fresh
+```
+
+Then add the MCP server to your agent client — either run
+`swctx install-agent` (merges into Claude Code / Codex / Gemini / Cursor /
+Windsurf / Devin configs, idempotent with `.bak` backups), or paste this
+into the client's MCP config by hand:
+
+```json
+{ "mcpServers": { "swctx": { "command": "swctx", "args": ["mcp"] } } }
+```
+
+On Windows/Linux use the Python port instead: `cd swctx-py && pip install .`,
+then `swctx-py index <path>` and the same MCP shape (`swctx-py mcp`).
+Details + honest parity status: `swctx-py/README.md`.
+
 ## What it does
 
 - **Incremental index** per workspace: file discovery, SHA-256 change detection,
