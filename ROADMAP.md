@@ -26,16 +26,21 @@ tính năng chủ động mà ctxe không có.
 
 Gate: full suite xanh 3 lần chạy liên tiếp (flake phải chết), 0 orphan sau gc.
 
-## Phase 1 — Displacement measurement (tuần 1–2, song song Phase 0)
+## Phase 1 — Reroute calls (baseline displacement ĐÃ có, không cần đo thêm)
 
-Đây là metric quyết định, không phải benchmark:
+Grok audit 2026-09-22 đã đo sẵn từ ledgers thật:
 
-- `answer` MCP default → auto-detect fleet CLI backend (`cli:agy|codex|claude`)
-  thay vì cần flag; fallback ctxe compose chỉ khi không có CLI nào.
-- Usage ledger đã có → thêm `swctx stats --weekly`: đếm ctxe `ask_context`/
-  `compose_answer` calls vs swctx calls trên máy anh (parse cả hai phía).
-- **Kill-switch (codex+grok đồng thuận): 2 tuần mà ctxe-ask không giảm → dừng
-  đầu tư retrieval, swctx chỉ còn vai trò local search miễn phí.**
+- `usage_events`: **search=781** (fleet đã chuyển retrieval sang swctx),
+  **answer=0** (chưa ai gọi synthesis swctx), checkpoint=2
+- ctxe `kind=ask` records: **126** và ĐANG TĂNG (42 ở ledger 09-18 → 126 hôm nay)
+
+Vậy việc của phase này không phải "đo" mà là **đổi đường gọi**:
+
+- `answer` MCP default → auto-detect fleet CLI (`cli:agy|codex|claude`),
+  fallback ctxe compose chỉ khi không có CLI nào khả dụng.
+- Skill `swctx` + AGENTS.md: cấm `ask_context` khi `search`/`context_pack`
+  đã đủ (câu bounded) — chỉ cho phép ctxe ask cho multi-round planner thật.
+- Sau 14 ngày đọc lại 2 ledger: ctxe ask phải GIẢM so với 126.
 
 ## Phase 2 — Rescue `in_body_only` (tuần 2–4)
 
@@ -84,9 +89,27 @@ ctxe là passive index — chờ được hỏi. swctx có thể chủ động v
 - Bench chỉ đo trên frozen holdouts; tune constants trên mined organic queries.
 - py-port parity kèm mỗi thay đổi retrieval (lexicon đã port ce0856c).
 
-## Kill criteria tổng
+## Kill criteria tổng (Grok audit, sharpened)
 
-Dừng đầu tư nếu sau Phase 1+2: (a) ctxe-ask volume không giảm 2 tuần liên tiếp,
-(b) `in_body_only` R@1 fleet không cải thiện sau 1 lần thử pre-registered,
-(c) reliability gate không xanh ổn định. Lúc đó swctx vẫn giữ giá trị local
-search miễn phí — không mất gì ngoài thời gian dev.
+- **Dừng research retrieval** nếu vòng in_body pre-register không thêm ≥3 query
+  `in_body_only` vào R@5 trên linkeldn+fleet gộp, HOẶC bất kỳ query nào đã R@5
+  rơi khỏi top-5.
+- **Dừng đầu tư ngoài bảo trì** nếu sau 14 ngày reroute, ctxe `ask` không giảm
+  so với baseline 126 trong khi swctx `answer` vẫn ~0 — nghĩa là fleet không đi
+  qua đường mới, tune thêm không đổi hóa đơn.
+- **Kill ngay một thay đổi ranking** nếu p95 search linkeldn vượt 2× median
+  hiện tại (537ms) mà R@5 không tăng.
+- **Không kill binary** vì edge-resolve 23% hay simulate_patch tĩnh — search
+  local đã có người dùng (781 calls) và hòa ctxe trên 48 query mù ở R@5.
+- **Không mở embedder/reranker mới** (4 embedder + 3 reranker đã thua latency
+  hoặc neutral) trừ khi một miss mới chứng minh gold không vào candidate pool.
+
+## Operational rules mới (từ audit)
+
+- **`swctx watch restart` sau mỗi lần rebuild binary** — daemon 06:32 chạy
+  binary cũ suốt 2 commit (eb41bff, tokenizer) vì không ai restart; launchd
+  chỉ respawn khi crash. Cân nhắc `watch install` kiểm binary-hash-vs-running.
+- Fix `CTXE_REPLACEMENT.md` + `docs/05-GIOI-HAN.md` khi có JSON regenerate —
+  hai file đang overclaim ("100% replacement feasible", "không build planner").
+- `bench/tool_schemas.golden.json` còn 20 tools — actual là 26; artifact gate
+  cũ không đọc bởi test Swift.
