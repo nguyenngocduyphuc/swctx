@@ -7,7 +7,8 @@
    "inputSchema": {
     "properties": {
      "backend": {
-      "description": "Synthesis backend: 'ollama' (default, offline) | 'cli:<name>' \u2014 agent CLI from the subscription fleet (cli:agy, cli:claude, cli:codex, cli:qwen, cli:opencode\u2026). Env: SWCTX_ANSWER_BACKEND / SWCTX_ANSWER_CLI.",
+      "default": "auto",
+      "description": "Synthesis backend: 'auto' (default) \u2014 probe fleet CLIs agy\u2192codex\u2192claude (PATH + <cli> --version, first usable wins), else local 'ollama'. Explicit 'ollama' | 'cli:<name>' (cli:agy, cli:claude, cli:codex, cli:qwen, cli:opencode\u2026) pins one. Env: SWCTX_ANSWER_BACKEND / SWCTX_ANSWER_CLI.",
       "type": "string"
      },
      "expected_path": {

@@ -39,8 +39,11 @@ Grok audit 2026-09-22 đã đo sẵn từ ledgers thật:
 
 Vậy việc của phase này không phải "đo" mà là **đổi đường gọi**:
 
-- `answer` MCP default → auto-detect fleet CLI (`cli:agy|codex|claude`),
-  fallback ctxe compose chỉ khi không có CLI nào khả dụng.
+- ~~`answer` MCP default → auto-detect fleet CLI (`cli:agy|codex|claude`),
+  fallback ctxe compose chỉ khi không có CLI nào khả dụng.~~ **DONE
+  `bba9132`**: backend `auto` là default (probe agy→codex→claude ≤2s,
+  fallback ollama, không bao giờ gọi paid); resolved backend ghi vào payload
+  + kind=ask record.
 - Skill `swctx` + AGENTS.md: cấm `ask_context` khi `search`/`context_pack`
   đã đủ (câu bounded) — chỉ cho phép ctxe ask cho multi-round planner thật.
 - Sau 14 ngày đọc lại 2 ledger: ctxe ask phải GIẢM so với 126.
@@ -50,9 +53,16 @@ Vậy việc của phase này không phải "đo" mà là **đổi đường g�
 Slice thua thật: fleet pack R@1 3/11 vs ctxe 9/11; linkeldn ctxe slice này
 R@5 13/13, swctx miss 3 — đây là thứ ctxe bán tiền.
 
-- **Graph one-hop leg vào `search`**: ContextPack đã expand 1-hop (callers/
-  callees/imports) — đưa làm leg phụ có cap, không prepend. Grok round-2 chỉ ra
-  `search` hiện không đi qua ContextPack.
+- **~~Graph one-hop leg vào `search`~~ — ĐÃ THỬ, GATE FAIL, REVERTED
+  (2026-09-22)**: leg weak-RRF chạy được (46/70 query đổi hit list) nhưng
+  **0 rescue, 0 drop** trên cả 3 holdout → revert không commit. Root cause
+  structural, không phải tuning: (a) ~6-hit path-probe prepend ngoài fusion
+  chặn mọi weak leg với query filename-intent (crm-07 gold fused-rank 1 vẫn
+  hiển thị rank 7 — verify qua SWCTX_PROBE_CAP=0); (b) gold in_body_only
+  phần lớn không 1-hop-adjacent top hits (seo-07 gold có 0 edges — file
+  markdown); (c) file-adjacent neighbors thiếu token coverage. Hướng cứu
+  được phải đi layer khác: probe-layer integration hoặc file-level scoring —
+  KHÔNG phải weak leg. Đo lường giữ ở /tmp/{link,fleet,vn}_{base,after}.json.
 - **Concept-flow leg**: chunk-level semantic đã có; thêm docstring/comment
   weighting cho `target_type=doc` misses (vn set vn_to_vn class).
 - **Lexicon loop**: mine_queries → VN queries miss thật → bổ sung entry
