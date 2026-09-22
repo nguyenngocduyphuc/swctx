@@ -364,12 +364,6 @@ public final class GlobalRecords: @unchecked Sendable {
         let out = Pipe(), err = Pipe()
         p.standardOutput = out
         p.standardError = err
-        let sem = DispatchSemaphore(value: 0)
-        // terminationHandler fires on Foundation's process monitor — a
-        // `waitUntilExit` inside a GCD block can sit unscheduled under
-        // parallel load, making sem.wait measure queueing latency, not
-        // the process (false 60s timeouts on an already-exited git).
-        p.terminationHandler = { _ in sem.signal() }
         do {
             try p.run()
         } catch {
@@ -382,21 +376,30 @@ public final class GlobalRecords: @unchecked Sendable {
         // through them without capturing vars (Sendable-safe).
         let outData = NSMutableData(), errData = NSMutableData()
         let drain = DispatchGroup()
+        // Waits AND drains run on dedicated Threads, never GCD: under
+        // parallel load a global() block can sit unscheduled — the waiter
+        // then times out on an already-exited git, and an undrained pipe
+        // would return status 0 with truncated output (worse than nil).
+        // (terminationHandler is not a fix: NSTask.h leaves its execution
+        // context undefined; Foundation has queued it on the same pool.)
         drain.enter()
-        DispatchQueue.global().async {
+        Thread {
             outData.append(out.fileHandleForReading.readDataToEndOfFile())
             drain.leave()
-        }
+        }.start()
         drain.enter()
-        DispatchQueue.global().async {
+        Thread {
             errData.append(err.fileHandleForReading.readDataToEndOfFile())
             drain.leave()
-        }
+        }.start()
+        let sem = DispatchSemaphore(value: 0)
+        Thread { p.waitUntilExit(); sem.signal() }.start()
         let timeout = ProcessInfo.processInfo.environment["SWCTX_GIT_TIMEOUT_S"]
             .flatMap(TimeInterval.init) ?? 15
         if sem.wait(timeout: .now() + timeout) == .timedOut {
             p.terminate()
             _ = sem.wait(timeout: .now() + .milliseconds(300))
+            if p.isRunning { kill(p.processIdentifier, SIGKILL) }
             _ = drain.wait(timeout: .now() + .seconds(2))
             let e = String(decoding: errData as Data, as: UTF8.self)
                 .trimmingCharacters(in: .whitespacesAndNewlines)

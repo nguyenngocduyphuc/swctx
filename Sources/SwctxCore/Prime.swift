@@ -21,11 +21,13 @@ public enum Prime {
         do { try p.run() } catch { return nil }
         var data = Data()
         let sem = DispatchSemaphore(value: 0)
-        DispatchQueue.global().async {
+        // Dedicated Thread — a GCD block can sit unscheduled under load
+        // and turn the timeout into a queue-latency measurement.
+        Thread {
             data = out.fileHandleForReading.readDataToEndOfFile()
             p.waitUntilExit()
             sem.signal()
-        }
+        }.start()
         if sem.wait(timeout: .now() + .seconds(timeout)) == .timedOut {
             p.terminate()
             return nil
@@ -50,11 +52,12 @@ public enum Prime {
         do { try p.run() } catch { return nil }
         var data = Data()
         let sem = DispatchSemaphore(value: 0)
-        DispatchQueue.global().async {
+        // Dedicated Thread — same GCD-starvation hazard as `probe`.
+        Thread {
             data = out.fileHandleForReading.readDataToEndOfFile()
             p.waitUntilExit()
             sem.signal()
-        }
+        }.start()
         if sem.wait(timeout: .now() + .seconds(5)) == .timedOut {
             p.terminate()
             return nil

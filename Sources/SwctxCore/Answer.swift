@@ -1025,20 +1025,21 @@ public enum Answer {
         let outData = NSMutableData()
         let errData = NSMutableData()
         let drain = DispatchGroup()
+        // Drains and the waiter all run on dedicated Threads — a GCD
+        // block can sit unscheduled under load, making the timeout fire
+        // on queue latency (and SIGKILL a live group) or leaving pipe
+        // bytes undrained past the grace bound.
         drain.enter()
-        DispatchQueue.global().async {
+        Thread {
             outData.append(out.fileHandleForReading.readDataToEndOfFile())
             drain.leave()
-        }
+        }.start()
         drain.enter()
-        DispatchQueue.global().async {
+        Thread {
             errData.append(err.fileHandleForReading.readDataToEndOfFile())
             drain.leave()
-        }
+        }.start()
         let sem = DispatchSemaphore(value: 0)
-        // Dedicated thread, not GCD: under parallel-suite load a global()
-        // block can sit unscheduled past `timeout`, turning sem.wait into
-        // a measure of queue latency and SIGKILL-ing a live process group.
         Thread {
             var st: Int32 = 0
             _ = waitpid(pid, &st, 0)

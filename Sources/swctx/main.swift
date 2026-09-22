@@ -959,23 +959,26 @@ struct AskCmd: AsyncParsableCommand {
         let outData = NSMutableData()
         let errData = NSMutableData()
         let drain = DispatchGroup()
+        // Drains and the waiter on dedicated Threads, never GCD — an
+        // unscheduled block would make the timeout fire on queue latency
+        // (then SIGKILL a live group) or drop undrained output.
         drain.enter()
-        DispatchQueue.global().async {
+        Thread {
             outData.append(out.fileHandleForReading.readDataToEndOfFile())
             drain.leave()
-        }
+        }.start()
         drain.enter()
-        DispatchQueue.global().async {
+        Thread {
             errData.append(err.fileHandleForReading.readDataToEndOfFile())
             drain.leave()
-        }
+        }.start()
         let sem = DispatchSemaphore(value: 0)
-        DispatchQueue.global().async {
+        Thread {
             var st: Int32 = 0
             _ = waitpid(pid, &st, 0)
             wstatus.raw = st
             sem.signal()
-        }
+        }.start()
         if sem.wait(timeout: .now() + .seconds(timeout)) == .timedOut {
             // Whole-group SIGTERM, short grace, then whole-group SIGKILL —
             // TERM-ignoring children AND their descendants all die.

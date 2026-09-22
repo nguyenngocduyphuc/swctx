@@ -351,11 +351,6 @@ public enum Watchd {
         let out = Pipe(), err = Pipe()
         p.standardOutput = out
         p.standardError = err
-        let sem = DispatchSemaphore(value: 0)
-        // terminationHandler runs on Foundation's process monitor — a
-        // GCD waitUntilExit block could sit unscheduled under load and
-        // the timeout would measure queue latency, not launchctl.
-        p.terminationHandler = { _ in sem.signal() }
         do { try p.run() } catch {
             return (-1, "launchctl spawn failed: \(error.localizedDescription)")
         }
@@ -363,16 +358,21 @@ public enum Watchd {
         // through them without capturing vars (Sendable-safe).
         let outData = NSMutableData(), errData = NSMutableData()
         let drain = DispatchGroup()
+        // Waits AND drains on dedicated Threads, never GCD — an
+        // unscheduled block would turn the timeout into a queue-latency
+        // measure and could return status 0 with undrained output.
         drain.enter()
-        DispatchQueue.global().async {
+        Thread {
             outData.append(out.fileHandleForReading.readDataToEndOfFile())
             drain.leave()
-        }
+        }.start()
         drain.enter()
-        DispatchQueue.global().async {
+        Thread {
             errData.append(err.fileHandleForReading.readDataToEndOfFile())
             drain.leave()
-        }
+        }.start()
+        let sem = DispatchSemaphore(value: 0)
+        Thread { p.waitUntilExit(); sem.signal() }.start()
         if sem.wait(timeout: .now() + .seconds(15)) == .timedOut {
             p.terminate()
             _ = drain.wait(timeout: .now() + .seconds(2))
