@@ -568,8 +568,13 @@ final class SwctxCoreTests: SwctxTestCase {
     /// `.gitignore` `dir/*/` patterns must prune by the static prefix —
     /// a wildcard does not become literal text (root vendors/ regression).
     func testIgnorePatternDirStarSlash() throws {
-        XCTAssertTrue(Indexer.matches("vendors/*/", relPath: "vendors/foo"))
+        // Dir rels arrive with a trailing "/" (discoverFiles convention).
+        XCTAssertTrue(Indexer.matches("vendors/*/", relPath: "vendors/foo/"))
+        // Files UNDER an ignored dir match via the ancestor prefix —
+        // the watcher depends on this for events inside ignored trees.
         XCTAssertTrue(Indexer.matches("vendors/*/", relPath: "vendors/foo/deep.txt"))
+        // …but a bare FILE named "foo" at vendors level is not a dir.
+        XCTAssertFalse(Indexer.matches("vendors/*/", relPath: "vendors/foo"))
         XCTAssertFalse(Indexer.matches("vendors/*/", relPath: "src/foo"))
         // Plain `dir/` keeps working.
         XCTAssertTrue(Indexer.matches("build/", relPath: "build/out.o"))
@@ -583,6 +588,92 @@ final class SwctxCoreTests: SwctxTestCase {
         XCTAssertFalse(Indexer.matches("*.egg-info/", relPath: "Sources/Core.swift"))
         // Bare `*/` is git-consistent: it ignores every directory.
         XCTAssertTrue(Indexer.matches("*/", relPath: "anything/"))
+        // …but directory-only patterns never match FILES — `*/` or
+        // `*.egg-info/` must leave README.md / pkg.egg-info (a file)
+        // alone (Grok delta-review).
+        XCTAssertFalse(Indexer.matches("*/", relPath: "README.md"))
+        XCTAssertFalse(Indexer.matches("*.egg-info/", relPath: "pkg.egg-info"))
+        XCTAssertFalse(Indexer.matches("*.egg-info/", relPath: "sub/pkg.egg-info"))
+        // `*/build/` is anchored: exactly one directory level deep —
+        // `*` never crosses "/".
+        XCTAssertTrue(Indexer.matches("*/build/", relPath: "foo/build/"))
+        XCTAssertFalse(Indexer.matches("*/build/", relPath: "foo/bar/build/"))
+        XCTAssertFalse(Indexer.matches("*/build/", relPath: "build/"))
+    }
+
+    /// Derivational stems bridge FTS prefix matching — "compare" can
+    /// never reach "comparison" ("compar" diverges at char 7), so the
+    /// stem is emitted as its own atom. Acronym atoms turn consecutive
+    /// query words into filename initials ("google apps script"→"gas").
+    func testStemAndAcronymAtoms() {
+        XCTAssertEqual(Search.stemAtom("compare"), "compar")
+        XCTAssertEqual(Search.stemAtom("comparison"), "compar")
+        XCTAssertEqual(Search.stemAtom("comparing"), "compar")
+        XCTAssertEqual(Search.stemAtom("posting"), "post")
+        XCTAssertNil(Search.stemAtom("diff"))   // no suffix match
+        XCTAssertNil(Search.stemAtom("run"))    // <5 chars
+        let ac = Search.acronymAtoms(
+            ["google", "apps", "script", "backend"])
+        XCTAssertTrue(ac.contains("gas"))
+        XCTAssertTrue(ac.contains("asb"))
+        XCTAssertFalse(ac.contains("ga"))  // windows are 3-4 words
+    }
+
+    /// plannerProbeAtomSets: stems are weak AND championless (supporting
+    /// evidence only); acronyms are weak (no surgical — prefix
+    /// coincidences like "rat"→"rating") but keep champion rights
+    /// (gas.ts is a deliberate name rescue).
+    func testProbeAtomSetsPrivilegeTiers() {
+        let (atoms, weak, championless) = Search.plannerProbeAtomSets(
+            query: "compare two saved audit runs")
+        XCTAssertTrue(atoms.contains("compar"))
+        XCTAssertTrue(weak.contains("compar"))
+        XCTAssertTrue(championless.contains("compar"))
+        XCTAssertTrue(atoms.contains("compare"))
+        XCTAssertFalse(weak.contains("compare"))
+        let (atoms2, weak2, championless2) = Search.plannerProbeAtomSets(
+            query: "google apps script backend")
+        XCTAssertTrue(atoms2.contains("gas"))
+        XCTAssertTrue(weak2.contains("gas"))
+        XCTAssertFalse(championless2.contains("gas"))
+    }
+
+    /// A file fetched ONLY by a stem atom and scoring below the rank
+    /// bar must not be champion-emitted; the same file fetched by an
+    /// acronym atom IS champion-eligible (the filename IS the phrase's
+    /// initials — a deliberate rescue, unlike morphology).
+    func testProbeWeakAtomEarnsNoChampion() throws {
+        let dir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("swctx-probe-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(
+            at: dir.appendingPathComponent("plan"),
+            withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        // "compare_runs" stem {compare,runs}: token "compare" stem-
+        // claims atom "compar" → density 0.5 → rank 1.5 < 2.0 bar —
+        // only a champion could save it.
+        try "x = 1\n".write(
+            to: dir.appendingPathComponent("plan/compare_runs.md"),
+            atomically: true, encoding: .utf8)
+        try "y = 2\n".write(
+            to: dir.appendingPathComponent("plan/gas.ts"),
+            atomically: true, encoding: .utf8)
+        let store = try Store(workspaceRoot: dir)
+        _ = try Indexer(store: store).run(force: true, autoEmbed: false)
+        // Stem atom: no champion → dropped below the bar.
+        let stemmed = try Search.plannerPathProbe(
+            store: store, atoms: ["compar"],
+            weakAtoms: ["compar"], championlessAtoms: ["compar"])
+        XCTAssertTrue(stemmed.isEmpty)
+        // Same atom full-privilege: champion rescues it.
+        let full = try Search.plannerPathProbe(
+            store: store, atoms: ["compar"])
+        XCTAssertEqual(full.first?.path, "plan/compare_runs.md")
+        // Acronym atom: weak (no surgical) but champion-eligible —
+        // "gas" names plan/gas.ts, density 0.5 → below bar → champion.
+        let acronym = try Search.plannerPathProbe(
+            store: store, atoms: ["gas"], weakAtoms: ["gas"])
+        XCTAssertEqual(acronym.first?.path, "plan/gas.ts")
     }
 
     /// Directory URLs from the enumerator carry a trailing "/", so `rel`

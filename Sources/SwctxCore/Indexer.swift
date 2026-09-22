@@ -101,25 +101,30 @@ public final class Indexer {
     static func matches(_ pattern: String, relPath: String) -> Bool {
         let p = pattern
         if p.hasSuffix("/") {
-            var dir = String(p.dropLast())
-            // `dir/*/` style: prune by the static prefix before the first
-            // wildcard ("vendors/*/" -> ignore everything under "vendors/").
-            if let star = dir.firstIndex(of: "*") {
-                dir = String(dir[dir.startIndex..<star])
-                    .trimmingCharacters(in: CharacterSet(charactersIn: "/"))
-                if dir.isEmpty {
-                    // `*.x/` has no static prefix — a "//" contains-check
-                    // would match every dir relPath ending in "/". Treat it
-                    // as a basename glob on the directory name instead.
-                    let stripped = relPath.hasSuffix("/")
-                        ? String(relPath.dropLast()) : relPath
-                    return wildcardMatch(
-                        String(p.dropLast()),
-                        (stripped as NSString).lastPathComponent)
+            // Directory pattern (gitignore semantics): matches a relPath
+            // when any DIRECTORY-prefix of it glob-matches the pattern
+            // body — the rel itself when it names a dir ("foo/build/"),
+            // or an ancestor dir for a file inside an ignored dir
+            // ("foo/build/x.o" via ancestor "foo/build"). A bare file
+            // ("README.md", "pkg.egg-info") has no dir prefix and never
+            // matches — dir patterns prune through the directory, not
+            // the file (Grok delta-review finding).
+            let body = String(p.dropLast())
+            let comps = relPath.split(separator: "/").map(String.init)
+            let upper = relPath.hasSuffix("/")
+                ? comps.count : comps.count - 1
+            guard upper > 0 else { return false }
+            let anchored = body.contains("/")
+            for i in 1...upper {
+                let cand = comps.prefix(i).joined(separator: "/")
+                if anchored {
+                    if anchoredWildcardMatch(body, cand) { return true }
+                } else if wildcardMatch(
+                    body, (cand as NSString).lastPathComponent) {
+                    return true
                 }
             }
-            return relPath == dir || relPath.hasPrefix(dir + "/")
-                || relPath.contains("/" + dir + "/")
+            return false
         }
         if p.contains("/") {
             return wildcardMatch(p, relPath)
@@ -133,6 +138,15 @@ public final class Indexer {
         var regex = NSRegularExpression.escapedPattern(for: pattern)
         regex = regex.replacingOccurrences(of: "\\*", with: ".*")
             .replacingOccurrences(of: "\\?", with: ".")
+        return string.range(of: "^\(regex)$", options: .regularExpression) != nil
+    }
+
+    /// Anchored glob for patterns containing "/" — `*`/`?` never cross
+    /// a path separator (gitignore semantics for `*/build/` etc).
+    static func anchoredWildcardMatch(_ pattern: String, _ string: String) -> Bool {
+        var regex = NSRegularExpression.escapedPattern(for: pattern)
+        regex = regex.replacingOccurrences(of: "\\*", with: "[^/]*")
+            .replacingOccurrences(of: "\\?", with: "[^/]")
         return string.range(of: "^\(regex)$", options: .regularExpression) != nil
     }
 

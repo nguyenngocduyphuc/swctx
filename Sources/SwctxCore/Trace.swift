@@ -148,6 +148,18 @@ public enum Trace {
                 defs = Set(try Int64.fetchAll(db, sql:
                     "SELECT chunk_id FROM symbols WHERE name = ?",
                     arguments: [sym]))
+                // Resolved-first ordering: a bare dst_name match on a
+                // common word ("init", "get") can fill the 20 slots with
+                // unrelated calls while the real caller falls off —
+                // edges pinned to a same-named def rank ahead.
+                var order = "f.path, e.line"
+                var args: [DatabaseValueConvertible] = [sym]
+                if !defs.isEmpty {
+                    let dph = defs.map { _ in "?" }.joined(separator: ",")
+                    order = "CASE WHEN e.dst_chunk IN (\(dph)) THEN 0 ELSE 1 END, "
+                        + order
+                    args.append(contentsOf: defs.map { $0 as DatabaseValueConvertible })
+                }
                 return try Row.fetchAll(db, sql: """
                     SELECT DISTINCT f.path, e.line, c.symbol, e.dst_chunk
                     FROM edges e
@@ -155,8 +167,8 @@ public enum Trace {
                     JOIN files f ON f.id = c.file_id
                     WHERE e.dst_name = ? AND e.kind IN
                         ('calls','instantiates','uses_type','api_call')
-                    ORDER BY f.path, e.line LIMIT 20
-                    """, arguments: [sym])
+                    ORDER BY \(order) LIMIT 20
+                    """, arguments: StatementArguments(args))
             }
             return try Row.fetchAll(db, sql: """
                 SELECT DISTINCT f.path, e.line, c.symbol, e.dst_chunk

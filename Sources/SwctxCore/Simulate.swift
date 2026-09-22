@@ -209,11 +209,19 @@ public enum Simulate {
         let ph = containerNormKinds.map { _ in "?" }.joined(separator: ",")
         var args: [DatabaseValueConvertible] = [path, line]
         args.append(contentsOf: containerNormKinds)
+        args.append(line)
+        // Prefer the decl whose own chunk still spans the line: symbols
+        // carry no end_line, so without the bound a sibling decl that
+        // already closed ("inner" at :12, edit at :15) outranks the real
+        // enclosing "outer" at :9. Degrades to nearest-above when the
+        // decl's chunk is coarse — still never picks a decl whose chunk
+        // demonstrably ended before the line.
         guard let r = try Row.fetchOne(db, sql: """
             SELECT s.name, s.line, s.norm_kind
             FROM symbols s JOIN files f ON f.id = s.file_id
+            LEFT JOIN chunks c ON c.id = s.chunk_id
             WHERE f.path = ? AND s.line <= ? AND s.norm_kind IN (\(ph))
-            ORDER BY s.line DESC, s.id DESC LIMIT 1
+            ORDER BY (c.end_line >= ?) DESC, s.line DESC, s.id DESC LIMIT 1
             """, arguments: StatementArguments(args)),
             let n = r["name"] as? String else { return nil }
         return (n, (r["line"] as? Int64) ?? 0, (r["norm_kind"] as? String) ?? "")
@@ -276,6 +284,17 @@ public enum Simulate {
                 let ph = kinds.map { _ in "?" }.joined(separator: ",")
                 var args: [DatabaseValueConvertible] = [name]
                 args.append(contentsOf: kinds)
+                // Resolved-first: name-only edges on a common word
+                // ("init", "get") fill the LIMIT with unrelated calls —
+                // edges pinned to a real def of this name rank ahead
+                // (Grok delta-review finding).
+                var order = "f.path, e.line"
+                if !defs.isEmpty {
+                    let dph = defs.map { _ in "?" }.joined(separator: ",")
+                    order = "CASE WHEN e.dst_chunk IN (\(dph)) THEN 0 ELSE 1 END, "
+                        + order
+                    args.append(contentsOf: defs.map { $0 as DatabaseValueConvertible })
+                }
                 return try Row.fetchAll(db, sql: """
                     SELECT e.line, e.kind, f.path, e.src_chunk, e.dst_chunk,
                            c.symbol AS src_symbol
@@ -283,7 +302,7 @@ public enum Simulate {
                     JOIN chunks c ON c.id = e.src_chunk
                     JOIN files f ON f.id = c.file_id
                     WHERE e.dst_name = ? AND e.kind IN (\(ph))
-                    ORDER BY f.path, e.line LIMIT ?
+                    ORDER BY \(order) LIMIT ?
                     """, arguments: StatementArguments(args + [maxCallers]))
                     .map { ["path": ($0["path"] as? String) ?? "",
                             "line": ($0["line"] as? Int64) ?? 0,

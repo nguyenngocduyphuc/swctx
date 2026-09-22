@@ -285,6 +285,16 @@ public final class BGEEmbedder: @unchecked Sendable {
     /// Feeds only the inputs the model declares (token_type_ids is skipped for
     /// distilbert). Pooling per spec: CLS position or attention-mask mean.
     public func embed(_ text: String) -> [Float]? {
+        // CoreML prediction allocates autoreleased ObjC temporaries per call
+        // (MLMultiArray inputs, feature providers, prediction output, ANE
+        // buffers). In a bulk embed loop nothing drains them until the
+        // process exits — past ~16k calls the ANE stack is exhausted and
+        // every prediction fails, and a recreated Embedder cannot recover
+        // because the leak is process-level. Drain per call instead.
+        autoreleasepool { embedImpl(text) }
+    }
+
+    private func embedImpl(_ text: String) -> [Float]? {
         let ids = tokenize(String(text.prefix(6000)))
         let seq = ids.count
         guard let inputIDs = try? MLMultiArray(shape: [1, NSNumber(value: seq)],

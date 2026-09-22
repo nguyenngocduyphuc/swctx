@@ -14,14 +14,36 @@ public struct SearchHit: Sendable {
 }
 
 public enum Search {
-    /// Build a safe FTS5 MATCH query: OR of quoted tokens with prefix matching.
+    /// Build a safe FTS5 MATCH query: OR of quoted tokens with prefix
+    /// matching, plus morphology/acronym variants. `"compare"*` alone
+    /// never reaches "comparison" and "google apps script" never names
+    /// gas.ts — the extra OR terms cost nothing per-query (one MATCH,
+    /// wider vocabulary) and OR'd tail terms can't outrank real hits.
     static func ftsQuery(_ raw: String) -> String? {
         let tokens = raw
             .components(separatedBy: CharacterSet.alphanumerics.inverted)
             .map { $0.trimmingCharacters(in: .whitespaces) }
             .filter { $0.count >= 2 }
         guard !tokens.isEmpty else { return nil }
-        return tokens.prefix(12).map { "\"\($0)\"*" }.joined(separator: " OR ")
+        let prim = Array(tokens.prefix(12))
+        var clauses = prim.map { "\"\($0)\"*" }
+        var seen = Set(prim.map { $0.lowercased() })
+        var variants = 0
+        for t in prim where variants < 10 {
+            let l = t.lowercased()
+            for v in [singularAtom(l), stemAtom(l)].compactMap({ $0 })
+            where variants < 10 && seen.insert(v).inserted {
+                clauses.append("\"\(v)\"*")
+                variants += 1
+            }
+        }
+        // Acronyms scope to path_tokens: initials are filename-shaped
+        // evidence ("google apps script" → gas.ts), not content terms.
+        for ac in acronymAtoms(prim.map { $0.lowercased() }).prefix(6)
+        where !seen.contains(ac) {
+            clauses.append("path_tokens : \"\(ac)\"*")
+        }
+        return clauses.joined(separator: " OR ")
     }
 
     /// Test-path heuristic shared by the probe demotion and the fused
@@ -138,6 +160,54 @@ public enum Search {
         return nil
     }
 
+    /// Derivational suffixes, longest-first: the first matching suffix
+    /// wins, so "ational" must precede "ation"/"al" and "ities" before
+    /// "ies"/"s".
+    static let stemSuffixes = [
+        "ational", "ation", "ition", "tion", "sion", "ison",
+        "ments", "ment", "ities", "ity", "ness",
+        "ings", "ing", "ied", "ies",
+        "ful", "ous", "ive", "ize", "ise", "ely",
+        "ers", "ors", "es", "ed", "ly", "al", "ic", "er", "or",
+        "e", "s", "y",
+    ]
+
+    /// Light derivational stem — ONE suffix-strip pass. FTS5 prefix
+    /// `"x"*` requires the query atom to be a PREFIX of the indexed
+    /// token, so "compare" never reaches "comparison" (they diverge at
+    /// char 7). "compare"→"compar" and "comparison"→"compar" share the
+    /// stem, so `compar*` covers the whole morphology family at once;
+    /// over-stripped stems stay harmless under prefix matching.
+    static func stemAtom(_ tok: String) -> String? {
+        guard tok.count >= 5 else { return nil }
+        for suf in stemSuffixes
+        where tok.hasSuffix(suf) && tok.count - suf.count >= 3 {
+            return String(tok.dropLast(suf.count))
+        }
+        return nil
+    }
+
+    /// Acronym atoms — initials of consecutive-word windows, len 3-4:
+    /// "google apps script" → "gas" reaches gas.ts/GAS_PROTOCOL-style
+    /// paths the words themselves never name. Generated blind (no corpus
+    /// lookup); consumers gate on existence — the path probe's DF filter
+    /// drops atoms that name nothing, and bare OR clauses just never
+    /// match. Windows keep raw token order; ≥2-char members only.
+    static func acronymAtoms(_ tokens: [String]) -> [String] {
+        let words = tokens.filter { $0.count >= 2 }
+        var out: [String] = []
+        var seen: Set<String> = []
+        for w in [3, 4] where words.count >= w {
+            for i in 0...(words.count - w) {
+                let ac = words[i..<(i + w)].map { $0.prefix(1) }.joined()
+                if ac.allSatisfy({ $0.isLetter }), seen.insert(ac).inserted {
+                    out.append(ac)
+                }
+            }
+        }
+        return out
+    }
+
     /// The translation leg's FTS half: translated terms through
     /// `ftsTranslatedQuery`, then file-deduped and capped at 5 — a
     /// translation match is a file-level signal, same contract as the
@@ -210,7 +280,27 @@ public enum Search {
     /// a dense VN question plus lexicon terms needs the headroom.
     static func plannerProbeAtoms(query: String,
                                   extraTerms: [String] = []) -> [String] {
+        plannerProbeAtomSets(query: query, extraTerms: extraTerms).atoms
+    }
+
+    /// Probe atoms plus privilege tiers. Two derived classes join the
+    /// query's own atoms:
+    /// - acronym atoms ("google apps script" → "gas"): probe + claim +
+    ///   champion, but NO sole-carrier/surgical — an acronym prefix is
+    ///   coincidence-prone ("rat" ← "run and track" hits "rating"), so
+    ///   they rescue below-bar names but never crown a file surgical.
+    /// - derivational stems ("compare" → "compar"): probe + claim only
+    ///   — no surgical and no champion; a stem match is supporting
+    ///   evidence, not a name.
+    /// Stems precede acronyms in emission order: stems are ~1 per real
+    /// atom while acronym windows grow ~2× tokens — acronym-first order
+    /// pushed every stem past the 24-cap on dense queries.
+    static func plannerProbeAtomSets(query: String,
+                                     extraTerms: [String] = [])
+        -> (atoms: [String], weak: Set<String>, championless: Set<String>) {
         var out: [String] = []
+        var weak: Set<String> = []
+        var championless: Set<String> = []
         var seen: Set<String> = []
         for a in ftsTranslatedAtoms(extraTerms)
                 + ftsTranslatedAtoms([foldText(query)])
@@ -218,7 +308,22 @@ public enum Search {
         where a.count >= 3 && seen.insert(a).inserted {
             out.append(a)
         }
-        return Array(out.prefix(24))
+        let qToks = foldText(query)
+            .components(separatedBy: CharacterSet.alphanumerics.inverted)
+            .filter { $0.count >= 2 && !vnStopwords.contains($0) }
+        for a in Array(out) {
+            if let s = stemAtom(a), s.count >= 3, seen.insert(s).inserted {
+                out.append(s)
+                weak.insert(s)
+                championless.insert(s)
+            }
+        }
+        for ac in acronymAtoms(qToks)
+        where ac.count >= 3 && seen.insert(ac).inserted {
+            out.append(ac)
+            weak.insert(ac)
+        }
+        return (Array(out.prefix(24)), weak, championless)
     }
 
     /// Planner filename probe. A multi-term query lets one common atom
@@ -246,6 +351,8 @@ public enum Search {
     }
 
     static func plannerPathProbe(store: Store, atoms: [String],
+                                 weakAtoms: Set<String> = [],
+                                 championlessAtoms: Set<String> = [],
                                  pathFilter: String? = nil,
                                  rareMaxFiles: Int = 60,
                                  midMaxFiles: Int = 200,
@@ -262,10 +369,24 @@ public enum Search {
                     """, arguments: [match])
             }) ?? 0
         }
-        var pathDF: [String: Int] = [:]
-        for a in atoms {
-            pathDF[a] = fileCount("path_tokens : \"\(a)\"*")
+        // DF counting is 2×|atoms| independent read-only round-trips —
+        // the probe's dominant cost on dense queries (~48 sequential
+        // COUNTs ≈ 100ms+ tail). DatabasePool readers run concurrently
+        // under WAL, so path-DF and content-DF fan out together.
+        var pathDFMutable: [String: Int] = [:]
+        var contentDFMutable: [String: Int] = [:]
+        let dfLock = NSLock()
+        DispatchQueue.concurrentPerform(iterations: atoms.count) { i in
+            let a = atoms[i]
+            let p = fileCount("path_tokens : \"\(a)\"*")
+            let c = fileCount("folded : \"\(a)\"*")
+            dfLock.lock()
+            pathDFMutable[a] = p
+            contentDFMutable[a] = c
+            dfLock.unlock()
         }
+        let pathDF = pathDFMutable
+        let contentDF = contentDFMutable
         // Sole-carrier rarity is only meaningful against a corpus where
         // uniqueness surprises. On a ~120-file index nearly every path
         // token is DF=1, so "surgical" would crown random names — gate
@@ -288,13 +409,17 @@ public enum Search {
         guard !probed.isEmpty else { return [] }
         // Content-DF orders the folded-AND discriminators — an atom rare
         // in paths but common in prose ("dang", "trang") narrows nothing.
-        var contentDF: [String: Int] = [:]
-        for a in atoms { contentDF[a] = fileCount("folded : \"\(a)\"*") }
+        // (Counted in the parallel DF pass above.)
         var raw: [SearchHit] = []
         // Anchor atoms that fetched each path via a content-verified
         // (AND-folded) probe — enables glued-name coverage below.
         var viaAnd: [String: Set<String>] = [:]
-        for a in probed {
+        var firstFetchError: Error?
+        let fetchLock = NSLock()
+        // Each probed atom's AND-folded fetch is independent; ~20 of
+        // them sequential was the other half of the probe tail.
+        DispatchQueue.concurrentPerform(iterations: probed.count) { i in
+            let a = probed[i]
             // Discriminators must be atoms the target plausibly
             // CONTAINS, not merely rare ones: lowest content-DF picks
             // words absent from every file ("illustrate"), which ANDs
@@ -306,28 +431,38 @@ public enum Search {
             let disc = Array(others.prefix(3))
                 + Array(others.suffix(5))
             var hits: [SearchHit] = []
-            if !disc.isEmpty {
-                let and = "path_tokens : \"\(a)\"* AND folded : ("
-                    + disc.map { "\"\($0)\"*" }.joined(separator: " OR ")
-                    + ")"
-                hits = try ftsFileProbe(store: store, match: and,
-                                        limit: 20, pathFilter: pathFilter)
-                for h in hits { viaAnd[h.path, default: []].insert(a) }
+            do {
+                if !disc.isEmpty {
+                    let and = "path_tokens : \"\(a)\"* AND folded : ("
+                        + disc.map { "\"\($0)\"*" }.joined(separator: " OR ")
+                        + ")"
+                    hits = try ftsFileProbe(store: store, match: and,
+                                            limit: 20, pathFilter: pathFilter)
+                }
+                // Bare fallback only for atoms rare enough to trust it —
+                // a mid-DF atom without content agreement is skipped, not
+                // flooded in.
+                if hits.isEmpty, pathDF[a]! <= rareMaxFiles {
+                    hits = try ftsFileProbe(store: store,
+                                            match: "path_tokens : \"\(a)\"*",
+                                            limit: 20, pathFilter: pathFilter)
+                }
+            } catch {
+                fetchLock.lock()
+                if firstFetchError == nil { firstFetchError = error }
+                fetchLock.unlock()
+                return
             }
-            // Bare fallback only for atoms rare enough to trust it —
-            // a mid-DF atom without content agreement is skipped, not
-            // flooded in.
-            if hits.isEmpty, pathDF[a]! <= rareMaxFiles {
-                hits = try ftsFileProbe(store: store,
-                                        match: "path_tokens : \"\(a)\"*",
-                                        limit: 20, pathFilter: pathFilter)
-            }
+            fetchLock.lock()
             raw += hits
+            for h in hits { viaAnd[h.path, default: []].insert(a) }
+            fetchLock.unlock()
             if ProcessInfo.processInfo.environment["SWCTX_PROBE_DEBUG"] == "1" {
                 FileHandle.standardError.write(
                     "probe atom=\(a) hits=\(hits.map(\.path))\n".data(using: .utf8)!)
             }
         }
+        if raw.isEmpty, let e = firstFetchError { throw e }
         var seenFiles: Set<String> = []
         var scored: [(hit: SearchHit, surgical: Bool,
                       effectiveCover: Int, stemDensity: Double,
@@ -341,6 +476,12 @@ public enum Search {
         func claimedAtom(_ token: String) -> String? {
             if atomSet.contains(token) { return token }
             if let s = singularAtom(token), atomSet.contains(s) {
+                return s
+            }
+            // Stem equality credits morphology: path token "comparison"
+            // claims probe atom "compar" (stem of "compare") — without
+            // it a stem-fetched file scores coverage 0 on its own name.
+            if let s = stemAtom(token), atomSet.contains(s) {
                 return s
             }
             return nil
@@ -411,8 +552,12 @@ public enum Search {
             // "brain" names only p8_brain.py — the file IS the concept.
             // DF ≤ 2 proved too generous: twin copies of one script under
             // _legacy/ dirs share DF 2 yet name nothing rare.
+            // Weak (stem/acronym-derived) atoms never count as sole
+            // carriers: a derived atom that happens to name one file is
+            // not the query concept — acronym "rat" must not crown
+            // AhrefsDomainRatingService surgical for "run and track".
             let soleCarrier = rarityMatters && matchedAtoms.contains {
-                (pathDF[$0] ?? 0) == 1
+                (pathDF[$0] ?? 0) == 1 && !weakAtoms.contains($0)
             }
             // Effective coverage = distinct stem tokens explained, plus
             // ONE bonus for any directory-level agreement: doi-ngu.md
@@ -446,7 +591,9 @@ public enum Search {
             // Demote below same-coverage source files and strip surgical.
             let testLike = isTestLikePath(h.path.lowercased())
             let surgical = !testLike && rarityMatters
-                && stemAtoms.contains { (pathDF[$0] ?? 0) == 1 }
+                && stemAtoms.contains {
+                    (pathDF[$0] ?? 0) == 1 && !weakAtoms.contains($0)
+                }
             scored.append((h, surgical, effectiveCover, stemDensity,
                            rank - (testLike ? 0.5 : 0), idfScore,
                            Set(matchedAtoms), stemTokens.count))
@@ -493,7 +640,12 @@ public enum Search {
         // tail coverage, never displace stronger names.
         var championFor: [String: String] = [:]  // atom -> path
         for s in scored {
-            for a in s.atoms where championFor[a] == nil {
+            // Stem atoms earn no champion: a below-bar file named by a
+            // derived stem is noise, not a rescued name — champions
+            // exist for atoms the query actually said (incl. acronyms:
+            // "gas"→gas.ts is a deliberate name rescue).
+            for a in s.atoms
+            where championFor[a] == nil && !championlessAtoms.contains(a) {
                 championFor[a] = s.hit.path
             }
         }

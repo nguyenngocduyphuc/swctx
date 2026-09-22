@@ -202,6 +202,106 @@ final class SimulateTests: SwctxTestCase {
         XCTAssertEqual(body.first?["enclosing_kind"] as? String, "window")
     }
 
+    /// Nested decls: `inner` at :12 closes before the edited line :15 —
+    /// its chunk end (14) < 15, so it cannot enclose the change. The
+    /// owner is `outer` (:9, chunk ends 40). Without the chunk-end
+    /// bound, `s.line <= ?` alone blames `inner` (Grok delta-review).
+    func testNestedDeclBlamesEnclosingNotPrevious() throws {
+        let ws = try makeWorkspace()
+        defer { try? FileManager.default.removeItem(at: ws) }
+        let store = try Store(workspaceRoot: ws)
+        try store.pool.write { db in
+            try db.execute(sql: """
+                INSERT INTO chunks(id, file_id, idx, start_line, end_line,
+                                   kind, symbol, content, tokens)
+                VALUES(10,1,0,9,40,'function','outer','x',0)
+                """)
+            try db.execute(sql: """
+                INSERT INTO chunks(id, file_id, idx, start_line, end_line,
+                                   kind, symbol, content, tokens)
+                VALUES(11,1,0,12,14,'function','inner','x',0)
+                """)
+            try db.execute(sql: """
+                INSERT INTO symbols(file_id, chunk_id, name, kind, line,
+                                    norm_kind)
+                VALUES(1,10,'outer','function_declaration',9,'function')
+                """)
+            try db.execute(sql: """
+                INSERT INTO symbols(file_id, chunk_id, name, kind, line,
+                                    norm_kind)
+                VALUES(1,11,'inner','function_declaration',12,'function')
+                """)
+        }
+        let diff = """
+        --- a/a.py
+        +++ b/a.py
+        @@ -15,1 +15,1 @@
+        -    x = 1
+        +    x = 2
+        """
+        let r = try sim(ws, diff)
+        let body = r["body_changes"] as? [[String: Any]] ?? []
+        XCTAssertEqual(body.first?["enclosing_symbol"] as? String, "outer")
+    }
+
+    /// Callers of a common name ("greet" here) sort resolved-first:
+    /// edges pinned to the real def chunk outrank name-only matches,
+    /// which otherwise flood the LIMIT with unrelated files (Grok
+    /// delta-review finding).
+    func testDependentsResolveBeforeNameOnlyMatches() throws {
+        let ws = try makeWorkspace()
+        defer { try? FileManager.default.removeItem(at: ws) }
+        let store = try Store(workspaceRoot: ws)
+        try store.pool.write { db in
+            // zz.py calls the REAL greet (dst_chunk=1); aa.py/ab.py are
+            // name-only edges (dst_chunk NULL) — alphabetically first,
+            // so only resolved-first ordering surfaces the true caller.
+            for (i, p) in ["zz.py", "aa.py", "ab.py"].enumerated() {
+                try db.execute(sql: """
+                    INSERT INTO files(id, path, lang, sha, size, mtime,
+                                      indexed_at)
+                    VALUES(?, ?, 'python', 'x', 0, 0, 0)
+                    """, arguments: [i + 4, p])
+            }
+            for (id, fid) in [(5, 4), (6, 5), (7, 6)] {
+                try db.execute(sql: """
+                    INSERT INTO chunks(id, file_id, idx, start_line,
+                                       end_line, kind, symbol, content,
+                                       tokens)
+                    VALUES(?,?,0,1,50,'function','caller','x',0)
+                    """, arguments: [id, fid])
+            }
+            try db.execute(sql: """
+                INSERT INTO edges(src_chunk, dst_chunk, dst_name, kind,
+                                  line)
+                VALUES(5,1,'greet','calls',7)
+                """)
+            for id in [6, 7] {
+                try db.execute(sql: """
+                    INSERT INTO edges(src_chunk, dst_chunk, dst_name,
+                                      kind, line)
+                    VALUES(?,NULL,'greet','calls',3)
+                    """, arguments: [id])
+            }
+        }
+        let diff = """
+        --- a/a.py
+        +++ b/a.py
+        @@ -1,3 +1,3 @@
+        -def greet(name):
+        +def greet(name, lang):
+        """
+        let r = try sim(ws, diff)
+        let callers = (r["symbols"] as? [[String: Any]])?
+            .first?["callers"] as? [[String: Any]] ?? []
+        let paths = callers.compactMap { $0["path"] as? String }
+        // Resolved callers (b.py, tests/test_a.py, zz.py → dst_chunk=1)
+        // precede the name-only aa.py/ab.py despite sorting after them.
+        XCTAssertEqual(Array(paths.prefix(3)),
+                       ["b.py", "tests/test_a.py", "zz.py"])
+        XCTAssertEqual(Array(paths.suffix(2)), ["aa.py", "ab.py"])
+    }
+
     func testEmptyDiffIsGraceful() throws {
         let ws = try makeWorkspace()
         let r = try sim(ws, "not a diff\n")

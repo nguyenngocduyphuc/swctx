@@ -279,11 +279,13 @@ public enum Answer {
         if let t = Translation.activeCache.get(Translation.cacheKey(query)) {
             terms += t
         }
-        let atoms = Search.plannerProbeAtoms(query: query,
-                                             extraTerms: terms)
+        let (atoms, weak, championless) = Search.plannerProbeAtomSets(
+            query: query, extraTerms: terms)
         guard !atoms.isEmpty else { return [] }
         return (try? Search.plannerPathProbe(
-            store: store, atoms: atoms, pathFilter: pathFilter)) ?? []
+            store: store, atoms: atoms, weakAtoms: weak,
+            championlessAtoms: championless,
+            pathFilter: pathFilter)) ?? []
     }
 
     /// One planner search: the filename probe runs FIRST (`why=
