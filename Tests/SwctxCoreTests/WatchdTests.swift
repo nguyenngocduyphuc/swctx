@@ -86,5 +86,9 @@ final class WatchdTests: XCTestCase {
 
         try "not json".write(to: list, atomically: true, encoding: .utf8)
         XCTAssertThrowsError(try Watchd.loadWorkspaces(from: list))
+        // A corrupt list must not be silently overwritten by add/remove —
+        // the error propagates instead of clobbering the file.
+        XCTAssertThrowsError(try Watchd.addWorkspace(dir.path, to: list))
+        XCTAssertThrowsError(try Watchd.removeWorkspace(dir.path, from: list))
     }
 }

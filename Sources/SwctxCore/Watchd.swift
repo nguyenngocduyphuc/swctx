@@ -87,7 +87,7 @@ public enum Watchd {
             throw NSError(domain: "swctx", code: 2,
                 userInfo: [NSLocalizedDescriptionKey: "not a directory: \(root.path)"])
         }
-        var ws = (try? loadWorkspaces(from: url)) ?? []
+        var ws = try loadWorkspaces(from: url)
         if ws.contains(root.path) { return (false, ws) }
         ws.append(root.path)
         try save(ws, to: url)
@@ -102,7 +102,7 @@ public enum Watchd {
     {
         let url = url ?? listURL
         let root = normalize(path)
-        var ws = (try? loadWorkspaces(from: url)) ?? []
+        var ws = try loadWorkspaces(from: url)
         let before = ws.count
         ws.removeAll { $0 == root.path }
         if ws.count != before { try save(ws, to: url) }
@@ -213,7 +213,14 @@ public enum Watchd {
             let first = r.output.split(separator: "\n").first.map(String.init) ?? ""
             lines.append("launchd: not loaded (\(first))")
         }
-        let ws = (try? loadWorkspaces()) ?? []
+        let ws: [String]
+        do {
+            ws = try loadWorkspaces()
+        } catch {
+            ws = []
+            lines.append("workspaces: ERROR reading \(listURL.path): "
+                + error.localizedDescription)
+        }
         lines.append("workspaces (\(listURL.path)):")
         if ws.isEmpty {
             lines.append("  (none — `swctx watch add <path>`)")
