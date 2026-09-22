@@ -1589,84 +1589,142 @@ public enum SwctxTools {
         let (filterSQL, filterParams) = recordFilters(args, alias: "r.")
         let whereClause = filterSQL.isEmpty ? "" : " AND \(filterSQL)"
         let wsClause = wsKey == nil ? "" : " AND r.ws = ?"
+        let wsEq = wsKey == nil ? "" : "r.ws = ?"
         do {
-            if scope == "all" {
-                // Ranked union, workspace hits first; same dedup as
-                // list_records scope=all (put_record dual-writes).
-                let wsRows = try store?.pool.read { db in
-                    try Row.fetchAll(db, sql: """
-                        SELECT r.id, r.kind, r.source, r.status, r.title, r.payload, r.created_at,
-                               r.head_sha, r.anchors, bm25(records_fts) AS rank
-                        FROM records_fts JOIN records r ON r.id = records_fts.rowid
-                        WHERE records_fts MATCH ?\(whereClause)
-                        ORDER BY rank
-                        """, arguments: StatementArguments([match] + filterParams))
-                } ?? []
-                var merged = wsRows.map { recordDict($0) }
-                var seen = Set(wsRows.map { recordContentKey($0) })
-                if let global = GlobalRecords.shared {
-                    let gRows = try global.pool.read { db in
-                        try Row.fetchAll(db, sql: """
-                            SELECT r.id, r.ws, r.kind, r.source, r.status, r.title, r.payload, r.created_at,
-                                   r.head_sha, r.anchors, bm25(records_fts) AS rank
-                            FROM records_fts JOIN records r ON r.id = records_fts.rowid
-                            WHERE records_fts MATCH ?\(whereClause)\(wsClause)
-                            ORDER BY rank
-                            """, arguments: StatementArguments([match] + filterParams + wsParams))
-                    }
-                    for r in gRows {
-                        let key = recordContentKey(r)
-                        guard !seen.contains(key) else { continue }
-                        seen.insert(key)
-                        merged.append(recordDict(r))
-                    }
+            // Folded-keyword rescue leg: unicode61 FTS folds case only, so a
+            // diacritic-stripped VN query can never reach a diacritics-bearing
+            // record. Score the newest filtered rows in memory; hits FTS
+            // missed append after bm25 hits tagged match=folded.
+            func rescueRows(_ db: Database, _ extraSQL: String = "",
+                            _ extraParams: [DatabaseValueConvertible] = [],
+                            selectWS: Bool = false) throws -> [(Row, Double)] {
+                let terms = GlobalRecords.foldedTerms(q)
+                guard !terms.isEmpty else { return [] }
+                var sql = """
+                    SELECT r.id, \(selectWS ? "r.ws," : "") r.kind, r.source,
+                           r.status, r.title, r.payload, r.created_at,
+                           r.head_sha, r.anchors FROM records r
+                    """
+                var clauses = filterSQL.isEmpty ? [] : [filterSQL]
+                var params = filterParams
+                if !extraSQL.isEmpty {
+                    clauses.append(extraSQL); params += extraParams
                 }
+                if !clauses.isEmpty {
+                    sql += " WHERE " + clauses.joined(separator: " AND ")
+                }
+                sql += " ORDER BY r.id DESC LIMIT 4000"
+                return try Row.fetchAll(db, sql: sql,
+                    arguments: StatementArguments(params)).compactMap { r in
+                    let s = GlobalRecords.relevance(
+                        terms: terms,
+                        title: (r["title"] as? String) ?? "",
+                        payload: (r["payload"] as? String) ?? "")
+                    return s > 0 ? (r, s) : nil
+                }.sorted {
+                    if $0.1 != $1.1 { return $0.1 > $1.1 }
+                    let a = ($0.0["created_at"] as? Double) ?? 0
+                    let b = ($1.0["created_at"] as? Double) ?? 0
+                    if a != b { return a > b }
+                    return (($0.0["id"] as? Int64) ?? 0)
+                        > (($1.0["id"] as? Int64) ?? 0)
+                }
+            }
+            func appendRescue(_ merged: inout [[String: Any]],
+                              _ seen: inout Set<String>,
+                              _ resc: [(Row, Double)]) {
+                for (r, s) in resc {
+                    let key = recordContentKey(r)
+                    guard seen.insert(key).inserted else { continue }
+                    var d = recordDict(r)
+                    d["match"] = "folded"; d["score"] = s
+                    merged.append(d)
+                }
+            }
+            func paged(_ merged: [[String: Any]]) -> String {
                 let page = Array(merged.dropFirst(offset).prefix(limit))
                 return json(["records": withStaleness(page, store: store),
                              "total": merged.count])
+            }
+            let ftsCols = "r.id, r.kind, r.source, r.status, r.title,"
+                + " r.payload, r.created_at, r.head_sha, r.anchors,"
+                + " bm25(records_fts) AS rank"
+            if scope == "all" {
+                // Ranked union, workspace hits first; same dedup as
+                // list_records scope=all (put_record dual-writes).
+                var merged: [[String: Any]] = []
+                var seen = Set<String>()
+                if let store {
+                    let (fts, resc) = try store.pool.read { db in
+                        (try Row.fetchAll(db, sql: """
+                            SELECT \(ftsCols)
+                            FROM records_fts JOIN records r ON r.id = records_fts.rowid
+                            WHERE records_fts MATCH ?\(whereClause)
+                            ORDER BY rank
+                            """, arguments: StatementArguments([match] + filterParams)),
+                         try rescueRows(db))
+                    }
+                    for r in fts {
+                        seen.insert(recordContentKey(r))
+                        merged.append(recordDict(r))
+                    }
+                    appendRescue(&merged, &seen, resc)
+                }
+                if let global = GlobalRecords.shared {
+                    let (fts, resc) = try global.pool.read { db in
+                        (try Row.fetchAll(db, sql: """
+                            SELECT r.ws, \(ftsCols)
+                            FROM records_fts JOIN records r ON r.id = records_fts.rowid
+                            WHERE records_fts MATCH ?\(whereClause)\(wsClause)
+                            ORDER BY rank
+                            """, arguments: StatementArguments(
+                                [match] + filterParams + wsParams)),
+                         try rescueRows(db, wsEq, wsParams, selectWS: true))
+                    }
+                    for r in fts {
+                        let key = recordContentKey(r)
+                        guard seen.insert(key).inserted else { continue }
+                        merged.append(recordDict(r))
+                    }
+                    appendRescue(&merged, &seen, resc)
+                }
+                return paged(merged)
             }
             if scope == "global" {
                 guard let global = GlobalRecords.shared else {
                     return json(["records": [Any](), "total": 0])
                 }
-                let (rows, total) = try global.pool.read { db in
-                    let t = try Int.fetchOne(db, sql: """
-                        SELECT COUNT(*) FROM records_fts JOIN records r ON r.id = records_fts.rowid
-                        WHERE records_fts MATCH ?\(whereClause)\(wsClause)
-                        """, arguments: StatementArguments([match] + filterParams + wsParams)) ?? 0
-                    let r = try Row.fetchAll(db, sql: """
-                        SELECT r.id, r.ws, r.kind, r.source, r.status, r.title, r.payload, r.created_at,
-                               r.head_sha, r.anchors, bm25(records_fts) AS rank
+                let (fts, resc) = try global.pool.read { db in
+                    (try Row.fetchAll(db, sql: """
+                        SELECT r.ws, \(ftsCols)
                         FROM records_fts JOIN records r ON r.id = records_fts.rowid
                         WHERE records_fts MATCH ?\(whereClause)\(wsClause)
-                        ORDER BY rank LIMIT ? OFFSET ?
-                        """, arguments: StatementArguments([match] + filterParams + wsParams + [limit, offset]))
-                    return (r, t)
+                        ORDER BY rank
+                        """, arguments: StatementArguments(
+                            [match] + filterParams + wsParams)),
+                     try rescueRows(db, wsEq, wsParams, selectWS: true))
                 }
-                return json(["records": withStaleness(rows.map { recordDict($0) },
-                                                      store: store),
-                             "total": total])
+                var merged = fts.map { recordDict($0) }
+                var seen = Set(fts.map { recordContentKey($0) })
+                appendRescue(&merged, &seen, resc)
+                return paged(merged)
             }
             guard let store else {
                 return json(["error": "workspace scope requires a resolvable indexed workspace"])
             }
-            let (rows, total) = try store.pool.read { db in
-                let t = try Int.fetchOne(db, sql: """
-                    SELECT COUNT(*) FROM records_fts JOIN records r ON r.id = records_fts.rowid
-                    WHERE records_fts MATCH ?\(whereClause)
-                    """, arguments: StatementArguments([match] + filterParams)) ?? 0
-                let r = try Row.fetchAll(db, sql: """
-                    SELECT r.id, r.kind, r.source, r.status, r.title, r.payload, r.created_at,
-                           r.head_sha, r.anchors, bm25(records_fts) AS rank
+            let (fts, resc) = try store.pool.read { db in
+                (try Row.fetchAll(db, sql: """
+                    SELECT \(ftsCols)
                     FROM records_fts JOIN records r ON r.id = records_fts.rowid
                     WHERE records_fts MATCH ?\(whereClause)
-                    ORDER BY rank LIMIT ? OFFSET ?
-                    """, arguments: StatementArguments([match] + filterParams + [limit, offset]))
-                return (r, t)
+                    ORDER BY rank
+                    """, arguments: StatementArguments([match] + filterParams)),
+                 try rescueRows(db))
             }
-            return json(["records": withStaleness(rows.map { recordDict($0) },
-                                                  store: store),
-                         "total": total])
+            var merged = fts.map { recordDict($0) }
+            var seen = Set(fts.map { recordContentKey($0) })
+            appendRescue(&merged, &seen, resc)
+            return paged(merged)
         } catch {
             return json(["error": "records unavailable: \(error.localizedDescription)"])
         }
