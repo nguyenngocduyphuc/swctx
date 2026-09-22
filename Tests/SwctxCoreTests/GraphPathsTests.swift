@@ -5,7 +5,7 @@ import MCP
 
 /// graph_paths traversal — frontier-batched BFS (shortest) and per-node
 /// neighbor queries (all_simple) over the resolved-edge table.
-final class GraphPathsTests: XCTestCase {
+final class GraphPathsTests: SwctxTestCase {
     /// Temp workspace + direct-SQL fixture: precise edge control and
     /// deterministic chunk ids/row order without running the indexer.
     private func makeWorkspace(

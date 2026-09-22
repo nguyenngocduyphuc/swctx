@@ -7,7 +7,7 @@ import MCP
 /// reads flag a record only when HEAD moved AND an anchor stopped
 /// resolving, prime marks stale records, and every tool response can
 /// carry the TTL-cached meta.stale health line.
-final class StalenessTests: XCTestCase {
+final class StalenessTests: SwctxTestCase {
 
     /// Temp workspace holding one indexed symbol (`alpha_target` in a.py)
     /// and one nested file (sub/keeper.py). No git — callers add it.

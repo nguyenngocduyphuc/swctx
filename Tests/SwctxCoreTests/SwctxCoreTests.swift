@@ -4,7 +4,7 @@ import Accelerate
 import GRDB
 import MCP
 
-final class SwctxCoreTests: XCTestCase {
+final class SwctxCoreTests: SwctxTestCase {
     func testAnalyzerSwift() throws {
         let src = """
         import Foundation

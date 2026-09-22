@@ -5,7 +5,7 @@ import XCTest
 /// a fast op returns its value; anything still running past its budget
 /// surfaces `DeadlineError` (enveloped as E_DEADLINE_EXCEEDED upstream)
 /// instead of hanging the client.
-final class DeadlineTests: XCTestCase {
+final class DeadlineTests: SwctxTestCase {
     func testFastOperationReturnsValueWithinDeadline() async throws {
         let v = try await MCPServer.withDeadline(.seconds(5), tool: "probe") {
             try await Task.sleep(for: .milliseconds(10))

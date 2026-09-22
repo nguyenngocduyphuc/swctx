@@ -28,7 +28,18 @@ public final class Store: @unchecked Sendable {
         return digest.prefix(6).map { String(format: "%02x", $0) }.joined()
     }
 
+    /// swctx state dir: `SWCTX_HOME` when set (the dir itself, replacing
+    /// `~/.swctx`), else `~/.swctx`. One resolver covers everything under
+    /// it — indexes/, workspaces.json, records.db, watchd.json, logs/,
+    /// translate_cache.json — so tests point SWCTX_HOME at a temp dir and
+    /// never touch the real home. Model weights (`~/.swctx/models/`,
+    /// resolved by the embedders/rerankers) deliberately stay on the real
+    /// home: they are large read-only assets tests need to find.
     public static func baseDir() -> URL {
+        if let p = ProcessInfo.processInfo.environment["SWCTX_HOME"],
+           !p.isEmpty {
+            return URL(fileURLWithPath: p, isDirectory: true)
+        }
         let home = FileManager.default.homeDirectoryForCurrentUser
         return home.appendingPathComponent(".swctx", isDirectory: true)
     }

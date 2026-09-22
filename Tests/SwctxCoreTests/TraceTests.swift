@@ -3,7 +3,7 @@ import XCTest
 import GRDB
 
 /// trace_lookup — stack text -> parsed frames -> indexed chunks.
-final class TraceTests: XCTestCase {
+final class TraceTests: SwctxTestCase {
 
     /// Workspace: src/app.py defines `run()` at lines 10-30, src/lib.py
     /// calls it (edge -> chunk 1). A commit record lists src/app.py.

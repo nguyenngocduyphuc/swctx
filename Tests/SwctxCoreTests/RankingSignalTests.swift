@@ -6,7 +6,7 @@ import GRDB
 /// atom coverage, depth penalty, trigram fallback gating, and the
 /// candidate-pool API. All fixtures index with autoEmbed=false so no
 /// CoreML model is needed — the semantic leg just returns empty.
-final class RankingSignalTests: XCTestCase {
+final class RankingSignalTests: SwctxTestCase {
     private func tempDir() throws -> URL {
         let dir = FileManager.default.temporaryDirectory
             .appendingPathComponent("swctx-test-\(UUID().uuidString)")

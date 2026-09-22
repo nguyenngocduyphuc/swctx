@@ -18,7 +18,7 @@ import XCTest
 /// ~/.swctx/models/jina-reranker-v2-base-multilingual/ is absent —
 /// instantiating RerankerV3 loads the ~531MB mlpackage, so this stays
 /// opt-in on machines without the spike artifacts.
-final class RerankerV3Tests: XCTestCase {
+final class RerankerV3Tests: SwctxTestCase {
 
     private func loadReranker(
         file: StaticString = #filePath, line: UInt = #line

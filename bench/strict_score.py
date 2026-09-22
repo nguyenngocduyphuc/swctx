@@ -94,12 +94,17 @@ def leg_answer(bin_path, ws, query, backend=None, plan=False):
         argv.append("--plan")
     payload, lat, err = run_json(argv, timeout=600)
     if err:
-        return 0, 0, lat, err
+        return 0, 0, False, lat, err
     ev_paths = [norm_path(e.get("path"))
                 for e in payload.get("evidence", [])]
+    # answer_cited counts ONLY when the server-side validator passed:
+    # citation_valid=false means every citation was rejected (out-of-pack
+    # id, invented path, wrong field type) so its paths are untrusted.
+    # Resolved citation paths are pack-verified — score them as-is.
+    cvalid = payload.get("citation_valid") is True
     cited = [norm_path(c.get("path"))
-             for c in payload.get("citations", [])]
-    return ev_paths, cited, lat, None
+             for c in payload.get("citations", [])] if cvalid else []
+    return ev_paths, cited, cvalid, lat, None
 
 
 def leg_find_defs(sess, ws, symbol):
@@ -179,12 +184,13 @@ def main():
                 row["search_err"] = err
 
         if want_answer:
-            paths, cited, lat, err = leg_answer(
+            paths, cited, cvalid, lat, err = leg_answer(
                 args.swctx_bin, ws, query,
                 backend=args.backend, plan=args.plan)
             row["answer_rank"] = rank_of(gold, paths) if not err else 0
             row["answer_cited_rank"] = \
                 rank_of(gold, cited) if not err else 0
+            row["answer_citation_valid"] = cvalid
             row["answer_ms"] = round(lat, 1)
             if err:
                 row["answer_err"] = err

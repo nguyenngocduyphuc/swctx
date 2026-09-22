@@ -6,7 +6,7 @@ import GRDB
 /// (bench/code_audit.md, 2026-09-19). Each test pins one fix:
 /// corrupt-input crashes, deterministic SQL ranking, and per-store
 /// embedder isolation.
-final class AuditRegressionTests: XCTestCase {
+final class AuditRegressionTests: SwctxTestCase {
     private func tempDir() throws -> URL {
         let dir = FileManager.default.temporaryDirectory
             .appendingPathComponent("swctx-audit-\(UUID().uuidString)")

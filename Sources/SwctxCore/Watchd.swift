@@ -47,11 +47,19 @@ public enum Watchd {
     }
 
     /// Workspaces from the list file. Missing file → empty; a file that
-    /// exists but does not decode is a real error (silently treating it
-    /// as empty would leave the fleet dead with no visible cause).
+    /// exists but cannot be read or does not decode is a real error
+    /// (silently treating it as empty would leave the fleet dead with no
+    /// visible cause — or let add/remove clobber it).
     public static func loadWorkspaces(from url: URL? = nil) throws -> [String] {
         let url = url ?? listURL
-        guard let data = try? Data(contentsOf: url) else { return [] }
+        let data: Data
+        do {
+            data = try Data(contentsOf: url)
+        } catch let e as NSError
+            where e.domain == NSCocoaErrorDomain
+                && e.code == NSFileReadNoSuchFileError {
+            return []
+        }
         return try JSONDecoder().decode(ListFile.self, from: data).workspaces
     }
 
@@ -209,6 +217,16 @@ public enum Watchd {
             lines.append(picked.isEmpty
                 ? "launchd: loaded (no state lines parsed)"
                 : "launchd: " + picked.joined(separator: " · "))
+            // The daemon keeps running the binary it was bootstrapped
+            // with — after a rebuild it drifts from what `swctx` is now.
+            if let pid = launchdPID(r.output),
+               let daemonBin = pidPath(pid),
+               let current = currentBinaryPath() {
+                lines.append(daemonBin == current
+                    ? "binary_stale: false"
+                    : "binary_stale: true (daemon pid \(pid) runs "
+                        + "\(daemonBin), current is \(current))")
+            }
         } else {
             let first = r.output.split(separator: "\n").first.map(String.init) ?? ""
             lines.append("launchd: not loaded (\(first))")
@@ -228,6 +246,40 @@ public enum Watchd {
             lines += ws.map { "  \($0)" }
         }
         return lines
+    }
+
+    /// The daemon's pid from `launchctl print` output — present only
+    /// while the agent is running.
+    static func launchdPID(_ printOutput: String) -> Int32? {
+        for raw in printOutput.split(separator: "\n") {
+            let t = raw.trimmingCharacters(in: .whitespaces)
+            if t.hasPrefix("pid =") {
+                return Int32(t.dropFirst(5)
+                    .trimmingCharacters(in: .whitespaces))
+            }
+        }
+        return nil
+    }
+
+    /// Real path of the binary `pid` is running — nil when the process
+    /// is gone or not inspectable.
+    static func pidPath(_ pid: Int32) -> String? {
+        var buf = [CChar](repeating: 0, count: Int(MAXPATHLEN))
+        guard proc_pidpath(pid, &buf, UInt32(buf.count)) > 0 else { return nil }
+        return URL(fileURLWithPath: String(cString: buf))
+            .resolvingSymlinksInPath().standardizedFileURL.path
+    }
+
+    /// This process's binary path, resolved — what `watch install`
+    /// would write into the plist today.
+    static func currentBinaryPath() -> String? {
+        var buf = [CChar](repeating: 0, count: Int(MAXPATHLEN))
+        var size = UInt32(buf.count)
+        guard _NSGetExecutablePath(&buf, &size) == 0 else { return nil }
+        let path = String(decoding: buf.prefix(while: { $0 != 0 })
+            .map { UInt8(bitPattern: $0) }, as: UTF8.self)
+        return URL(fileURLWithPath: path)
+            .resolvingSymlinksInPath().standardizedFileURL.path
     }
 
     /// `launchctl args` → exit status + combined stdout/stderr. Pipes

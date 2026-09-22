@@ -1,7 +1,7 @@
 import XCTest
 @testable import SwctxCore
 
-final class WorkspaceResolutionTests: XCTestCase {
+final class WorkspaceResolutionTests: SwctxTestCase {
 
     /// Foundation can return "/.." for the parent of "/" — the old
     /// "parent == self" check then never fired and the ancestor walk

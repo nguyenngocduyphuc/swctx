@@ -13,7 +13,7 @@ import Foundation
 /// the same wire path an agent CLI drives. Every read goes through poll()
 /// with a ~15s deadline, so a regressed server fails an assertion instead
 /// of hanging the test suite.
-final class McpColdCwdTests: XCTestCase {
+final class McpColdCwdTests: SwctxTestCase {
 
     /// Debug binary: `swift test` runs with the package root as cwd; the
     /// #filePath fallback keeps the lookup correct from any other cwd.

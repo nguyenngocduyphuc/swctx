@@ -6,7 +6,7 @@ import GRDB
 /// meta binding, cased-vs-uncased WordPiece tokenization, and — when the
 /// weights are installed — a real Vietnamese retrieval signal check plus
 /// per-model embed latency (printed for bench/vn_model_spike.md).
-final class MultilingualEmbedderTests: XCTestCase {
+final class MultilingualEmbedderTests: SwctxTestCase {
     private func tempDir() throws -> URL {
         let dir = FileManager.default.temporaryDirectory
             .appendingPathComponent("swctx-test-\(UUID().uuidString)")

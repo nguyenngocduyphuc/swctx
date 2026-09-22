@@ -6,7 +6,7 @@ import GRDB
 /// chunks (the wipe used to cascade-delete every embedding and the bounded
 /// embed batch only refilled a fraction), and the watcher must defer
 /// reindexing while git holds the index lock.
-final class IndexOpsTests: XCTestCase {
+final class IndexOpsTests: SwctxTestCase {
     private func tempDir() throws -> URL {
         let dir = FileManager.default.temporaryDirectory
             .appendingPathComponent("swctx-test-\(UUID().uuidString)")

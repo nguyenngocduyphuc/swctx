@@ -2,7 +2,7 @@ import XCTest
 @testable import SwctxCore
 import GRDB
 
-final class PrimeTests: XCTestCase {
+final class PrimeTests: SwctxTestCase {
 
     /// Indexes a tiny temp workspace and returns (dir, store); caller
     /// cleans up `dir` via defer.

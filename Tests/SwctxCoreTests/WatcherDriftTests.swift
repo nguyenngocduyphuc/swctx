@@ -7,7 +7,7 @@ import GRDB
 /// in place), the watcher must self-terminate so launchd respawns it
 /// into the current binary instead of writing rows in the stale layout —
 /// the pre-v6 watchers' empty `folded` writes were the incident.
-final class WatcherDriftTests: XCTestCase {
+final class WatcherDriftTests: SwctxTestCase {
     private func tempDir() throws -> URL {
         let dir = FileManager.default.temporaryDirectory
             .appendingPathComponent("swctx-test-\(UUID().uuidString)")

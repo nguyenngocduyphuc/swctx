@@ -7,7 +7,7 @@ import MCP
 /// fixture: a.py defines greet, b.py (prod) calls it, tests/test_a.py
 /// calls it too — only the test file must appear in symbol mode, and
 /// file mode must map test_a.py -> greet while skipping prod callers.
-final class TestCoverageTests: XCTestCase {
+final class TestCoverageTests: SwctxTestCase {
 
     private func makeWorkspace() throws -> URL {
         let dir = FileManager.default.temporaryDirectory

@@ -12,7 +12,7 @@ import XCTest
 /// All tests XCTSkip when ~/.swctx/models/bge-reranker-v2-m3/ is absent
 /// — instantiating RerankerV2 loads the ~1.1GB mlpackage, so this stays
 /// opt-in on machines without the spike artifacts.
-final class RerankerV2Tests: XCTestCase {
+final class RerankerV2Tests: SwctxTestCase {
 
     private func loadReranker(
         file: StaticString = #filePath, line: UInt = #line

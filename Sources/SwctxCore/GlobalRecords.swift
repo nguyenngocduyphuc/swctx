@@ -228,11 +228,17 @@ public final class GlobalRecords: @unchecked Sendable {
     }
 
     /// `git args` in `cwd` → trimmed stdout on exit 0; nil on missing git,
-    /// non-zero exit, or a >5s stall. /usr/bin/env finds git on any PATH.
-    static func git(_ args: [String], cwd: URL) -> String? {
+    /// non-zero exit, or a >15s stall. /usr/bin/env finds git on any PATH.
+    /// Both pipes drain concurrently with the wait (`git status
+    /// --porcelain` on a big repo exceeds the 64KB pipe buffer — waiting
+    /// for exit before reading deadlocks the child on a full pipe).
+    /// Same discipline as `Watchd.launchctl`. `binary` is the test seam:
+    /// pass an absolute path to run a stand-in for git.
+    static func git(_ args: [String], cwd: URL,
+                    binary: String = "git") -> String? {
         let p = Process()
         p.executableURL = URL(fileURLWithPath: "/usr/bin/env")
-        p.arguments = ["git"] + args
+        p.arguments = [binary] + args
         p.currentDirectoryURL = cwd
         let out = Pipe(), err = Pipe()
         p.standardOutput = out
@@ -245,15 +251,37 @@ public final class GlobalRecords: @unchecked Sendable {
             usleep(50_000)
             do { try p.run() } catch { return nil }
         }
+        // NSMutableData: class references — the drain closures mutate
+        // through them without capturing vars (Sendable-safe).
+        let outData = NSMutableData(), errData = NSMutableData()
+        let drain = DispatchGroup()
+        drain.enter()
+        DispatchQueue.global().async {
+            outData.append(out.fileHandleForReading.readDataToEndOfFile())
+            drain.leave()
+        }
+        drain.enter()
+        DispatchQueue.global().async {
+            errData.append(err.fileHandleForReading.readDataToEndOfFile())
+            drain.leave()
+        }
         let sem = DispatchSemaphore(value: 0)
         DispatchQueue.global().async { p.waitUntilExit(); sem.signal() }
-        if sem.wait(timeout: .now() + .seconds(5)) == .timedOut {
+        if sem.wait(timeout: .now() + .seconds(15)) == .timedOut {
             p.terminate()
+            _ = sem.wait(timeout: .now() + .milliseconds(300))
+            _ = drain.wait(timeout: .now() + .seconds(2))
+            let e = String(decoding: errData as Data, as: UTF8.self)
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            var msg = "swctx: git \(args.joined(separator: " ")) "
+                + "timed out after 15s (cwd: \(cwd.path))"
+            if !e.isEmpty { msg += ": \(e.suffix(400))" }
+            FileHandle.standardError.write((msg + "\n").data(using: .utf8)!)
             return nil
         }
+        _ = drain.wait(timeout: .now() + .seconds(5))
         guard p.terminationStatus == 0 else { return nil }
-        return String(decoding: out.fileHandleForReading.readDataToEndOfFile(),
-                      as: UTF8.self)
+        return String(decoding: outData as Data, as: UTF8.self)
             .trimmingCharacters(in: .whitespacesAndNewlines)
     }
 }

@@ -5,7 +5,7 @@ import XCTest
 /// global ledger under scope=global, workspace-first-then-global under
 /// scope=all. The two ledgers are separate id namespaces — a dual-written
 /// record has a different id in each.
-final class GetRecordScopeTests: XCTestCase {
+final class GetRecordScopeTests: SwctxTestCase {
     /// Temp workspace with an index (the records table requires schema v2+).
     private func makeWorkspace() throws -> URL {
         let dir = FileManager.default.temporaryDirectory

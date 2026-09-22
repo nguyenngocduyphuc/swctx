@@ -5,7 +5,7 @@ import MCP
 
 /// Usage telemetry ledger: usage_events in the global records DB
 /// (GlobalRecords path-init seam keeps these off ~/.swctx).
-final class UsageTelemetryTests: XCTestCase {
+final class UsageTelemetryTests: SwctxTestCase {
     private func tempDir() throws -> URL {
         let dir = FileManager.default.temporaryDirectory
             .appendingPathComponent("swctx-usage-\(UUID().uuidString)")

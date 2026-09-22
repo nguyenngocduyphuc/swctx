@@ -25,7 +25,7 @@ import XCTest
 ///    below are asserted. They were produced by `sentencepiece` 0.2.2
 ///    `EncodeAsIds` wrapped in bos=1 / eos=2. The tests XCTSkip when the
 ///    file is absent so CI without the download still passes.
-final class SPTokenizerTests: XCTestCase {
+final class SPTokenizerTests: SwctxTestCase {
 
     // MARK: - Tiny protobuf wire writer (test-only)
 

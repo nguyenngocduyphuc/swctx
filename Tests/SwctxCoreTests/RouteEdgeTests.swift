@@ -6,7 +6,7 @@ import GRDB
 /// to the chunk holding the backend route def (`@app.get('/api/x')`),
 /// via the route symbol the analyzer emits. The link then behaves like
 /// any call edge — find_usages, graph_neighbors, get_impact all see it.
-final class RouteEdgeTests: XCTestCase {
+final class RouteEdgeTests: SwctxTestCase {
 
     private func makeWorkspace() throws -> URL {
         let dir = FileManager.default.temporaryDirectory

@@ -8,7 +8,7 @@ import GRDB
 /// Same seam as AnswerTests: a fake `ollama` shell script (list/run)
 /// replies per-call from reply_<n>.txt — planner rounds consume
 /// reply_1..k, the synthesis attempt consumes the next reply.
-final class PlannerTests: XCTestCase {
+final class PlannerTests: SwctxTestCase {
 
     /// Workspace: tomtat.swift (initial-query target) + six files each
     /// carrying a unique token the planner can find deterministically.

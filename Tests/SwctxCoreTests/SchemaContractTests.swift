@@ -6,7 +6,7 @@ import MCP
 /// schema strict clients reject on load (a `title` property object at the
 /// schema root is a reserved-keyword violation). These tests validate the
 /// surface agents actually touch, not the engine beneath it.
-final class SchemaContractTests: XCTestCase {
+final class SchemaContractTests: SwctxTestCase {
 
     /// Every advertised tool must expose a draft-07-shaped inputSchema:
     /// root type=object, a `properties` dict, `required` ⊆ property names,

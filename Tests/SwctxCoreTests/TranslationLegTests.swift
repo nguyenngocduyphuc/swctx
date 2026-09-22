@@ -5,7 +5,7 @@ import XCTest
 /// cache, subprocess deadline and the leg's FTS/cap behaviour — all
 /// deterministic via SWCTX_OLLAMA stub scripts; the real Ollama is never
 /// required.
-final class TranslationLegTests: XCTestCase {
+final class TranslationLegTests: SwctxTestCase {
     private var savedEnv: [String: String?] = [:]
 
     override func tearDown() {

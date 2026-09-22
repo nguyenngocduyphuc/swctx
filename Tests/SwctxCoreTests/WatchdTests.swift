@@ -6,7 +6,7 @@ import XCTest
 /// dedupe, symlink/`~` normalization, remove, missing/corrupt file
 /// handling. The launchctl verbs need a real gui domain and are not
 /// exercised in tests.
-final class WatchdTests: XCTestCase {
+final class WatchdTests: SwctxTestCase {
     private func tempDir() throws -> URL {
         let dir = FileManager.default.temporaryDirectory
             .appendingPathComponent("swctx-test-\(UUID().uuidString)")
@@ -90,5 +90,24 @@ final class WatchdTests: XCTestCase {
         // the error propagates instead of clobbering the file.
         XCTAssertThrowsError(try Watchd.addWorkspace(dir.path, to: list))
         XCTAssertThrowsError(try Watchd.removeWorkspace(dir.path, from: list))
+    }
+
+    /// chmod 000 is not "missing": the read error propagates from load
+    /// and add/remove must not overwrite the unreadable list.
+    func testUnreadableListPropagatesAndSurvives() throws {
+        let (dir, list) = try tempList()
+        defer { try? FileManager.default.removeItem(at: dir) }
+        try "{\"workspaces\":[\"/a\"]}".write(
+            to: list, atomically: true, encoding: .utf8)
+        try FileManager.default.setAttributes(
+            [.posixPermissions: 0o000], ofItemAtPath: list.path)
+
+        XCTAssertThrowsError(try Watchd.loadWorkspaces(from: list))
+        XCTAssertThrowsError(try Watchd.addWorkspace(dir.path, to: list))
+        XCTAssertThrowsError(try Watchd.removeWorkspace(dir.path, from: list))
+
+        try FileManager.default.setAttributes(
+            [.posixPermissions: 0o644], ofItemAtPath: list.path)
+        XCTAssertEqual(try Watchd.loadWorkspaces(from: list), ["/a"])
     }
 }

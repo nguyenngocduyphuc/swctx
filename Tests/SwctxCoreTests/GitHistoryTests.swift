@@ -5,7 +5,7 @@ import GRDB
 /// Git history → records ledger: non-git workspaces ingest nothing,
 /// commits dedupe on re-run, and a workspace nested inside a parent
 /// repo records workspace-relative paths (prefix stripped).
-final class GitHistoryTests: XCTestCase {
+final class GitHistoryTests: SwctxTestCase {
 
     private func makeDir() throws -> URL {
         let dir = FileManager.default.temporaryDirectory

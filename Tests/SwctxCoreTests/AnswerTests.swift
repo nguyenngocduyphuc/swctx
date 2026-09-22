@@ -7,7 +7,7 @@ import GRDB
 /// Ollama itself is never required here — a fake `ollama` shell script
 /// (subcommands handled: list/run) stands in via the `ollamaBin:` seam,
 /// which is also how the "Ollama absent" path is exercised.
-final class AnswerTests: XCTestCase {
+final class AnswerTests: SwctxTestCase {
 
     /// Temp workspace with a couple of indexed files.
     private func makeWorkspace() throws -> (URL, Store) {
@@ -131,6 +131,30 @@ final class AnswerTests: XCTestCase {
     func testCitationValidatorEmptyIsInvalid() {
         let v = Answer.validateCitations([], pack: samplePack())
         XCTAssertFalse(v.valid)
+    }
+
+    /// A field that IS present must carry the right JSON type — wrong
+    /// types are malformed assertions (invalid), never silently skipped:
+    /// start_line "99" (string), path {} (object), end_line true (bool),
+    /// start_line 10.5 (fractional). Backward compat: an absent field
+    /// stays fine (id-only citation resolves), an explicit JSON null
+    /// reads as "not provided", and an integral double (10.0) coerces.
+    func testCitationValidatorRejectsWrongTypes() {
+        let v = Answer.validateCitations(
+            [["evidence_id": "E01", "start_line": "99"],
+             ["evidence_id": "E01", "path": ["x": 1]],
+             ["evidence_id": "E01", "end_line": true],
+             ["evidence_id": "E02", "start_line": 10.5],
+             ["evidence_id": "E01", "path": NSNull()],
+             ["evidence_id": "E02", "start_line": 10.0]],
+            pack: samplePack())
+        XCTAssertFalse(v.valid)
+        XCTAssertEqual(v.resolved.count, 2)
+        XCTAssertEqual(v.resolved[0]["evidence_id"] as? String, "E01")
+        XCTAssertEqual(v.resolved[1]["evidence_id"] as? String, "E02")
+        XCTAssertEqual(v.invalid.count, 4)
+        XCTAssertTrue(v.invalid.contains { $0.contains("not a number") })
+        XCTAssertTrue(v.invalid.contains { $0.contains("not a string") })
     }
 
     // MARK: - prompt builder
@@ -284,6 +308,74 @@ final class AnswerTests: XCTestCase {
         XCTAssertTrue((resp["limitations"] as? String ?? "")
             .contains("rejected"))
         XCTAssertFalse((resp["invalid_citations"] as? [String] ?? []).isEmpty)
+    }
+
+    /// Invalid citations spend the same single retry a malformed reply
+    /// gets: bad citation on attempt 1, clean JSON on attempt 2 →
+    /// resolved and citation_valid.
+    func testInvalidCitationRetriesOnce() throws {
+        let (dir, store) = try makeWorkspace()
+        defer { cleanup(dir) }
+        let bin = try fakeOllama(dir: dir)
+        try writeReply("""
+            {"answer": "first try",
+             "citations": [{"evidence_id": "E77"}],
+             "limitations": ""}
+            """, to: dir, name: "reply_1.txt")
+        try writeReply(goodJSON, to: dir, name: "reply_2.txt")
+        Answer.resetPreflightCache()
+        let resp = try Answer.run(
+            store: store, query: "what does tom_tat do",
+            model: "qwen2.5:3b", ollamaBin: bin,
+            timeout: 15, source: "test")
+        let ollama = resp["ollama"] as? [String: Any]
+        XCTAssertEqual(ollama?["attempts"] as? Int, 2)
+        XCTAssertEqual(resp["answer"] as? String,
+                       "tom_tat uppercases a row for display.")
+        XCTAssertEqual(resp["citation_valid"] as? Bool, true)
+        XCTAssertTrue((resp["invalid_citations"] as? [String] ?? []).isEmpty)
+    }
+
+    /// Still invalid after the retry → the answer is returned anyway
+    /// (existing contract) but flagged on every surface:
+    /// citation_valid=false, invalid_citations lists the rejection,
+    /// limitations spell out the retry was exhausted, and the durable
+    /// record carries the same fields.
+    func testInvalidCitationRetryExhaustedKeepsAnswer() throws {
+        let (dir, store) = try makeWorkspace()
+        defer { cleanup(dir) }
+        let bin = try fakeOllama(dir: dir)
+        try writeReply("""
+            {"answer": "x",
+             "citations": [{"evidence_id": "E01", "start_line": "oops"}],
+             "limitations": ""}
+            """, to: dir)
+        Answer.resetPreflightCache()
+        let resp = try Answer.run(
+            store: store, query: "what does tom_tat do",
+            model: "qwen2.5:3b", ollamaBin: bin,
+            timeout: 15, source: "test")
+        let ollama = resp["ollama"] as? [String: Any]
+        XCTAssertEqual(ollama?["attempts"] as? Int, 2)
+        XCTAssertEqual(resp["answer"] as? String, "x")
+        XCTAssertEqual(resp["citation_valid"] as? Bool, false)
+        let lim = resp["limitations"] as? String ?? ""
+        XCTAssertTrue(lim.contains("rejected"))
+        XCTAssertTrue(lim.contains("still invalid after 1 retry"))
+        XCTAssertFalse((resp["invalid_citations"] as? [String] ?? []).isEmpty)
+        // The durable record marks it too.
+        let recordID = try XCTUnwrap(resp["record_id"] as? Int64)
+        let payloadStr = try store.pool.read { db in
+            try String.fetchOne(db, sql:
+                "SELECT payload FROM records WHERE id = ?",
+                arguments: [recordID])
+        }
+        let payload = try XCTUnwrap(try JSONSerialization.jsonObject(
+            with: Data((payloadStr ?? "").utf8)) as? [String: Any])
+        XCTAssertEqual(payload["citation_valid"] as? Bool, false)
+        XCTAssertFalse((payload["invalid_citations"] as? [String] ?? [])
+            .isEmpty)
+        XCTAssertEqual(payload["attempts"] as? Int, 2)
     }
 
     /// The harness oracle `expected_path` must never reach the model:

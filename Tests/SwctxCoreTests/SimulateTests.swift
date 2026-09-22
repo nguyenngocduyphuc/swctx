@@ -4,7 +4,7 @@ import GRDB
 
 /// simulate_patch — unified diff in, broken dependents out. Direct-SQL
 /// fixture for precise control over files/chunks/edges (no indexer run).
-final class SimulateTests: XCTestCase {
+final class SimulateTests: SwctxTestCase {
 
     /// Workspace: a.py defines greet+helper, b.py calls greet,
     /// tests/test_a.py also calls greet.

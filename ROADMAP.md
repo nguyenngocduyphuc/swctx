@@ -19,7 +19,7 @@ tính năng chủ động mà ctxe không có.
 | Việc | Evidence | Effort |
 |---|---|---|
 | `GlobalRecords.git` drain pipe song song + reap timeout + fake-git regression test | codex round-2: deadlock khi output >64KB → flake testPrimeMarksStaleRecords | 0.5d |
-| Citation validator strict: reject schema sai kiểu, không trả answer khi `citation_valid=false` | codex: bypass được bằng citation thiếu path | 0.5d |
+| Citation validator strict: reject field sai kiểu, retry 1 lần khi invalid, `answer_cited` chỉ tính khi `citation_valid==true` | codex+grok: bypass bằng citation thiếu path | 0.5d |
 | `Watchd.loadWorkspaces` phân biệt missing-file vs read-error (P2 residual) | codex round-2 | 0.25d |
 | `gc` dọn 5,218 orphan indexes / ~879MB reclaimable; thêm integrity_check + quarantine | codex | 1d |
 | SQLite corrupt → quarantine file, không crash daemon | audit note | 0.5d |

@@ -6,7 +6,7 @@ import MCP
 /// Fleet memory: put_record dual-write (workspace ledger + repo-wide shared
 /// ledger), per-kind record quotas, scoped list/search reads, and the
 /// non-git repoKey fallback.
-final class FleetMemoryTests: XCTestCase {
+final class FleetMemoryTests: SwctxTestCase {
     /// Temp workspace with an index (the records table requires schema v2+).
     private func makeWorkspace() throws -> URL {
         let dir = FileManager.default.temporaryDirectory

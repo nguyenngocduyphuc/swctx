@@ -1018,9 +1018,24 @@ public enum Answer {
         return String(format: "E%02d", n)
     }
 
+    /// Line-number coercion for a citation's start_line/end_line field:
+    /// JSON ints and integral doubles qualify; bools, strings, objects
+    /// and fractional doubles → nil (a wrong-TYPE assertion — the caller
+    /// marks the citation invalid rather than skipping the field).
+    static func citationLineNumber(_ v: Any) -> Int? {
+        guard let n = v as? NSNumber,
+              CFGetTypeID(n) != CFBooleanGetTypeID() else { return nil }
+        return Int(exactly: n)
+    }
+
     /// Server-side validator: a citation counts ONLY when its evidence_id
     /// exists in the pack AND any path/line the model asserted matches the
     /// pack item verbatim — a model-invented path is invalid, never trusted.
+    /// path/start_line/end_line stay OPTIONAL (the strict schema cites
+    /// `evidence_id` only — an id-only citation is valid), but a field
+    /// that IS present must carry the right JSON type: `start_line:"99"`
+    /// or `path:{…}` is a malformed assertion — invalid, never silently
+    /// skipped. An explicit JSON null reads as "not provided".
     static func validateCitations(_ raw: [[String: Any]], pack: [Evidence])
         -> (resolved: [[String: Any]], invalid: [String], valid: Bool) {
         let byID = Dictionary(uniqueKeysWithValues: pack.map { ($0.id, $0) })
@@ -1034,14 +1049,23 @@ public enum Answer {
             guard let ev = byID[id] else {
                 invalid.append("\(id) not in evidence pack"); continue
             }
-            var mismatch = false
-            if let p = c["path"] as? String, p != ev.path { mismatch = true }
-            if let sl = c["start_line"] as? Int, sl != ev.startLine { mismatch = true }
-            if let sl = c["start_line"] as? Double, Int(sl) != ev.startLine { mismatch = true }
-            if let el = c["end_line"] as? Int, el != ev.endLine { mismatch = true }
-            if let el = c["end_line"] as? Double, Int(el) != ev.endLine { mismatch = true }
-            if mismatch {
-                invalid.append("\(id) path/line mismatch"); continue
+            var problem: String? = nil
+            if let p = c["path"], !(p is NSNull) {
+                if let s = p as? String {
+                    if s != ev.path { problem = "path/line mismatch" }
+                } else { problem = "path not a string" }
+            }
+            for (key, expected) in [("start_line", ev.startLine),
+                                    ("end_line", ev.endLine)]
+                where problem == nil {
+                if let v = c[key], !(v is NSNull) {
+                    if let i = citationLineNumber(v) {
+                        if i != expected { problem = "path/line mismatch" }
+                    } else { problem = "\(key) not a number" }
+                }
+            }
+            if let problem {
+                invalid.append("\(id) \(problem)"); continue
             }
             guard seen.insert(id).inserted else { continue }  // dup is harmless
             resolved.append([
@@ -1164,6 +1188,9 @@ public enum Answer {
         if pack.isEmpty {
             limitations.append("no evidence retrieved for query")
         } else if pre.ok {
+            // The LAST successfully parsed attempt wins — a failed retry
+            // keeps the earlier parse rather than throwing the answer away.
+            var modelLimitations = ""
             for attempt in 1...2 {
                 attempts = attempt
                 let prompt = buildPrompt(query: query, evidence: pack,
@@ -1174,17 +1201,17 @@ public enum Answer {
                     rawOutput = stripANSI(out)
                     if let parsed = parseAnswer(out) {
                         answer = parsed.answer
+                        modelLimitations = parsed.limitations
                         let v = validateCitations(parsed.citations, pack: pack)
                         resolvedCitations = v.resolved
                         invalidCitations = v.invalid
                         citationValid = v.valid
-                        if !parsed.limitations.isEmpty {
-                            limitations.append(parsed.limitations)
-                        }
-                        break
-                    }
-                    // malformed → exactly one format-retry
-                    if attempt == 2 {
+                        // Invalid citations spend the same single retry a
+                        // malformed reply gets — attempt 2's result then
+                        // stands, valid or not.
+                        if v.valid || attempt == 2 { break }
+                    } else if attempt == 2 {
+                        // malformed → exactly one format-retry
                         limitations.append("model output was not the required JSON after 1 format-retry")
                     }
                 } catch {
@@ -1192,9 +1219,15 @@ public enum Answer {
                     break   // transport errors never retry
                 }
             }
+            if !modelLimitations.isEmpty {
+                limitations.append(modelLimitations)
+            }
             if !invalidCitations.isEmpty {
                 limitations.append("\(invalidCitations.count) citation(s) rejected: "
                     + invalidCitations.joined(separator: "; "))
+                if answer != nil && !citationValid && attempts == 2 {
+                    limitations.append("citations still invalid after 1 retry")
+                }
             }
             if answer != nil, resolvedCitations.isEmpty, invalidCitations.isEmpty {
                 limitations.append("model returned no usable citations")

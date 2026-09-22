@@ -2,6 +2,26 @@
 
 Date: 2026-09-19 (overnight loop + SWE-2 wave) · Status: **working, verified end-to-end on 6 workspaces**
 
+## 2026-09-22 — Joint audit (Codex+Grok) + watchd governance + lexicon rescue
+
+- **watchd**: 6 per-workspace plists → 1 `com.swctx.watchd` daemon
+  (`ef1aec0`). Corrupt-list JSON no longer swallowed (`eb41bff`).
+  **Rule: `swctx watch restart` after every binary rebuild** — daemon ran a
+  stale binary through two commits before a 09:40 restart.
+- **vnLexicon +34 entries** (`ce0856c`): `danh muc→catalog` rescued link-15
+  (0→rank 3). linkeldn R@5 22→23, fleet/vn unchanged. Deliberately excluded
+  `dang`/`mau` — ambiguous foldings that fire on function words.
+- **Joint audit verdict: CONTINUE-WITH-CONDITIONS** (Codex + Grok agree).
+  Displacement baseline: usage_events search=781 adopted, answer=0, ctxe
+  ask=126 rising. Full Grok audit: `/tmp/audit_grok_full.md` (may rotate).
+- **ROADMAP.md**: Phase 0 reliability → Phase 1 reroute (14-day ctxe-ask
+  kill-switch) → Phase 2 in_body_only pre-registered → Phase 3 proactive.
+- **Repo share-ready**: loader stubs untracked, no secrets, 8 commits
+  unpushed to origin (`nguyenngocduyphuc/swctx`).
+- Terminal orchestration rule lives in workspace AGENTS.md +
+  `scripts/hooks/terminal_route_gate.py` (UserPromptSubmit, both Claude and
+  Devin hook chains) — detect self substrate + match project cwd + monitor.
+
 ## 2026-09-19 — SWE-2 wave (4 worker song song, ~13:00)
 
 Bốn gap còn lại sau review → cả 4 đã đóng (3 adopted, 1 measured-reject):

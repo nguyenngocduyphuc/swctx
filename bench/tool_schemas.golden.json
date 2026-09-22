@@ -1,8 +1,93 @@
 {
  "protocol_version": "2024-11-05",
  "server": "swctx",
- "tool_count": 20,
+ "tool_count": 26,
  "tools": [
+  {
+   "inputSchema": {
+    "properties": {
+     "backend": {
+      "description": "Synthesis backend: 'ollama' (default, offline) | 'cli:<name>' \u2014 agent CLI from the subscription fleet (cli:agy, cli:claude, cli:codex, cli:qwen, cli:opencode\u2026). Env: SWCTX_ANSWER_BACKEND / SWCTX_ANSWER_CLI.",
+      "type": "string"
+     },
+     "expected_path": {
+      "description": "Eval-harness oracle path \u2014 recorded for scoring only, never shown to the model",
+      "type": "string"
+     },
+     "max_tokens": {
+      "description": "Optional response budget (~4 chars/token); arrays trim tail-first, meta.omitted reports drops. Hard cap ~64KB always applies",
+      "type": "integer"
+     },
+     "model": {
+      "description": "Ollama model override (default qwen2.5:3b; env SWCTX_ANSWER_MODEL)",
+      "type": "string"
+     },
+     "path": {
+      "description": "Optional relative path prefix filter for retrieval",
+      "type": "string"
+     },
+     "plan": {
+      "description": "Bounded planner loop (\u22644 rounds, \u22643 queries/round): iterates retrieval before answering \u2014 rescue mode for retrieval misses. Default off = single-shot.",
+      "type": "boolean"
+     },
+     "plan_timeout": {
+      "description": "Planner total wall-clock seconds, default 60 (~20s per planner call)",
+      "type": "integer"
+     },
+     "query": {
+      "description": "Natural-language question about the codebase",
+      "type": "string"
+     },
+     "timeout": {
+      "description": "Per-attempt Ollama seconds, default 60 (one format-retry allowed)",
+      "type": "integer"
+     },
+     "workspace": {
+      "description": "Absolute project path; omit or \"auto\" to resolve the nearest indexed ancestor of the server process cwd",
+      "type": "string"
+     }
+    },
+    "required": [
+     "query"
+    ],
+    "type": "object"
+   },
+   "name": "answer"
+  },
+  {
+   "inputSchema": {
+    "properties": {
+     "files": {
+      "description": "Files touched (default: git status --porcelain)",
+      "items": {
+       "type": "string"
+      },
+      "type": "array"
+     },
+     "max_tokens": {
+      "description": "Optional response budget (~4 chars/token); arrays trim tail-first, meta.omitted reports drops. Hard cap ~64KB always applies",
+      "type": "integer"
+     },
+     "next": {
+      "description": "Exact next step for whoever resumes",
+      "type": "string"
+     },
+     "summary": {
+      "description": "What was done/decided this session \u2014 becomes the record title",
+      "type": "string"
+     },
+     "workspace": {
+      "description": "Absolute project path; omit or \"auto\" to resolve the nearest indexed ancestor of the server process cwd",
+      "type": "string"
+     }
+    },
+    "required": [
+     "summary"
+    ],
+    "type": "object"
+   },
+   "name": "checkpoint"
+  },
   {
    "inputSchema": {
     "properties": {
@@ -72,6 +157,10 @@
      "max_tokens": {
       "description": "Optional response budget (~4 chars/token); arrays trim tail-first, meta.omitted reports drops. Hard cap ~64KB always applies",
       "type": "integer"
+     },
+     "mode": {
+      "description": "full (default) | signature \u2014 declaration lines only",
+      "type": "string"
      },
      "workspace": {
       "description": "Absolute project path; omit or \"auto\" to resolve the nearest indexed ancestor of the server process cwd",
@@ -530,6 +619,29 @@
   {
    "inputSchema": {
     "properties": {
+     "max_tokens": {
+      "description": "Optional response budget (~4 chars/token); arrays trim tail-first, meta.omitted reports drops. Hard cap ~64KB always applies",
+      "type": "integer"
+     },
+     "path": {
+      "description": "Relative file path (exact file; use inspect_path for directories)",
+      "type": "string"
+     },
+     "workspace": {
+      "description": "Absolute project path; omit or \"auto\" to resolve the nearest indexed ancestor of the server process cwd",
+      "type": "string"
+     }
+    },
+    "required": [
+     "path"
+    ],
+    "type": "object"
+   },
+   "name": "outline"
+  },
+  {
+   "inputSchema": {
+    "properties": {
      "format": {
       "description": "markdown (default) | json",
       "type": "string"
@@ -669,6 +781,86 @@
     "type": "object"
    },
    "name": "search_records"
+  },
+  {
+   "inputSchema": {
+    "properties": {
+     "diff": {
+      "description": "Unified-diff text (git diff format)",
+      "type": "string"
+     },
+     "diff_file": {
+      "description": "Path to a .diff/.patch file \u2014 alternative to inline diff",
+      "type": "string"
+     },
+     "max_callers": {
+      "description": "Default 50 per symbol",
+      "type": "integer"
+     },
+     "max_tokens": {
+      "description": "Optional response budget (~4 chars/token); arrays trim tail-first, meta.omitted reports drops. Hard cap ~64KB always applies",
+      "type": "integer"
+     },
+     "workspace": {
+      "description": "Absolute project path; omit or \"auto\" to resolve the nearest indexed ancestor of the server process cwd",
+      "type": "string"
+     }
+    },
+    "type": "object"
+   },
+   "name": "simulate_patch"
+  },
+  {
+   "inputSchema": {
+    "properties": {
+     "limit": {
+      "description": "Default 50, max 200",
+      "type": "integer"
+     },
+     "max_tokens": {
+      "description": "Optional response budget (~4 chars/token); arrays trim tail-first, meta.omitted reports drops. Hard cap ~64KB always applies",
+      "type": "integer"
+     },
+     "path": {
+      "description": "Test file path \u2014 lists the symbols it covers",
+      "type": "string"
+     },
+     "symbol_name": {
+      "description": "Symbol to find covering tests for",
+      "type": "string"
+     },
+     "workspace": {
+      "description": "Absolute project path; omit or \"auto\" to resolve the nearest indexed ancestor of the server process cwd",
+      "type": "string"
+     }
+    },
+    "type": "object"
+   },
+   "name": "test_coverage"
+  },
+  {
+   "inputSchema": {
+    "properties": {
+     "max_tokens": {
+      "description": "Optional response budget (~4 chars/token); arrays trim tail-first, meta.omitted reports drops. Hard cap ~64KB always applies",
+      "type": "integer"
+     },
+     "trace": {
+      "description": "Raw stack-trace text (Python/JS/Go/generic path:line)",
+      "type": "string"
+     },
+     "trace_file": {
+      "description": "Path to a file containing the trace",
+      "type": "string"
+     },
+     "workspace": {
+      "description": "Absolute project path; omit or \"auto\" to resolve the nearest indexed ancestor of the server process cwd",
+      "type": "string"
+     }
+    },
+    "type": "object"
+   },
+   "name": "trace_lookup"
   }
  ]
 }

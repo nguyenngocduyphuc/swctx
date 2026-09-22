@@ -9,7 +9,7 @@ import GRDB
 /// `vec_snapshot` is now persistent, so the next embed pass re-attaches
 /// whatever the killed run never rewrote (same-dim rows only — a model
 /// switch falls through to fresh embeds at the active dim).
-final class EmbedResilienceTests: XCTestCase {
+final class EmbedResilienceTests: SwctxTestCase {
     private func tempDir() throws -> URL {
         let dir = FileManager.default.temporaryDirectory
             .appendingPathComponent("swctx-test-\(UUID().uuidString)")

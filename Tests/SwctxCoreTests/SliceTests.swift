@@ -5,7 +5,7 @@ import MCP
 
 /// Task-aware slicing: signature extraction, fetch_chunks mode=signature,
 /// outline tool.
-final class SliceTests: XCTestCase {
+final class SliceTests: SwctxTestCase {
 
     func testSignatureSingleLineDecl() {
         let src = "def greet(name):\n    return f'hi {name}'\n    return 2\n"
