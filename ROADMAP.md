@@ -104,6 +104,16 @@ ctxe là passive index — chờ được hỏi. swctx có thể chủ động v
 - **Không mở embedder/reranker mới** (4 embedder + 3 reranker đã thua latency
   hoặc neutral) trừ khi một miss mới chứng minh gold không vào candidate pool.
 
+## Unified dispatch (gộp governance vụn)
+
+Repo đang vá governance theo incident: cmux có `cmux_gui.py` (5 lớp kiểm),
+orca có receipt `turn_started`/`retry-request`, 1devtool tách `submit`/`team`,
+và `scripts/hooks/terminal_route_gate.py` vừa thêm lớp inject. Hướng đúng là
+một `dispatch` entry point duy nhất: detect-self → match project cwd → send →
+verify receipt → monitor, bọc cả 3 backend — mỗi backend chỉ khai capability
+khác nhau (receipt có/không, queue, read/wait). Làm sau Phase 0, khi ba hệ đã
+ổn định contract.
+
 ## Operational rules mới (từ audit)
 
 - **`swctx watch restart` sau mỗi lần rebuild binary** — daemon 06:32 chạy
