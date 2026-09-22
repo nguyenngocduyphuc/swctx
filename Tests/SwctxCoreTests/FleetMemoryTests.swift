@@ -193,6 +193,51 @@ final class FleetMemoryTests: SwctxTestCase {
             ($0["title"] as? String) == "peer worktree note" })
     }
 
+    /// Ranked read over the shared ledger: folded terms reach
+    /// diacritic-stored rows that the unicode61 records_fts index cannot
+    /// ("doi hinh" query vs "đội hình" stored), a title hit outranks a
+    /// body-only hit, equal scores break on recency, and the ws/kind
+    /// filters hold.
+    func testSearchRankedFoldedRelevanceRecency() throws {
+        guard let g = GlobalRecords.shared else {
+            throw XCTSkip("global ledger unavailable")
+        }
+        let ws = "ranked-\(UUID().uuidString.prefix(8))"
+        defer { cleanupGlobal(ws: ws) }
+        try g.insert(ws: ws, kind: "decision", source: "test",
+                     status: "completed", title: "unrelated deploy",
+                     payload: "nothing about the gate")
+        try g.insert(ws: ws, kind: "decision", source: "test",
+                     status: "completed", title: "gate keeps quiet",
+                     payload: "đội hình điều phối rule")
+        try g.insert(ws: ws, kind: "decision", source: "test",
+                     status: "completed", title: "đội hình gate call",
+                     payload: "terminal routing")
+
+        var hits = try g.searchRanked(query: "doi hinh", ws: ws)
+        XCTAssertEqual(hits.map { $0["title"] as? String },
+                       ["đội hình gate call", "gate keeps quiet"])
+        // Score ordering is exposed for callers/debugging.
+        XCTAssertGreaterThan((hits[0]["score"] as? Double) ?? 0,
+                             (hits[1]["score"] as? Double) ?? 0)
+        // kind filter excludes matching rows of other kinds.
+        XCTAssertTrue(try g.searchRanked(query: "doi hinh", ws: ws,
+                                         kinds: ["todo"]).isEmpty)
+        // A different ws sees none of these rows.
+        XCTAssertTrue(try g.searchRanked(query: "doi hinh",
+                                         ws: "other-\(ws)").isEmpty)
+
+        // Recency tiebreak: identical text → the newer row leads.
+        try g.insert(ws: ws, kind: "note", source: "test",
+                     status: "completed", title: "otter memo", payload: "x")
+        try g.insert(ws: ws, kind: "note", source: "test",
+                     status: "completed", title: "otter memo", payload: "x")
+        hits = try g.searchRanked(query: "otter memo", ws: ws)
+        XCTAssertEqual(hits.count, 2)
+        XCTAssertGreaterThan((hits[0]["id"] as? Int64) ?? 0,
+                             (hits[1]["id"] as? Int64) ?? 0)
+    }
+
     /// Non-git directory: no common-dir answer → the workspace's own key is
     /// the repo identity (records stay scoped to this workspace).
     func testNonGitFallback() throws {

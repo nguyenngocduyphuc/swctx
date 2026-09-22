@@ -123,6 +123,127 @@ public final class GlobalRecords: @unchecked Sendable {
         }
     }
 
+    // MARK: - Ranked memory reads
+
+    /// The newest ledger row for `ws` carrying a captured git HEAD — the
+    /// baseline a session-resume diff anchors to. Any kind counts:
+    /// checkpoint and put_record both stamp head_sha, so the base is the
+    /// last agent contact, not just the last session_checkpoint. nil when
+    /// this ws never left a git-stamped record (non-git dirs included).
+    public func latestCheckpoint(ws: String) throws
+        -> (kind: String, title: String, headSHA: String, createdAt: Double)? {
+        try pool.read { db in
+            try Row.fetchOne(db, sql: """
+                SELECT kind, title, head_sha, created_at FROM records
+                WHERE ws = ? AND head_sha IS NOT NULL AND head_sha != ''
+                ORDER BY id DESC LIMIT 1
+                """, arguments: [ws])
+        }.map { (kind: ($0["kind"] as? String) ?? "",
+                 title: ($0["title"] as? String) ?? "",
+                 headSHA: ($0["head_sha"] as? String) ?? "",
+                 createdAt: ($0["created_at"] as? Double) ?? 0) }
+    }
+
+    /// Folded match terms: alnum-split → Search.foldText (diacritic + case
+    /// + đ→d) → dedupe, ≥2 chars, ≤12 — same term shape ftsQuery emits.
+    static func foldedTerms(_ raw: String) -> [String] {
+        var seen = Set<String>()
+        return raw.components(separatedBy: CharacterSet.alphanumerics.inverted)
+            .map(Search.foldText)
+            .filter { $0.count >= 2 && seen.insert($0).inserted }
+            .prefix(12).map { $0 }
+    }
+
+    /// Folded keyword relevance: +2 per distinct term hitting the title,
+    /// +1 per term hitting the body (word-prefix semantics — "deploy"
+    /// hits "deployment"), +2 when the folded term sequence appears as a
+    /// phrase in the folded title. Diacritic-blind both ways, which the
+    /// unicode61 records_fts index (case-fold only) cannot express.
+    static func relevance(terms: [String], title: String,
+                          payload: String) -> Double {
+        func haystack(_ s: String) -> String {
+            " " + Search.foldText(s)
+                .components(separatedBy: CharacterSet.alphanumerics.inverted)
+                .filter { !$0.isEmpty }
+                .joined(separator: " ") + " "
+        }
+        let t = haystack(title), p = haystack(payload)
+        var score = 0.0
+        for term in terms {
+            if t.contains(" \(term)") { score += 2 }
+            if p.contains(" \(term)") { score += 1 }
+        }
+        if terms.count > 1,
+           t.contains(" \(terms.joined(separator: " "))") { score += 2 }
+        return score
+    }
+
+    /// Ranked read over the shared ledger — the memory layer behind
+    /// `search_records` relevance (folded keyword score DESC) with
+    /// recency (created_at, id) as the tiebreak. The ledger is
+    /// quota-bounded, so scoring the newest `poolCap` rows under the
+    /// filters in memory stays cheap while covering folded matches FTS
+    /// misses. `ws` nil reads fleet-wide. Rows return recordDict-shaped
+    /// dicts plus `score`.
+    public func searchRanked(query: String, ws: String? = nil,
+                             kinds: [String]? = nil,
+                             source: String? = nil, status: String? = nil,
+                             limit: Int = 50, offset: Int = 0,
+                             poolCap: Int = 4000) throws -> [[String: Any]] {
+        let terms = Self.foldedTerms(query)
+        guard !terms.isEmpty else { return [] }
+        var sql = """
+            SELECT id, ws, kind, title, payload, created_at FROM records
+            """
+        var clauses: [String] = []
+        var params: [DatabaseValueConvertible] = []
+        if let ws, !ws.isEmpty { clauses.append("ws = ?"); params.append(ws) }
+        if let kinds, !kinds.isEmpty {
+            clauses.append(
+                "kind IN (\(kinds.map { _ in "?" }.joined(separator: ",")))")
+            params += kinds.map { $0 as DatabaseValueConvertible }
+        }
+        if let source, !source.isEmpty {
+            clauses.append("source = ?"); params.append(source)
+        }
+        if let status, !status.isEmpty {
+            clauses.append("status = ?"); params.append(status)
+        }
+        if !clauses.isEmpty { sql += " WHERE " + clauses.joined(separator: " AND ") }
+        sql += " ORDER BY id DESC LIMIT ?"
+        params.append(max(poolCap, limit + offset))
+        let rows = try pool.read { db in
+            try Row.fetchAll(db, sql: sql, arguments: StatementArguments(params))
+        }
+        let scored = rows.compactMap { r -> (Row, Double)? in
+            let s = Self.relevance(terms: terms,
+                                   title: (r["title"] as? String) ?? "",
+                                   payload: (r["payload"] as? String) ?? "")
+            return s > 0 ? (r, s) : nil
+        }.sorted {
+            if $0.1 != $1.1 { return $0.1 > $1.1 }
+            let a = ($0.0["created_at"] as? Double) ?? 0
+            let b = ($1.0["created_at"] as? Double) ?? 0
+            if a != b { return a > b }
+            return (($0.0["id"] as? Int64) ?? 0) > (($1.0["id"] as? Int64) ?? 0)
+        }
+        return scored.dropFirst(max(0, offset)).prefix(max(1, limit)).map { (r, s) in
+            var d: [String: Any] = [
+                "id": (r["id"] as? Int64) ?? -1,
+                "ws": (r["ws"] as? String) ?? "",
+                "kind": (r["kind"] as? String) ?? "",
+                "title": (r["title"] as? String) ?? "",
+                "created_at": (r["created_at"] as? Double) ?? 0,
+                "score": s,
+            ]
+            if let p = (r["payload"] as? String) {
+                d["payload"] = (try? JSONSerialization.jsonObject(
+                    with: Data(p.utf8))) ?? p
+            }
+            return d
+        }
+    }
+
     /// One MCP tools/call usage event. Callers wrap in try? — telemetry
     /// must never break a tool response. `query` is capped at 200 chars;
     /// `topPaths` is the JSON-encoded top-5 hit paths; `argPath` is the

@@ -237,4 +237,36 @@ final class StalenessTests: SwctxTestCase {
         let card = try Prime.card(store: store, root: store.workspaceRoot)
         XCTAssertTrue(card.contains("- note: alpha_target contract ·stale"))
     }
+
+    /// since_last_session is repo-scoped: a head-stamped checkpoint filed
+    /// under a DIFFERENT ws never becomes this workspace's resume anchor;
+    /// once this repo leaves its own stamped record, the section anchors
+    /// to it (any kind counts — a note is still the last agent contact).
+    func testSinceLastSessionIsRepoScoped() async throws {
+        guard let dir = try makeGitWorkspace() else {
+            throw XCTSkip("git unavailable in test environment")
+        }
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let ws = GlobalRecords.repoKey(for: dir)
+        defer { cleanupGlobal(ws: ws) }
+        let store = try Store(workspaceRoot: dir)
+
+        let otherWs = "other-\(UUID().uuidString.prefix(8))"
+        defer { cleanupGlobal(ws: otherWs) }
+        try GlobalRecords.shared?.insert(
+            ws: otherWs, kind: "session_checkpoint", source: "test",
+            status: "completed", title: "foreign session", payload: "{}",
+            headSHA: GlobalRecords.git(["rev-parse", "HEAD"], cwd: dir))
+        var snap = try Prime.snapshot(store: store, root: store.workspaceRoot)
+        XCTAssertTrue(snap["since_last_session"] is NSNull,
+                      "a foreign ws anchor must not resume this workspace")
+
+        _ = try await put(dir, title: "local note", payload: "p")
+        snap = try Prime.snapshot(store: store, root: store.workspaceRoot)
+        let sls = try XCTUnwrap(snap["since_last_session"] as? [String: Any])
+        XCTAssertEqual(sls["base_kind"] as? String, "note")
+        XCTAssertEqual(sls["base_title"] as? String, "local note")
+        XCTAssertEqual(sls["changed_total"] as? Int, 0)
+        XCTAssertEqual((sls["changed"] as? [[String: Any]])?.count, 0)
+    }
 }

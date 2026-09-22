@@ -63,6 +63,115 @@ public enum Prime {
         return text.split(separator: "\n").contains { $0.contains(root.path) }
     }
 
+    /// "Since your last session": diff the worktree against the newest
+    /// global-ledger anchor for this repo (checkpoint or any head-stamped
+    /// record — the last agent contact). `git diff --name-only <sha>`
+    /// covers committed AND dirty tracked edits; `git status --porcelain`
+    /// adds untracked files. Repo-relative paths drop the cwd prefix for
+    /// the `indexed` mark (files table is workspace-relative). Every git
+    /// probe degrades silently: a base whose diff fails reports
+    /// `note: diff unavailable`, and no anchor at all → nil → the payload
+    /// emits `since_last_session: null`.
+    static func sinceLastSession(store: Store, root: URL) -> [String: Any]? {
+        guard let g = GlobalRecords.shared,
+              let base = try? g.latestCheckpoint(
+                  ws: GlobalRecords.repoKey(for: root))
+        else { return nil }
+        var sect: [String: Any] = [
+            "base_sha": base.headSHA,
+            "base_kind": base.kind,
+            "base_title": Understand.truncHead(base.title, 60),
+            "base_at": base.createdAt,
+        ]
+        // Run diff/status at the repo root so both emit repo-relative
+        // paths (status.relativePaths is cwd-relative otherwise).
+        let repoRoot = GlobalRecords.git(["rev-parse", "--show-toplevel"],
+                                         cwd: root)
+            .map { URL(fileURLWithPath: $0) } ?? root
+        if let head = GlobalRecords.git(["rev-parse", "HEAD"], cwd: repoRoot),
+           !head.isEmpty {
+            sect["head_sha"] = head
+        }
+        let prefix = GlobalRecords.git(["rev-parse", "--show-prefix"],
+                                       cwd: root) ?? ""
+        var changed: [(path: String, untracked: Bool)] = []
+        var seen = Set<String>()
+        var diffOK = false
+        if let diff = GlobalRecords.git(
+            ["diff", "--name-only", base.headSHA], cwd: repoRoot) {
+            diffOK = true
+            for p in diff.split(separator: "\n").map(String.init)
+            where !p.isEmpty && seen.insert(p).inserted {
+                changed.append((p, false))
+            }
+        }
+        if let st = GlobalRecords.git(["status", "--porcelain"],
+                                      cwd: repoRoot) {
+            for line in st.split(separator: "\n") where line.hasPrefix("??") {
+                var p = String(line.dropFirst(3))
+                if p.count > 1, p.hasPrefix("\""), p.hasSuffix("\"") {
+                    p = String(p.dropFirst().dropLast())
+                }
+                if !p.isEmpty, seen.insert(p).inserted {
+                    changed.append((p, true))
+                }
+            }
+        }
+        guard diffOK else {
+            sect["note"] = "diff unavailable"
+            return sect
+        }
+        sect["changed_total"] = changed.count
+        let relPaths = changed.map {
+            $0.path.hasPrefix(prefix)
+                ? String($0.path.dropFirst(prefix.count)) : $0.path
+        }
+        let indexed = (try? store.pool.read { db -> Set<String> in
+            guard !relPaths.isEmpty else { return [] }
+            let ph = relPaths.map { _ in "?" }.joined(separator: ",")
+            return Set(try String.fetchAll(db, sql:
+                "SELECT path FROM files WHERE path IN (\(ph))",
+                arguments: StatementArguments(
+                    relPaths.map { $0 as DatabaseValueConvertible })))
+        }) ?? []
+        sect["changed"] = changed.prefix(10).enumerated().map { (i, c) in
+            var d: [String: Any] = [
+                "path": c.path, "indexed": indexed.contains(relPaths[i])]
+            if c.untracked { d["untracked"] = true }
+            return d
+        }
+        return sect
+    }
+
+    /// Top-3 fleet records whose text names this workspace — decisions
+    /// and findings filed under a sibling repo's ws still apply to this
+    /// checkout. A floor (≥2 term-hits when the name has ≥2 terms) keeps
+    /// generic names from surfacing noise, and names with no ≥3-char
+    /// token ("ai", "21") skip the section entirely. `shown` carries
+    /// titles the card already lists so each record appears once.
+    static func relevantRecords(root: URL, excluding shown: Set<String>)
+        -> [[String: Any]]? {
+        guard let g = GlobalRecords.shared else { return nil }
+        let terms = GlobalRecords.foldedTerms(root.lastPathComponent)
+        guard terms.contains(where: { $0.count >= 3 }) else { return nil }
+        guard let hits = try? g.searchRanked(
+            query: root.lastPathComponent,
+            kinds: ["decision", "note", "finding"], limit: 8)
+        else { return nil }
+        let floor = min(2.0, Double(terms.count))
+        let top = hits.filter {
+            (($0["score"] as? Double) ?? 0) >= floor
+                && !shown.contains(($0["title"] as? String) ?? "")
+        }.prefix(3)
+        guard !top.isEmpty else { return nil }
+        return top.map {
+            ["id": ($0["id"] as? Int64) ?? -1,
+             "ws": ($0["ws"] as? String) ?? "",
+             "kind": ($0["kind"] as? String) ?? "",
+             "title": Understand.truncHead(($0["title"] as? String) ?? "", 60)]
+        }
+    }
+
     /// Everything the card (and --format json) needs, gathered once.
     public static func snapshot(store: Store, root: URL) throws -> [String: Any] {
         var out: [String: Any] = ["workspace": root.path, "name": root.lastPathComponent]
@@ -174,6 +283,20 @@ public enum Prime {
             }
             out["resume"] = resume
         }
+        // Session resume: the diff since the newest head-stamped ledger
+        // row for this repo. Always present — null when no prior session
+        // left an anchor (or the global ledger is unavailable).
+        out["since_last_session"] = Self.sinceLastSession(store: store,
+                                                        root: root) ?? NSNull()
+        // Fleet memory relevant to THIS workspace by name — distinct from
+        // prior_work (newest rows) and records (this workspace's ledger):
+        // a decision filed under another repo still applies here.
+        var shownTitles = Set(recent.compactMap { $0["title"] as? String })
+        shownTitles.formUnion((out["prior_work"] as? [[String: Any]] ?? [])
+            .compactMap { $0["title"] as? String })
+        if let rel = Self.relevantRecords(root: root, excluding: shownTitles) {
+            out["relevant_records"] = rel
+        }
         // Freshness: the same shallow stat probe get_status runs by default
         // (indexed rows only — no directory walk).
         let indexer = Indexer(store: store, embedder: store.embedder)
@@ -187,7 +310,11 @@ public enum Prime {
 
         var warnings: [String] = []
         if let stale = out["stale_files"] as? Int, stale > 0 {
-            warnings.append("\(stale) stale files — run `swctx index`")
+            // Staleness as a feature: the warning says it, and the
+            // reindex_command field lets an agent act without composing
+            // the command itself.
+            warnings.append("\(stale) stale files — run `swctx index \(root.path)`")
+            out["reindex_command"] = "swctx index \(root.path)"
         }
         if let n = out["stale_records"] as? Int, n > 0 {
             warnings.append(
@@ -241,6 +368,26 @@ public enum Prime {
         }
         if let resume = s["resume"] as? String, !resume.isEmpty {
             md += "Resume: \(resume)\n"
+        }
+        if let sls = s["since_last_session"] as? [String: Any] {
+            let sha7 = String(((sls["base_sha"] as? String) ?? "").prefix(7))
+            let changed = (sls["changed"] as? [[String: Any]]) ?? []
+            let n = (sls["changed_total"] as? Int) ?? changed.count
+            md += "Since last session (\((sls["base_kind"] as? String) ?? "?")"
+                + " @\(sha7)): \(n) changed\n"
+            for f in changed {
+                var tag = ""
+                if f["untracked"] as? Bool == true { tag = " (untracked)" }
+                else if f["indexed"] as? Bool == false { tag = " (not indexed)" }
+                md += "- \((f["path"] as? String) ?? "")\(tag)\n"
+            }
+        }
+        if let rel = s["relevant_records"] as? [[String: Any]], !rel.isEmpty {
+            md += "Relevant records (get_record scope=global):\n"
+            for r in rel {
+                md += "- \((r["kind"] as? String) ?? ""): "
+                    + "\((r["title"] as? String) ?? "")\n"
+            }
         }
         if let prior = s["prior_work"] as? [[String: Any]], !prior.isEmpty {
             md += "Prior work (\(s["prior_work_total"] ?? prior.count) shared records"

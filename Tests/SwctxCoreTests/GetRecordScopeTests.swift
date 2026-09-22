@@ -154,6 +154,35 @@ final class GetRecordScopeTests: SwctxTestCase {
         }
     }
 
+    /// A ranked-search hit's id is the GLOBAL ledger's namespace — it
+    /// resolves through get_record scope=global (the follow-up path
+    /// prime's relevant_records rows rely on), not scope=workspace.
+    func testRankedHitIdResolvesViaGlobalScope() async throws {
+        guard let global = GlobalRecords.shared else {
+            throw XCTSkip("global ledger unavailable")
+        }
+        let dir = try makeWorkspace()
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let ws = GlobalRecords.repoKey(for: dir)
+        defer { cleanupGlobal(ws: ws) }
+
+        _ = try await SwctxTools.call(name: "put_record", arguments: [
+            "workspace": .string(dir.path), "kind": .string("decision"),
+            "title": .string("ranked get probe"), "payload": .string("p")])
+        let hits = try global.searchRanked(query: "ranked get probe", ws: ws)
+        let first = try XCTUnwrap(hits.first)
+        let gid = try XCTUnwrap((first["id"] as? Int64).map(Int.init))
+
+        let got = try jsonDict(await {
+            try await SwctxTools.call(name: "get_record", arguments: [
+                "workspace": .string(dir.path), "id": .int(gid),
+                "scope": .string("global")])
+        }())
+        let rec = try XCTUnwrap(got["record"] as? [String: Any])
+        XCTAssertEqual(rec["title"] as? String, "ranked get probe")
+        XCTAssertEqual(rec["ws"] as? String, ws)
+    }
+
     /// A scope outside the allowlist is an invalid-arg error.
     func testGetRecordScopeValidation() async throws {
         let dir = try makeWorkspace()
