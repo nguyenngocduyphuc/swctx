@@ -54,29 +54,109 @@ public final class Store: @unchecked Sendable {
         let root = workspaceRoot.resolvingSymlinksInPath()
         self.workspaceRoot = root
         self.workspaceKey = Store.key(for: root)
-        let dir = Store.indexURL(forKey: workspaceKey).deletingLastPathComponent()
+        let dbURL = Store.indexURL(forKey: workspaceKey)
+        let dir = dbURL.deletingLastPathComponent()
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         var config = Configuration()
         config.busyMode = .timeout(10)
         config.prepareDatabase { db in
             try db.execute(sql: "PRAGMA foreign_keys = ON")
         }
-        pool = try DatabasePool(path: Store.indexURL(forKey: workspaceKey).path, configuration: config)
-        try migrate()
+        let opened = try Store.openResilient(dbURL: dbURL, config: config,
+                                             workspaceRoot: root)
+        pool = opened.pool
         // Publish this index's embedding-model binding to the process-wide
         // selection (nil = legacy → revert to flag/env/default). Search and
         // embed paths resolve their model after opening the Store, so the
         // index's recorded vector space wins over global defaults.
+        embeddingModel = opened.embeddingModel
+        embeddingDim = opened.embeddingDim
+        Embedder.bindModel(embeddingModel)
+        trigramEnabled = opened.trigramEnabled
+    }
+
+    /// Result of one successful index open: the pool plus the meta reads
+    /// the initializer publishes as properties.
+    private struct Opened {
+        let pool: DatabasePool
+        let embeddingModel: String?
+        let embeddingDim: Int?
+        let trigramEnabled: Bool
+    }
+
+    /// Open + migrate + first meta reads, with ONE corruption retry: a
+    /// damaged index.db is quarantined to `index.db.corrupt-<unix_ts>`
+    /// and rebuilt empty — the index is a derived cache, so a corrupt
+    /// file must never crash the CLI or the watchd daemon. Any error
+    /// that is not SQLite corruption (busy, IO, permissions) propagates.
+    private static func openResilient(dbURL: URL, config: Configuration,
+                                      workspaceRoot: URL) throws -> Opened {
+        do {
+            return try openOnce(dbURL: dbURL, config: config,
+                                workspaceRoot: workspaceRoot)
+        } catch {
+            guard isCorruptionError(error) else { throw error }
+            quarantineCorruptDB(at: dbURL, reason: "\(error)")
+            return try openOnce(dbURL: dbURL, config: config,
+                                workspaceRoot: workspaceRoot)
+        }
+    }
+
+    private static func openOnce(dbURL: URL, config: Configuration,
+                                 workspaceRoot: URL) throws -> Opened {
+        let pool = try DatabasePool(path: dbURL.path, configuration: config)
+        try migrate(pool: pool, workspaceRoot: workspaceRoot)
         let binding = try pool.read { db -> (String?, String?) in
             (try String.fetchOne(db, sql: "SELECT value FROM meta WHERE key = 'embedding_model'"),
              try String.fetchOne(db, sql: "SELECT value FROM meta WHERE key = 'embedding_dim'"))
         }
-        embeddingModel = binding.0
-        embeddingDim = binding.1.flatMap { Int($0) }
-        Embedder.bindModel(embeddingModel)
-        trigramEnabled = try pool.read { db in
+        let trigram = try pool.read { db in
             try String.fetchOne(db, sql: "SELECT value FROM meta WHERE key = 'trigram'") == "1"
         }
+        return Opened(pool: pool, embeddingModel: binding.0,
+                      embeddingDim: binding.1.flatMap { Int($0) },
+                      trigramEnabled: trigram)
+    }
+
+    /// True only when `error` is SQLite reporting the database file
+    /// itself damaged: SQLITE_CORRUPT ("database disk image is
+    /// malformed" — extended CORRUPT_* codes share the primary code) or
+    /// SQLITE_NOTADB (garbage bytes where a db should be), plus a
+    /// message fallback for wrapped reports. Deliberately narrow:
+    /// busy/IO/permission failures must propagate rather than quarantine
+    /// a healthy index.
+    public static func isCorruptionError(_ error: Error) -> Bool {
+        guard let e = error as? DatabaseError else { return false }
+        if e.resultCode == .SQLITE_CORRUPT || e.resultCode == .SQLITE_NOTADB {
+            return true
+        }
+        let msg = (e.message ?? "").lowercased()
+        return msg.contains("malformed") || msg.contains("not a database")
+            || msg.contains("corrupt")
+    }
+
+    /// Move a damaged index db aside so the retry opens on a clean path:
+    /// `index.db` → `index.db.corrupt-<unix_ts>`; WAL/SHM/journal
+    /// sidecars get the same suffix so stale journal state can't bleed
+    /// into the fresh file. One stderr line per quarantine.
+    static func quarantineCorruptDB(at dbURL: URL, reason: String) {
+        let fm = FileManager.default
+        let ts = Int(Date().timeIntervalSince1970)
+        for path in [dbURL.path, dbURL.path + "-wal", dbURL.path + "-shm",
+                     dbURL.path + "-journal"] {
+            guard fm.fileExists(atPath: path) else { continue }
+            do {
+                try fm.moveItem(atPath: path, toPath: path + ".corrupt-\(ts)")
+            } catch {
+                // Same-second re-quarantine or an unmovable file: the db
+                // must not keep poisoning opens — delete as fallback.
+                try? fm.removeItem(atPath: path)
+            }
+        }
+        FileHandle.standardError.write(
+            ("swctx: corrupt index quarantined: \(dbURL.path) -> "
+                + "\(dbURL.path).corrupt-\(ts) (\(reason)); rebuilt empty\n")
+                .data(using: .utf8)!)
     }
 
     /// Record (or update) the index's embedding-model binding in `meta` and
@@ -118,6 +198,20 @@ public final class Store: @unchecked Sendable {
         }
     }
 
+    /// Freshness stamp for `swctx watch status`: `meta.last_index_at`
+    /// (unix seconds) + `meta.last_index_files`, rewritten at the end of
+    /// every index pass — initial or watch-driven incremental. Status
+    /// reads them through a read-only probe, never a Store open.
+    public func noteIndexed(files: Int) throws {
+        try pool.write { db in
+            try db.execute(sql: """
+                INSERT OR REPLACE INTO meta(key, value)
+                VALUES('last_index_at', ?), ('last_index_files', ?)
+                """, arguments: [
+                    String(Date().timeIntervalSince1970), String(files)])
+        }
+    }
+
     /// Cache-validation signature: the epoch nonce on indexes written by
     /// this build; a legacy count/id fingerprint on older ones (misses
     /// same-id re-embeds until the next index run writes a real epoch).
@@ -133,7 +227,7 @@ public final class Store: @unchecked Sendable {
         }
     }
 
-    private func migrate() throws {
+    private static func migrate(pool: DatabasePool, workspaceRoot: URL) throws {
         // Skip the write entirely when the schema is already current, so plain
         // queries never open a write transaction on an existing index.
         let current = try? pool.read { db in

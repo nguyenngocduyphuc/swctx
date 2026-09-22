@@ -284,6 +284,9 @@ public final class Indexer {
 
         report.durationMs = Int(Date().timeIntervalSince(started) * 1000)
         try? store.bumpEmbeddingsEpoch()
+        // Freshness stamp for `watch status` — written on every pass so
+        // the daemon's per-workspace index age is queryable read-only.
+        try? store.noteIndexed(files: report.filesTotal)
         Store.register(root: store.workspaceRoot)
         return report
     }

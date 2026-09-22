@@ -1,4 +1,5 @@
 import Foundation
+import GRDB
 
 /// Single-daemon watch lifecycle. `swctx watch-all` runs ONE process
 /// holding an `IndexWatcher` per workspace listed in
@@ -243,9 +244,35 @@ public enum Watchd {
         if ws.isEmpty {
             lines.append("  (none — `swctx watch add <path>`)")
         } else {
-            lines += ws.map { "  \($0)" }
+            lines += ws.map { "  \($0)\(indexFreshness(for: $0))" }
         }
         return lines
+    }
+
+    /// `watch status` per-workspace suffix: the index's own
+    /// `meta.last_index_at`/`last_index_files` (written by Indexer at
+    /// the end of every pass) read through a read-only probe — status
+    /// must never create, migrate or write an index just to report it.
+    static func indexFreshness(for workspacePath: String) -> String {
+        let db = Store.indexURL(forKey: Store.key(for: normalize(workspacePath)))
+        guard FileManager.default.fileExists(atPath: db.path),
+              let q = Gc.openReadOnly(db)
+        else { return " — no index" }
+        guard let meta = try? q.read({ db -> (Double?, Int?) in
+            (try String.fetchOne(db, sql:
+                "SELECT value FROM meta WHERE key = 'last_index_at'")
+                .flatMap(Double.init),
+             try String.fetchOne(db, sql:
+                "SELECT value FROM meta WHERE key = 'last_index_files'")
+                .flatMap(Int.init))
+        }), let ts = meta.0 else { return " — index age unknown" }
+        let age = max(0, Int(Date().timeIntervalSince1970 - ts))
+        let when: String
+        if age < 60 { when = "\(age)s ago" }
+        else if age < 3600 { when = "\(age / 60)m ago" }
+        else if age < 86400 { when = "\(age / 3600)h ago" }
+        else { when = "\(age / 86400)d ago" }
+        return " — last indexed \(when), \(meta.1 ?? 0) files"
     }
 
     /// The daemon's pid from `launchctl print` output — present only
