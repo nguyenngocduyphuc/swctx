@@ -410,10 +410,11 @@ public enum Search {
         // Content-DF orders the folded-AND discriminators — an atom rare
         // in paths but common in prose ("dang", "trang") narrows nothing.
         // (Counted in the parallel DF pass above.)
-        var raw: [SearchHit] = []
-        // Anchor atoms that fetched each path via a content-verified
-        // (AND-folded) probe — enables glued-name coverage below.
-        var viaAnd: [String: Set<String>] = [:]
+        // Results merge in ATOM ORDER, not completion order: `seenFiles`
+        // keeps the first-seen chunk per path and the final tiebreak is
+        // hit.score — concurrent append order made marginal hits flaky
+        // (BriefAudience dropped at random between bench runs).
+        var perAtom: [[SearchHit]?] = Array(repeating: nil, count: probed.count)
         var firstFetchError: Error?
         let fetchLock = NSLock()
         // Each probed atom's AND-folded fetch is independent; ~20 of
@@ -454,12 +455,21 @@ public enum Search {
                 return
             }
             fetchLock.lock()
-            raw += hits
-            for h in hits { viaAnd[h.path, default: []].insert(a) }
+            perAtom[i] = hits
             fetchLock.unlock()
             if ProcessInfo.processInfo.environment["SWCTX_PROBE_DEBUG"] == "1" {
                 FileHandle.standardError.write(
                     "probe atom=\(a) hits=\(hits.map(\.path))\n".data(using: .utf8)!)
+            }
+        }
+        var raw: [SearchHit] = []
+        // Anchor atoms that fetched each path via a content-verified
+        // (AND-folded) probe — enables glued-name coverage below.
+        var viaAnd: [String: Set<String>] = [:]
+        for i in 0..<probed.count {
+            for h in perAtom[i] ?? [] {
+                raw.append(h)
+                viaAnd[h.path, default: []].insert(probed[i])
             }
         }
         if raw.isEmpty, let e = firstFetchError { throw e }
@@ -590,12 +600,25 @@ public enum Search {
             // evidence: it verifies the subject, it is not the subject.
             // Demote below same-coverage source files and strip surgical.
             let testLike = isTestLikePath(h.path.lowercased())
+            // Archived/legacy copies demote on the same scale: probe
+            // dedupes by basename, so rank order decides WHICH twin of
+            // p8_image_worker.py emits — the live one must win
+            // (vn-probe seo-04/seo-10 missed to _legacy/ copies).
+            let archiveDepth = h.path.lowercased()
+                .split(separator: "/", omittingEmptySubsequences: true)
+                .dropLast()
+                .filter { seg in
+                    seg.components(separatedBy: CharacterSet.alphanumerics.inverted)
+                        .contains { Search.archiveDirTokens.contains($0) }
+                }.count
             let surgical = !testLike && rarityMatters
                 && stemAtoms.contains {
                     (pathDF[$0] ?? 0) == 1 && !weakAtoms.contains($0)
                 }
             scored.append((h, surgical, effectiveCover, stemDensity,
-                           rank - (testLike ? 0.5 : 0), idfScore,
+                           rank - (testLike ? 0.5 : 0)
+                               - 0.5 * Double(archiveDepth),
+                           idfScore,
                            Set(matchedAtoms), stemTokens.count))
         }
         scored.sort {
@@ -736,6 +759,15 @@ public enum Search {
     static let coverageCap = 0.03           // sub-cap on the coverage term
     static let pagerankWeight = 0.02        // × min-max normalized file rank
     static let depthPenaltyPerSegment = 0.005
+    /// Archive/legacy dir-segment demotion — one per matching directory
+    /// in the path ("_legacy/", "docs/archive/", "_archive-genspark/").
+    /// Beats the old root-only "archive/" -0.01: archived twins must
+    /// lose ties to live files, not merely drift down.
+    static let archivePenaltyPerSegment = 0.03
+    static let archiveDirTokens: Set<String> = [
+        "archive", "archived", "legacy", "deprecated", "attic",
+        "old", "backup", "backups", "snapshot", "snapshots",
+    ]
     /// Folded-phrase rescue leg weight — below the real legs; it exists
     /// to surface diacritic phrase matches, not outrank them.
     static let phraseLegWeight = 0.8
@@ -1371,7 +1403,20 @@ public enum Search {
                 .components(separatedBy: CharacterSet.alphanumerics.inverted)
                 .filter { $0.count >= 2 })
             boost += 0.015 * Double(termsFolded.intersection(pathTokens).count)
-            if lp.hasPrefix("archive/") { boost -= 0.01 }
+            // Archive/legacy DIR segments demote: a "_legacy/" twin must
+            // lose ties to the live same-name file, not outrank it
+            // (vn-probe seo-04/seo-10 missed to archived copies).
+            // Segment-tokenized — "_archive-genspark" counts as archive;
+            // the filename itself is excluded ("archive.py" is a name).
+            var archiveDepth = 0
+            for seg in lp.split(separator: "/", omittingEmptySubsequences: true)
+                .dropLast() {
+                if seg.components(separatedBy: CharacterSet.alphanumerics.inverted)
+                    .contains(where: { Search.archiveDirTokens.contains($0) }) {
+                    archiveDepth += 1
+                }
+            }
+            boost -= Search.archivePenaltyPerSegment * Double(archiveDepth)
             if isTestLikePath(lp) { boost -= 0.02 }
             // Atom coverage: +0.01 per DISTINCT folded query term present
             // in the candidate's folded token set (content+symbol+path),

@@ -23,3 +23,30 @@ timestamp,engine,workspace,kind,recall_at_5,n_queries,notes
 2026-09-18T10:34:46+00:00,swctx:search-mcp,22.site-M,search,1.0,6,mcp `tools/call search` mode=auto (persistent stdio session); first mcp-wire run
 2026-09-18T10:34:46+00:00,swctx:search-mcp,25.event-qr-checkin,definition,1.0,6,mcp `tools/call search` mode=auto (persistent stdio session); first mcp-wire run
 2026-09-18T10:34:46+00:00,swctx:search-mcp,25.event-qr-checkin,search,0.8333,6,mcp `tools/call search` mode=auto (persistent stdio session); first mcp-wire run
+2026-09-22T23:25:18+00:00,swctx:find-defs-mcp,21.linkeldn,definition,1.0,6,mcp `tools/call find_definitions` (persistent stdio session); verify8c
+2026-09-22T23:25:18+00:00,swctx:find-defs-mcp,22.site-M,definition,1.0,6,mcp `tools/call find_definitions` (persistent stdio session); verify8c
+2026-09-22T23:25:18+00:00,swctx:find-defs-mcp,25.event-qr-checkin,definition,1.0,6,mcp `tools/call find_definitions` (persistent stdio session); verify8c
+2026-09-22T23:25:18+00:00,swctx:search-mcp,21.linkeldn,definition,1.0,6,mcp `tools/call search` mode=auto (persistent stdio session); verify8c
+2026-09-22T23:25:18+00:00,swctx:search-mcp,21.linkeldn,search,0.8333,6,mcp `tools/call search` mode=auto (persistent stdio session); verify8c
+2026-09-22T23:25:18+00:00,swctx:search-mcp,22.site-M,definition,1.0,6,mcp `tools/call search` mode=auto (persistent stdio session); verify8c
+2026-09-22T23:25:18+00:00,swctx:search-mcp,22.site-M,search,1.0,6,mcp `tools/call search` mode=auto (persistent stdio session); verify8c
+2026-09-22T23:25:18+00:00,swctx:search-mcp,25.event-qr-checkin,definition,1.0,6,mcp `tools/call search` mode=auto (persistent stdio session); verify8c
+2026-09-22T23:25:18+00:00,swctx:search-mcp,25.event-qr-checkin,search,1.0,6,mcp `tools/call search` mode=auto (persistent stdio session); verify8c
+2026-09-22T23:26:48+00:00,swctx:find-defs-mcp,21.linkeldn,definition,1.0,6,mcp `tools/call find_definitions` (persistent stdio session); det3
+2026-09-22T23:26:48+00:00,swctx:find-defs-mcp,22.site-M,definition,1.0,6,mcp `tools/call find_definitions` (persistent stdio session); det3
+2026-09-22T23:26:48+00:00,swctx:find-defs-mcp,25.event-qr-checkin,definition,1.0,6,mcp `tools/call find_definitions` (persistent stdio session); det3
+2026-09-22T23:26:48+00:00,swctx:search-mcp,21.linkeldn,definition,1.0,6,mcp `tools/call search` mode=auto (persistent stdio session); det3
+2026-09-22T23:26:48+00:00,swctx:search-mcp,21.linkeldn,search,0.8333,6,mcp `tools/call search` mode=auto (persistent stdio session); det3
+2026-09-22T23:26:48+00:00,swctx:search-mcp,22.site-M,definition,1.0,6,mcp `tools/call search` mode=auto (persistent stdio session); det3
+2026-09-22T23:26:48+00:00,swctx:search-mcp,22.site-M,search,1.0,6,mcp `tools/call search` mode=auto (persistent stdio session); det3
+2026-09-22T23:26:48+00:00,swctx:search-mcp,25.event-qr-checkin,definition,1.0,6,mcp `tools/call search` mode=auto (persistent stdio session); det3
+2026-09-22T23:26:48+00:00,swctx:search-mcp,25.event-qr-checkin,search,1.0,6,mcp `tools/call search` mode=auto (persistent stdio session); det3
+2026-09-22T23:28:18+00:00,swctx:find-defs-mcp,21.linkeldn,definition,1.0,6,mcp `tools/call find_definitions` (persistent stdio session); nodemote
+2026-09-22T23:28:18+00:00,swctx:find-defs-mcp,22.site-M,definition,1.0,6,mcp `tools/call find_definitions` (persistent stdio session); nodemote
+2026-09-22T23:28:18+00:00,swctx:find-defs-mcp,25.event-qr-checkin,definition,1.0,6,mcp `tools/call find_definitions` (persistent stdio session); nodemote
+2026-09-22T23:28:18+00:00,swctx:search-mcp,21.linkeldn,definition,1.0,6,mcp `tools/call search` mode=auto (persistent stdio session); nodemote
+2026-09-22T23:28:18+00:00,swctx:search-mcp,21.linkeldn,search,0.8333,6,mcp `tools/call search` mode=auto (persistent stdio session); nodemote
+2026-09-22T23:28:18+00:00,swctx:search-mcp,22.site-M,definition,1.0,6,mcp `tools/call search` mode=auto (persistent stdio session); nodemote
+2026-09-22T23:28:18+00:00,swctx:search-mcp,22.site-M,search,1.0,6,mcp `tools/call search` mode=auto (persistent stdio session); nodemote
+2026-09-22T23:28:18+00:00,swctx:search-mcp,25.event-qr-checkin,definition,1.0,6,mcp `tools/call search` mode=auto (persistent stdio session); nodemote
+2026-09-22T23:28:18+00:00,swctx:search-mcp,25.event-qr-checkin,search,1.0,6,mcp `tools/call search` mode=auto (persistent stdio session); nodemote
