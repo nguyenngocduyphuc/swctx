@@ -899,7 +899,10 @@ public enum SwctxTools {
         let store = try store(args)
         var diff = args["diff"]?.str
         if diff == nil, let f = args["diff_file"]?.str {
-            diff = try? String(contentsOfFile: f, encoding: .utf8)
+            guard let s = try? String(contentsOfFile: f, encoding: .utf8) else {
+                return json(["error": "cannot read diff_file: \(f)"])
+            }
+            diff = s
         }
         guard let diff, !diff.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         else { throw ToolError.missingArg("diff or diff_file") }
@@ -919,28 +922,54 @@ public enum SwctxTools {
             let rows = try store.pool.read { db in
                 try Row.fetchAll(db, sql: """
                     SELECT DISTINCT f.path, c.id, c.symbol, c.start_line,
-                           c.end_line, e.kind
+                           c.end_line, e.kind, e.line
                     FROM edges e
                     JOIN chunks c ON c.id = e.src_chunk
                     JOIN files f ON f.id = c.file_id
                     WHERE (e.dst_name = ?
                        OR e.dst_chunk IN (
                            SELECT chunk_id FROM symbols WHERE name = ?))
+                      AND (LOWER(f.path) LIKE '%test%'
+                           OR LOWER(f.path) LIKE '%spec%')
                     ORDER BY f.path, e.line LIMIT ?
                     """, arguments: [name, name, limit * 4])
             }
-            var tests: [[String: Any]] = []
+            // One entry per test chunk: a test that calls AND instantiates
+            // the symbol is one test, not two. `call_lines` pinpoints the
+            // call sites inside class-sized test chunks.
+            var order: [Int64] = []
+            var byChunk: [Int64: [String: Any]] = [:]
             for r in rows {
                 guard let path = r["path"] as? String,
                       Simulate.isTestPath(path) else { continue }
-                tests.append([
-                    "chunk_id": (r["id"] as? Int64) ?? -1,
-                    "path": path,
-                    "symbol": (r["symbol"] as? String) ?? NSNull(),
-                    "lines": "\((r["start_line"] as? Int64) ?? 0)-\((r["end_line"] as? Int64) ?? 0)",
-                    "edge": (r["kind"] as? String) ?? ""])
-                if tests.count >= limit { break }
+                let cid = (r["id"] as? Int64) ?? -1
+                if byChunk[cid] == nil {
+                    byChunk[cid] = [
+                        "chunk_id": cid,
+                        "path": path,
+                        "symbol": (r["symbol"] as? String) ?? NSNull(),
+                        "lines": "\((r["start_line"] as? Int64) ?? 0)-\((r["end_line"] as? Int64) ?? 0)",
+                        "edges": [String](),
+                        "call_lines": [Int64](),
+                    ]
+                    order.append(cid)
+                }
+                var e = byChunk[cid]!
+                var kinds = e["edges"] as? [String] ?? []
+                if let k = r["kind"] as? String, !kinds.contains(k) {
+                    kinds.append(k)
+                    e["edges"] = kinds
+                }
+                var lines = e["call_lines"] as? [Int64] ?? []
+                if let l = r["line"] as? Int64, !lines.contains(l),
+                   lines.count < 25 {
+                    lines.append(l)
+                    e["call_lines"] = lines
+                }
+                byChunk[cid] = e
+                if order.count >= limit { break }
             }
+            let tests = order.map { byChunk[$0]! }
             return json(["symbol": name, "tests": tests,
                          "count": tests.count,
                          "note": "static call-edge map — dynamic dispatch "
@@ -949,28 +978,44 @@ public enum SwctxTools {
         guard let path = args["path"]?.str, !path.isEmpty else {
             throw ToolError.missingArg("symbol_name or path")
         }
-        // What a test file covers: resolved outgoing edges -> symbols in
-        // non-test files (in-file helpers drop out via the same filter).
+        // What a test file covers: resolved outgoing edges -> the named
+        // target in a non-test file. `e.dst_name` is the covered symbol —
+        // joining the symbols table by chunk would fan out to every
+        // sibling declaration sharing that chunk (locals, tuple patterns).
         let rows = try store.pool.read { db in
             try Row.fetchAll(db, sql: """
-                SELECT DISTINCT s.name AS sname, sf.path AS spath, e.kind
+                SELECT DISTINCT e.dst_name AS sname, sf.path AS spath, e.kind
                 FROM edges e
                 JOIN chunks c ON c.id = e.src_chunk
                 JOIN files f ON f.id = c.file_id
-                JOIN symbols s ON s.chunk_id = e.dst_chunk
-                JOIN files sf ON sf.id = s.file_id
+                JOIN chunks dc ON dc.id = e.dst_chunk
+                JOIN files sf ON sf.id = dc.file_id
                 WHERE f.path = ? AND e.dst_chunk IS NOT NULL
-                ORDER BY s.name LIMIT ?
+                  AND NOT (LOWER(sf.path) LIKE '%test%'
+                           OR LOWER(sf.path) LIKE '%spec%')
+                ORDER BY sname LIMIT ?
                 """, arguments: [path, limit * 4])
         }
+        var index: [String: Int] = [:]
         var covers: [[String: Any]] = []
         for r in rows {
             guard let sp = r["spath"] as? String,
-                  !Simulate.isTestPath(sp) else { continue }
+                  !Simulate.isTestPath(sp),
+                  let sn = r["sname"] as? String else { continue }
+            let key = sn + "\u{1}" + sp
+            if let i = index[key] {
+                var kinds = covers[i]["edges"] as? [String] ?? []
+                if let k = r["kind"] as? String, !kinds.contains(k) {
+                    kinds.append(k)
+                    covers[i]["edges"] = kinds
+                }
+                continue
+            }
+            index[key] = covers.count
             covers.append([
-                "symbol": (r["sname"] as? String) ?? "",
+                "symbol": sn,
                 "path": sp,
-                "edge": (r["kind"] as? String) ?? ""])
+                "edges": [r["kind"] as? String].compactMap { $0 }])
             if covers.count >= limit { break }
         }
         return json(["path": path, "covers": covers,
@@ -988,10 +1033,12 @@ public enum SwctxTools {
         if text.isEmpty, let tf = args["trace_file"]?.str {
             guard let data = try? Data(contentsOf: URL(fileURLWithPath: tf)),
                   let s = String(data: data, encoding: .utf8) else {
-                return json(["error": "cannot read \(tf)"])
+                return json(["error": "cannot read trace_file: \(tf)"])
             }
             text = s
         }
+        guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        else { throw ToolError.missingArg("trace or trace_file") }
         let frames = Trace.parse(text)
         if frames.isEmpty {
             return json(["frames": [], "count": 0,

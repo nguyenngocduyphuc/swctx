@@ -61,3 +61,61 @@ dấu `·stale` khi code đổi làm anchor không còn resolve.
 
 Đặt cạnh `.gitignore` trong workspace, cùng cú pháp — loại file/thư mục
 khỏi index của swctx mà không đụng git.
+
+## Recipes — ba tool proactive trên index thật
+
+Ba tool này đọc index (không ghi), dùng được cả khi chưa sửa code.
+Gọi qua agent (Cách 1) hoặc CLI/`swctx mcp`.
+
+### 1. Kiểm tra ảnh hưởng trước khi sửa — `simulate_patch`
+
+```bash
+# Diff đang có trên working tree hoặc từ một commit
+git -C /path/to/workspace diff > /tmp/change.diff
+$BIN simulate /path/to/workspace --diff /tmp/change.diff
+
+# hoặc qua stdin
+git show HEAD~3 | $BIN simulate /path/to/workspace
+# qua agent: "simulate_patch với diff này trên workspace X"
+```
+
+Output tốt: mỗi `changed_symbols` có `path`, `symbol`, `kind`,
+`callers` (kèm `line` + symbol của nơi gọi) và `tests` bị ảnh hưởng. `body_changes` liệt kê hunk chỉ đổi thân hàm; với chunk lớn
+không có symbol riêng thì `enclosing_symbol`/`enclosing_kind` chỉ ra
+declaration chứa nó (`symbol_source: "owner_decl"`). Đổi signature thì
+`risk` báo arity và call-site sẽ gãy. File bị xóa giữ đúng path của nó.
+
+### 2. Test nào cover symbol này — `test_coverage`
+
+```
+# qua agent: "test_coverage symbol_name=LocalStore trên workspace X"
+#        hoặc "test_coverage path=Tests/.../LibraryRetrievalTests.swift"
+```
+
+- `symbol_name` → các test chunk gọi/instantiate symbol đó, gộp một
+  dòng per chunk: `edges` (các loại edge), `call_lines` (dòng gọi
+  thật). Chỉ file có `test`/`spec` trong path được tính.
+- `path` (trỏ file test) → các symbol non-test mà file đó cover qua
+  call edge đã resolve.
+- Giới hạn: static approximation — dynamic dispatch, test gọi qua
+  chuỗi/string-key không được mô hình; method test trong chunk cỡ
+  class được quy về chunk chứa nó.
+
+### 3. Dán crash trace — `trace_lookup`
+
+```
+# qua agent: "trace_lookup trace=<toàn bộ stack trace>" hoặc
+#            "trace_lookup trace_file=/tmp/crash.txt"
+```
+
+Parse Python (`File "...", line N`), JS/TS (`at ... (path:line)`),
+Go (`path:line +0x`), generic `path:line`, và Swift fatal error
+(`file /path/x.swift, line N`). Path tuyệt đối/CI (`/Users/ci/build/
+repo/...`) được suffix-match về path relative trong index.
+
+Output tốt: mỗi frame có `matched`, `path` trong index, `chunk_id`,
+`symbol` (`symbol_source: "owner_decl"` nếu frame rơi vào chunk
+window và symbol được suy từ declaration chứa nó). Frame không khớp
+(thư viện ngoài) vẫn được liệt kê với `matched: false`. `suspects`
+= caller của frame khớp sâu nhất, kèm `recent_commit` nếu vùng đó
+vừa bị commit đụng tới.

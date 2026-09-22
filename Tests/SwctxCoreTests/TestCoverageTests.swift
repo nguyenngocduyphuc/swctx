@@ -87,6 +87,54 @@ final class TestCoverageTests: SwctxTestCase {
         XCTAssertEqual(covers.first?["path"] as? String, "a.py")
     }
 
+    /// A test chunk that both calls and instantiates the symbol is ONE
+    /// entry — edge kinds merge, call-site lines collect per chunk.
+    func testSymbolModeDedupesEdgeKinds() async throws {
+        let ws = try makeWorkspace()
+        defer { try? FileManager.default.removeItem(at: ws) }
+        let store = try Store(workspaceRoot: ws)
+        try await store.pool.write { db in
+            try db.execute(sql: """
+                INSERT INTO edges(src_chunk, dst_chunk, dst_name, kind, line)
+                VALUES(4, 1, 'greet', 'instantiates', 5)
+                """)
+        }
+        let r = try await call(ws, ["symbol_name": .string("greet")])
+        let tests = try XCTUnwrap(r["tests"] as? [[String: Any]])
+        XCTAssertEqual(tests.count, 1)
+        XCTAssertEqual(r["count"] as? Int, 1)
+        let edges = tests.first?["edges"] as? [String] ?? []
+        XCTAssertEqual(Set(edges), ["calls", "instantiates"])
+        let callLines = tests.first?["call_lines"] as? [Int64] ?? []
+        XCTAssertTrue(callLines.contains(4))
+        XCTAssertTrue(callLines.contains(5))
+    }
+
+    /// path mode lists the edge's target name — not every sibling symbol
+    /// sharing the resolved chunk (locals/tuple decls fan out otherwise).
+    func testFileCoversOnlyEdgeTargets() async throws {
+        let ws = try makeWorkspace()
+        defer { try? FileManager.default.removeItem(at: ws) }
+        let store = try Store(workspaceRoot: ws)
+        try await store.pool.write { db in
+            // second symbol sharing greet's chunk + a tuple-pattern name —
+            // neither is an edge target, so neither may surface.
+            try db.execute(sql: """
+                INSERT INTO symbols(file_id, chunk_id, name, kind, line)
+                VALUES(1,1,'siblingLocal','property_declaration',2)
+                """)
+            try db.execute(sql: """
+                INSERT INTO symbols(file_id, chunk_id, name, kind, line)
+                VALUES(1,1,'(committed, _)','property_declaration',3)
+                """)
+        }
+        let r = try await call(ws, ["path": .string("tests/test_a.py")])
+        let covers = try XCTUnwrap(r["covers"] as? [[String: Any]])
+        XCTAssertEqual(covers.count, 1)
+        XCTAssertEqual(covers.first?["symbol"] as? String, "greet")
+        XCTAssertEqual(covers.first?["edges"] as? [String], ["calls"])
+    }
+
     /// Missing both args -> ToolError.missingArg, not a crash.
     func testMissingArgs() async throws {
         let ws = try makeWorkspace()

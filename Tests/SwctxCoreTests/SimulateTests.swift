@@ -112,6 +112,96 @@ final class SimulateTests: SwctxTestCase {
         XCTAssertEqual(deps.count, 2)
     }
 
+    /// Dependent rows must carry the real call-site line and the calling
+    /// chunk's symbol — INTEGER columns arrive as Int64, not Int.
+    func testCallersCarryLineAndCallerSymbol() throws {
+        let ws = try makeWorkspace()
+        defer { try? FileManager.default.removeItem(at: ws) }
+        let diff = """
+        --- a/a.py
+        +++ b/a.py
+        @@ -1,3 +1,3 @@
+        -def greet(name):
+        +def greet(name, lang):
+        """
+        let r = try sim(ws, diff)
+        let callers = (r["symbols"] as? [[String: Any]])?
+            .first?["callers"] as? [[String: Any]] ?? []
+        XCTAssertEqual(callers.count, 2)
+        let byPath = Dictionary(
+            callers.map { (($0["path"] as? String) ?? "", $0) },
+            uniquingKeysWith: { a, _ in a })
+        XCTAssertEqual(byPath["b.py"]?["line"] as? Int64, 12)
+        XCTAssertEqual(byPath["b.py"]?["symbol"] as? String, "caller")
+        XCTAssertEqual(byPath["tests/test_a.py"]?["line"] as? Int64, 4)
+    }
+
+    /// `+++ /dev/null` deletes a file: its removed decls must attribute to
+    /// the deleted path, not leak onto the previous file's hunks — and a
+    /// removed line that itself starts with `--` stays hunk content.
+    func testDeletedFileKeepsItsOwnPath() throws {
+        let ws = try makeWorkspace()
+        defer { try? FileManager.default.removeItem(at: ws) }
+        let diff = """
+        diff --git a/a.py b/a.py
+        --- a/a.py
+        +++ b/a.py
+        @@ -1,2 +1,1 @@
+        -def greet(name):
+        --- flag-comment
+        +def greet(name, lang):
+        diff --git a/b.py b/b.py
+        deleted file mode 100644
+        --- a/b.py
+        +++ /dev/null
+        @@ -12,1 +0,0 @@
+        -def prodCaller():
+        """
+        let r = try sim(ws, diff)
+        let syms = r["symbols"] as? [[String: Any]] ?? []
+        let byName = Dictionary(
+            syms.map { (($0["name"] as? String) ?? "", $0) },
+            uniquingKeysWith: { a, _ in a })
+        XCTAssertEqual(byName["greet"]?["file"] as? String, "a.py")
+        // the deleted file's decl keeps b.py — not misattributed to a.py
+        XCTAssertEqual(byName["prodCaller"]?["file"] as? String, "b.py")
+        XCTAssertEqual(byName["prodCaller"]?["change"] as? String, "removed")
+        let files = r["files"] as? [String] ?? []
+        XCTAssertEqual(files, ["a.py", "b.py"])
+    }
+
+    /// A hunk inside a symbol-less `window` chunk (oversized body split)
+    /// still resolves an owner: nearest preceding container decl.
+    func testWindowChunkFallsBackToOwningDecl() throws {
+        let ws = try makeWorkspace()
+        defer { try? FileManager.default.removeItem(at: ws) }
+        let store = try Store(workspaceRoot: ws)
+        try store.pool.write { db in
+            try db.execute(sql: """
+                INSERT INTO chunks(id, file_id, idx, start_line, end_line,
+                                   kind, symbol, content, tokens)
+                VALUES(9,1,0,10,20,'window',NULL,'x',0)
+                """)
+            try db.execute(sql: """
+                INSERT INTO symbols(file_id, chunk_id, name, kind, line,
+                                    norm_kind)
+                VALUES(1,9,'outer','function_declaration',9,'function')
+                """)
+        }
+        let diff = """
+        --- a/a.py
+        +++ b/a.py
+        @@ -15,1 +15,1 @@
+        -    x = 1
+        +    x = 2
+        """
+        let r = try sim(ws, diff)
+        let body = r["body_changes"] as? [[String: Any]] ?? []
+        XCTAssertEqual(body.first?["enclosing_symbol"] as? String, "outer")
+        XCTAssertEqual(body.first?["symbol_source"] as? String, "owner_decl")
+        XCTAssertEqual(body.first?["enclosing_kind"] as? String, "window")
+    }
+
     func testEmptyDiffIsGraceful() throws {
         let ws = try makeWorkspace()
         let r = try sim(ws, "not a diff\n")

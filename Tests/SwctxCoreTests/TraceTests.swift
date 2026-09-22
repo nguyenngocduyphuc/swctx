@@ -25,8 +25,16 @@ final class TraceTests: SwctxTestCase {
                 VALUES(1,1,0,10,30,'function','run','x',0)
                 """)
             try db.execute(sql: """
-                INSERT INTO symbols(file_id, chunk_id, name, kind, line)
-                VALUES(1,1,'run','def',10)
+                INSERT INTO symbols(file_id, chunk_id, name, kind, line,
+                                    norm_kind)
+                VALUES(1,1,'run','def',10,'function')
+                """)
+            // a.py also gets a symbol-less `window` chunk (lines 40-60):
+            // oversized body split — no symbol, no inbound edges.
+            try db.execute(sql: """
+                INSERT INTO chunks(id, file_id, idx, start_line, end_line,
+                                   kind, symbol, content, tokens)
+                VALUES(3,1,0,40,60,'window',NULL,'x',0)
                 """)
             try db.execute(sql: """
                 INSERT INTO chunks(id, file_id, idx, start_line, end_line,
@@ -76,6 +84,18 @@ final class TraceTests: SwctxTestCase {
         XCTAssertEqual(goF[0].line, 37)
     }
 
+    /// Swift runtime fatal errors carry `file /abs/x.swift, line N` —
+    /// unquoted, so the Python/JS patterns miss them entirely.
+    func testParseSwiftFatalErrorFormat() {
+        let trace = """
+        Fatal error: Index out of range: file /build/agent/src/app.swift, line 25
+        """
+        let frames = Trace.parse(trace)
+        XCTAssertEqual(frames.count, 1)
+        XCTAssertEqual(frames[0].path, "/build/agent/src/app.swift")
+        XCTAssertEqual(frames[0].line, 25)
+    }
+
     /// Container path `/app/src/app.py` suffix-matches `src/app.py`;
     /// line 25 lands inside chunk run(10-30); lib.py caller is suspect
     /// and app.py carries the recent_commit flag.
@@ -100,6 +120,30 @@ final class TraceTests: SwctxTestCase {
         XCTAssertEqual(suspects[0]["path"] as? String, "src/lib.py")
         // caller file is not the recently-committed one -> no flag
         XCTAssertNil(suspects[0]["recent_commit"])
+    }
+
+    /// A frame landing in a symbol-less `window` chunk still resolves an
+    /// owner via the nearest container decl, and suspects come from
+    /// `dst_name` edges — window chunks have no inbound edges of their own.
+    func testWindowFrameInfersOwnerAndFindsSuspects() throws {
+        let ws = try makeWorkspace()
+        defer { try? FileManager.default.removeItem(at: ws) }
+        let store = try Store(workspaceRoot: ws)
+        let trace = """
+        Traceback (most recent call last):
+          File "/srv/app/src/app.py", line 50, in <module>
+        """
+        let resolved = Trace.resolve(store: store, frames: Trace.parse(trace))
+        XCTAssertEqual(resolved.count, 1)
+        XCTAssertEqual(resolved[0]["matched"] as? Bool, true)
+        XCTAssertEqual(resolved[0]["chunk_id"] as? Int64, 3)
+        XCTAssertEqual(resolved[0]["symbol"] as? String, "run")
+        XCTAssertEqual(resolved[0]["symbol_source"] as? String, "owner_decl")
+
+        let suspects = Trace.suspects(store: store, resolved: resolved)
+        XCTAssertEqual(suspects.count, 1)
+        XCTAssertEqual(suspects[0]["path"] as? String, "src/lib.py")
+        XCTAssertEqual(suspects[0]["resolved"] as? Bool, true)
     }
 
     func testEmptyTraceIsGraceful() async throws {

@@ -18,6 +18,10 @@ public enum Trace {
     // Python:  File "src/x.py", line 42, in fn
     private static let pyRx = try! NSRegularExpression(
         pattern: #"File "([^"]+)", line (\d+)(?:, in (\S+))?"#)
+    // Swift/ObjC runtime: Fatal error: …: file /abs/x.swift, line 448
+    private static let swiftRx = try! NSRegularExpression(
+        pattern: #"\bfile\s+([^",\s=]+\.[A-Za-z0-9]+),\s*line\s+(\d+)"#,
+        options: [.caseInsensitive])
     // JS/TS: at fn (src/x.ts:10:5) | at async fn (…) | at src/x.ts:10:5
     private static let jsRx = try! NSRegularExpression(
         pattern: #"\bat\s+(?:async\s+)?(?:([\w$.<>]+)\s+(?:\[as\s+\S+\]\s+)?\()?((?:file://)?[^\s()]+?):(\d+)(?::\d+)?\)?"#)
@@ -53,6 +57,7 @@ public enum Trace {
             }
         }
         add(pyRx, pathAt: 1, lineAt: 2, symAt: 3)
+        add(swiftRx, pathAt: 1, lineAt: 2, symAt: -1)
         add(jsRx, pathAt: 2, lineAt: 3, symAt: 1)
         add(goRx, pathAt: 1, lineAt: 2, symAt: -1)
         add(genericRx, pathAt: 1, lineAt: 2, symAt: -1)
@@ -92,17 +97,32 @@ public enum Trace {
             if let sym = f.symbolHint { rec["symbol_hint"] = sym }
             if let p = best {
                 rec["path"] = p
-                if let row = try? store.pool.read({ db in
+                let row = try? store.pool.read({ db in
                     try Row.fetchOne(db, sql: """
                         SELECT c.id, c.symbol, c.start_line, c.end_line
                         FROM chunks c JOIN files f ON f.id = c.file_id
                         WHERE f.path = ? AND c.start_line <= ? AND c.end_line >= ?
                         ORDER BY (c.end_line - c.start_line) ASC LIMIT 1
                         """, arguments: [p, f.line, f.line])
-                }), let cid = row["id"] as? Int64 {
+                })
+                if let row, let cid = row["id"] as? Int64 {
                     rec["chunk_id"] = cid
-                    rec["symbol"] = (row["symbol"] as? String) ?? NSNull()
                     rec["span"] = "\((row["start_line"] as? Int64) ?? 0)-\((row["end_line"] as? Int64) ?? 0)"
+                }
+                // A decl nested inside the matched chunk (method inside a
+                // class-sized chunk) is more precise than the chunk's own
+                // symbol; for symbol-less `window` chunks the nearest decl
+                // above is the owning declaration. Also covers matched
+                // lines that land between chunks entirely.
+                let decl = try? store.pool.read({ db in
+                    try Simulate.nearestDecl(db, path: p, line: Int64(f.line))
+                })
+                if let enc = Simulate.enclosingSymbol(
+                    chunkSymbol: row?["symbol"] as? String,
+                    chunkStart: (row?["start_line"] as? Int64) ?? Int64(f.line),
+                    decl: decl) {
+                    rec["symbol"] = enc.0
+                    rec["symbol_source"] = enc.1
                 }
             }
             out.append(rec)
@@ -110,22 +130,43 @@ public enum Trace {
         return out
     }
 
-    /// Deepest matched app frame is the crash site; its indexed callers
-    /// (via edges) are the suspects worth reading next.
+    /// Deepest matched app frame is the crash site; suspects are the indexed
+    /// callers of that frame's symbol. Looked up by `dst_name` (not only
+    /// `dst_chunk`): crash lines often land in symbol-less `window` chunks
+    /// that no edge points at, and name-only edges carry unresolved callers
+    /// too. `resolved` marks edges pinned to a same-named definition.
     static func suspects(store: Store, resolved: [[String: Any]])
         -> [[String: Any]] {
-        guard let last = resolved.last(where: { ($0["matched"] as? Bool) == true }),
-              let cid = last["chunk_id"] as? Int64 else { return [] }
-        let rows = (try? store.pool.read { db in
-            try Row.fetchAll(db, sql: """
-                SELECT DISTINCT f.path, e.line, c.symbol
+        guard let last = resolved.last(where: { ($0["matched"] as? Bool) == true })
+        else { return [] }
+        let sym = last["symbol"] as? String
+        let cid = last["chunk_id"] as? Int64
+        guard sym != nil || cid != nil else { return [] }
+        var defs = Set<Int64>()
+        let rows: [Row] = (try? store.pool.read { db in
+            if let sym {
+                defs = Set(try Int64.fetchAll(db, sql:
+                    "SELECT chunk_id FROM symbols WHERE name = ?",
+                    arguments: [sym]))
+                return try Row.fetchAll(db, sql: """
+                    SELECT DISTINCT f.path, e.line, c.symbol, e.dst_chunk
+                    FROM edges e
+                    JOIN chunks c ON c.id = e.src_chunk
+                    JOIN files f ON f.id = c.file_id
+                    WHERE e.dst_name = ? AND e.kind IN
+                        ('calls','instantiates','uses_type','api_call')
+                    ORDER BY f.path, e.line LIMIT 20
+                    """, arguments: [sym])
+            }
+            return try Row.fetchAll(db, sql: """
+                SELECT DISTINCT f.path, e.line, c.symbol, e.dst_chunk
                 FROM edges e
                 JOIN chunks c ON c.id = e.src_chunk
                 JOIN files f ON f.id = c.file_id
                 WHERE e.dst_chunk = ? AND e.kind IN
                     ('calls','instantiates','uses_type','api_call')
-                ORDER BY f.path LIMIT 20
-                """, arguments: [cid])
+                ORDER BY f.path, e.line LIMIT 20
+                """, arguments: [cid ?? -1])
         }) ?? []
         // Files touched by the most recent commits are statistically the
         // likelier break source — flag suspects on that list. Commit
@@ -150,9 +191,17 @@ public enum Trace {
             var r: [String: Any] = [
                 "path": p,
                 "line": ($0["line"] as? Int64) ?? 0,
-                "symbol": ($0["symbol"] as? String) ?? NSNull()]
+                "symbol": ($0["symbol"] as? String) ?? NSNull(),
+                "resolved": ($0["dst_chunk"] as? Int64)
+                    .map { defs.contains($0) } ?? false]
             if recentPaths.contains(p) { r["recent_commit"] = true }
             return r
+        }
+        // Recently commit-touched callers triage first.
+        .sorted { a, b in
+            ((a["recent_commit"] as? Bool) == true) != ((b["recent_commit"] as? Bool) == true)
+                ? (a["recent_commit"] as? Bool) == true
+                : (a["path"] as? String ?? "") < (b["path"] as? String ?? "")
         }
     }
 }
