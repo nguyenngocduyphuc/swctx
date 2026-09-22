@@ -1,5 +1,4 @@
 """Smoke test — index a tiny fixture workspace, assert retrieval paths."""
-import os
 import sys
 import tempfile
 from pathlib import Path

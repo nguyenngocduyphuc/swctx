@@ -4,7 +4,7 @@ Free, deterministic, no model call. enLexicon rescues English queries
 against Vietnamese-named files (BietXong.swift) by producing folded VN
 path atoms; vnLexicon does the reverse.
 """
-from .fold import fold_text, _ALNUM_SPLIT
+from .fold import _ALNUM_SPLIT, fold_text
 
 # folded-VN phrase -> English filename terms (longest match wins)
 VN_LEXICON: list[tuple[str, list[str]]] = [

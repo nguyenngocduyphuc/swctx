@@ -43,12 +43,14 @@ def test_checkpoint_resume():
 
 
 def test_put_record_allowlist():
+    import pytest
     with tempfile.TemporaryDirectory() as tmp:
         _build(tmp)
-        bad = json.loads(call("put_record", {
-            "workspace": tmp, "kind": "bogus", "title": "t",
-            "payload": "p"}))
-        assert "error" in bad
+        # Swift ToolError.invalidArg -> a raised error, not a payload
+        with pytest.raises(ValueError, match="unknown record kind"):
+            call("put_record", {
+                "workspace": tmp, "kind": "bogus", "title": "t",
+                "payload": "p"})
         for kind in ("note", "finding", "decision", "todo"):
             out = json.loads(call("put_record", {
                 "workspace": tmp, "kind": kind, "title": f"t-{kind}",

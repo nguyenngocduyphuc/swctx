@@ -2,14 +2,13 @@
 from __future__ import annotations
 
 import hashlib
-import os
 import time
 from pathlib import Path
 
 import numpy as np
 
 from . import chunker, discover, edges
-from .embedder import Embedder, MODELS_KNOWN, model_installed
+from .embedder import MODELS_KNOWN, Embedder, model_installed
 from .fold import fold_text, path_token_string, symbol_token_string
 from .store import Store
 
@@ -273,10 +272,9 @@ class Indexer:
                      if ln.startswith(prefix)][:50]
             body = _json.dumps({"sha": sha, "author": f[2], "date": f[3],
                                 "files": files})
-            s.db.execute(
-                "INSERT INTO records(kind,title,body,created_at) "
-                "VALUES ('commit',?,?,?)",
-                (f"{sha[:12]} {f[1]}", body, time.time()))
+            from . import records as _rec
+            _rec.insert_ws(s, "commit", f"{sha[:12]} {f[1]}", body,
+                           source="git")
             inserted += 1
         if newest:
             s.set_meta("git_history_head", newest)

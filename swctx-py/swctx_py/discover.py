@@ -82,3 +82,38 @@ def lang_of(path: str) -> str:
         ".php": "php", ".kt": "kotlin", ".sh": "bash", ".bash": "bash",
         ".md": "markdown", ".json": "json", ".yaml": "yaml", ".yml": "yaml",
     }.get(Path(path).suffix.lower(), "")
+
+
+# Port of SwctxCore/Languages.swift extMap + baseNames — the "known
+# extension" check behind record anchor capture.
+_EXT_MAP = {
+    "swift": "swift",
+    "py": "python", "pyi": "python",
+    "js": "javascript", "mjs": "javascript", "cjs": "javascript",
+    "jsx": "tsx",
+    "ts": "typescript", "mts": "typescript", "cts": "typescript",
+    "tsx": "tsx",
+    "go": "go", "rs": "rust", "json": "json",
+    "yaml": "yaml", "yml": "yaml",
+    "html": "html", "htm": "html", "css": "css",
+    "sh": "bash", "bash": "bash", "zsh": "bash",
+    "md": "markdown", "markdown": "markdown",
+    "txt": "text", "toml": "text",
+}
+_BASE_NAMES = {
+    "makefile": "bash", "dockerfile": "bash", "justfile": "bash",
+    "gemfile": "text", "podfile": "text",
+}
+
+
+def language_id(path: str) -> str | None:
+    """Extension/basename -> language id, None when unknown."""
+    lower = path.replace("\\", "/").rsplit("/", 1)[-1].lower()
+    if lower in _BASE_NAMES:
+        return _BASE_NAMES[lower]
+    if "." not in lower:
+        return None
+    ext = lower.rsplit(".", 1)[-1]
+    if not ext:
+        return None
+    return _EXT_MAP.get(ext)

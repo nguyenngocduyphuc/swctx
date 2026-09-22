@@ -43,17 +43,29 @@ MCP client config:
 { "mcpServers": { "swctx-py": { "command": "swctx-py", "args": ["mcp"] } } }
 ```
 
-## MCP tools
+## MCP tools (22)
 
 `prime` (orientation card — call first) · `get_status` · `list_workspaces` ·
 `index_workspace` · `search` · `fetch_chunks` · `find_definitions` ·
-`find_usages` · `workspace_tree` · `search_records` · `simulate_patch`
+`find_usages` · `inspect_path` (browse chunks under a relative path;
+`query` hybrid-reranks the subtree) · `graph_neighbors` · `graph_expand`
+· `graph_paths` (`strategy=shortest` batched BFS | `all_simple` DFS) ·
+`get_impact` (transitive dependents — "if I change this, what breaks?") ·
+`get_record` / `list_records` (durable ledger reads;
+`scope=workspace|global|all`, `stale`/`stale_reasons` flags when HEAD
+moved and a captured anchor stopped resolving) · `workspace_tree` ·
+`search_records` · `put_record` + `checkpoint` (dual-write workspace +
+repo-wide shared ledger, staleness anchors captured) · `simulate_patch`
 (speculative diff → broken dependents, via the call/extends edge graph) ·
 `test_coverage` (symbol↔test map over the same edges: `symbol_name` →
 covering tests, `path` → covered production symbols) · `trace_lookup`
 (stack trace → indexed frames + suspects, `recent_commit`-flagged) ·
 `outline` + `fetch_chunks mode=signature` (task-aware slicing: shapes,
 not bodies)
+
+`workspace` may be omitted, `auto` or `.` on every tool — the nearest
+indexed ancestor of the server cwd wins; `use_workspace_root` does the
+same walk for an explicit nested path.
 
 ## What it does
 
@@ -88,7 +100,7 @@ HuggingFace. Per-index binding: `swctx-py index <path> --model <id>`.
 
 The Swift build (repo root) runs CoreML on Apple Neural Engine and ships the
 full 26-tool surface. This port targets portability — CPU ONNX embeddings,
-the same retrieval shape and lexicon legs — and currently exposes **16 MCP
+the same retrieval shape and lexicon legs — and currently exposes **22 MCP
 tools**.
 
 **At parity:**
@@ -99,8 +111,19 @@ tools**.
 - Graph edges — regex-based call/extends/import extraction backing
   `find_definitions`, `find_usages`, `simulate_patch`, `test_coverage`,
   `trace_lookup`.
-- Records/memory — `put_record`, `search_records` (incl. `scope=global`
-  shared ledger), `checkpoint` + `prime` resume line.
+- Graph traversal — `graph_neighbors`, `graph_expand` (score decay
+  0.7^depth, cap 60), `graph_paths` (batched-BFS `shortest` /
+  `all_simple`), `get_impact` (≤4-hop dependents). Resolved edges only,
+  same caps and output keys as `Tools.swift`.
+- Records/memory — `put_record`, `checkpoint`, `get_record`,
+  `list_records`, `search_records`: dual-write to the workspace ledger +
+  the repo-wide shared ledger (`~/.swctx-py/records.db`, keyed by the
+  main git checkout so worktrees share it), `scope=workspace|global|all`,
+  kind/source/status filters + pagination, and staleness evidence
+  (`head_sha` + resolving symbol/path anchors → `stale`,
+  `stale_reasons`).
+- `inspect_path` — subtree browse + optional hybrid rerank, same caps
+  (limit ≤200, rerank pool ≤500).
 - Slicing — `outline`, `fetch_chunks mode=signature`.
 - Ops — `index_workspace`, `get_status`, `list_workspaces`,
   `workspace_tree`, `prime`, polling `watch`.
@@ -108,12 +131,19 @@ tools**.
 **Not ported (known gaps):**
 
 - **No `answer`/`ask` synthesis and no planner backends** — neither the
-  local `ollama` path nor the `cli:*` agent-fleet backend exists here. Use
-  the Swift build, or drive `search`/`fetch_chunks` from your agent loop.
-- `context_pack`, `fast_understand`.
-- BFS graph tools: `graph_neighbors`, `graph_expand`, `graph_paths`,
-  `get_impact`.
-- `get_record` / `list_records` (use `search_records` meanwhile).
+  local `ollama` path nor the `cli:*` agent-fleet backend exists here;
+  `answer` stays Swift-side.
+- `context_pack`, `fast_understand` — deterministic (no LLM) but built
+  on Swift-only machinery (Understand digest, pack composer); drive
+  `search`/`fetch_chunks`/`graph_*` from your agent loop instead.
+- `get_workspace_tree` (Swift's paginated file list with chunk/symbol
+  counts and `status` freshness filter) — `workspace_tree` returns a
+  simpler directory tree.
+- `max_tokens` response budgeting (`meta.omitted` tail-trim) — responses
+  are returned whole.
 - `install-agent` client-config merger; the LaunchAgent `watchd` (py
   `watch` is a foreground/polling loop).
 - CoreML/`NLEmbedding` embedders — ONNX only.
+
+State dir defaults to `~/.swctx-py/`; `SWCTX_PY_HOME` overrides it
+(indexes, catalog, records.db — the test seam).

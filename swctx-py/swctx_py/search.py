@@ -8,7 +8,7 @@ import sqlite3
 import numpy as np
 
 from .embedder import Embedder
-from .fold import fold_text, path_token_string, query_terms, symbol_tokens
+from .fold import path_token_string, query_terms, symbol_tokens
 from .lexicon import lexicon_terms, vn_terms
 from .store import Store
 
@@ -17,6 +17,21 @@ RRF_K = 60.0
 
 def _fts_escape(term: str) -> str:
     return '"' + term.replace('"', ' ') + '"'
+
+
+def _path_cond(path_filter: str | None, col: str,
+               exact: bool = False) -> tuple[str, tuple]:
+    """`path` subtree constraint (the pathFilter Swift's Search pushes
+    into each retrieval leg). SQL legs are prefix-only LIKE 'p/%' —
+    exact files match only through the vector leg's `(= ? OR LIKE)`
+    clause, mirrored here via `exact`."""
+    if not path_filter:
+        return "", ()
+    prefix = path_filter if path_filter.endswith("/") else path_filter + "/"
+    if exact:
+        return (f" AND ({col} = ? OR {col} LIKE ?)",
+                (path_filter, prefix + "%"))
+    return f" AND {col} LIKE ?", (prefix + "%",)
 
 
 class Searcher:
@@ -28,23 +43,35 @@ class Searcher:
 
     # ---------- legs ----------
 
-    def _fts_leg(self, query: str, limit: int) -> dict[int, float]:
+    def _fts_leg(self, query: str, limit: int,
+                 path_filter: str | None = None) -> dict[int, float]:
         if not self.store.fts_ok:
             return {}
         terms = query_terms(query)
         if not terms:
             return {}
         q = " OR ".join(_fts_escape(t) for t in terms)
+        cond, params = _path_cond(path_filter, "c.file_id")
         try:
-            rows = self.store.db.execute(
-                "SELECT chunk_id, bm25(fts_chunks, 5.0, 2.0, 4.0, 1.0) s "
-                "FROM fts_chunks WHERE fts_chunks MATCH ? ORDER BY s LIMIT ?",
-                (q, limit)).fetchall()
+            if cond:
+                rows = self.store.db.execute(
+                    "SELECT fts_chunks.chunk_id, "
+                    "bm25(fts_chunks, 5.0, 2.0, 4.0, 1.0) s "
+                    "FROM fts_chunks JOIN chunks c "
+                    "ON c.id = fts_chunks.chunk_id "
+                    "WHERE fts_chunks MATCH ?" + cond +
+                    " ORDER BY s LIMIT ?", (q, *params, limit)).fetchall()
+            else:
+                rows = self.store.db.execute(
+                    "SELECT chunk_id, bm25(fts_chunks, 5.0, 2.0, 4.0, 1.0) s "
+                    "FROM fts_chunks WHERE fts_chunks MATCH ? "
+                    "ORDER BY s LIMIT ?", (q, limit)).fetchall()
         except sqlite3.OperationalError:
             return {}
         return {r[0]: -r[1] for r in rows}
 
-    def _folded_leg(self, query: str, limit: int) -> dict[int, float]:
+    def _folded_leg(self, query: str, limit: int,
+                    path_filter: str | None = None) -> dict[int, float]:
         """Folded-content tail-fill — rescues đ/diacritic queries FTS misses."""
         if not self.store.fts_ok:
             return {}
@@ -52,16 +79,26 @@ class Searcher:
         if not terms:
             return {}
         q = "folded : " + " OR ".join(_fts_escape(t) for t in terms)
+        cond, params = _path_cond(path_filter, "c.file_id")
         try:
-            rows = self.store.db.execute(
-                "SELECT chunk_id, bm25(fts_chunks) s FROM fts_chunks "
-                "WHERE fts_chunks MATCH ? ORDER BY s LIMIT ?",
-                (q, limit)).fetchall()
+            if cond:
+                rows = self.store.db.execute(
+                    "SELECT fts_chunks.chunk_id, bm25(fts_chunks) s "
+                    "FROM fts_chunks JOIN chunks c "
+                    "ON c.id = fts_chunks.chunk_id "
+                    "WHERE fts_chunks MATCH ?" + cond +
+                    " ORDER BY s LIMIT ?", (q, *params, limit)).fetchall()
+            else:
+                rows = self.store.db.execute(
+                    "SELECT chunk_id, bm25(fts_chunks) s FROM fts_chunks "
+                    "WHERE fts_chunks MATCH ? ORDER BY s LIMIT ?",
+                    (q, limit)).fetchall()
         except sqlite3.OperationalError:
             return {}
         return {r[0]: -r[1] * 0.5 for r in rows}
 
-    def _vector_leg(self, query: str, limit: int) -> dict[int, float]:
+    def _vector_leg(self, query: str, limit: int,
+                    path_filter: str | None = None) -> dict[int, float]:
         model = self.store.meta("embedding_model", "bge-base-en-v1.5")
         if self._embedder is None:
             self._embedder = Embedder(model)
@@ -79,10 +116,22 @@ class Searcher:
         except Exception:
             return {}
         sims = self._vecs @ qv
+        if path_filter:
+            prefix = (path_filter if path_filter.endswith("/")
+                      else path_filter + "/")
+            allowed = {r[0] for r in self.store.db.execute(
+                "SELECT id FROM chunks WHERE file_id = ? OR file_id LIKE ?",
+                (path_filter, prefix + "%"))}
+            if not allowed:
+                return {}
+            sims = np.where(
+                np.isin(self._vec_ids, list(allowed)), sims, -np.inf)
         top = np.argpartition(-sims, min(limit, len(sims) - 1))[:limit]
-        return {int(self._vec_ids[i]): float(sims[i]) for i in top}
+        return {int(self._vec_ids[i]): float(sims[i]) for i in top
+                if sims[i] > -np.inf}
 
-    def _symbol_leg(self, query: str, limit: int) -> dict[int, float]:
+    def _symbol_leg(self, query: str, limit: int,
+                    path_filter: str | None = None) -> dict[int, float]:
         terms = set(query_terms(query))
         toks: set[str] = set()
         for t in terms:
@@ -91,12 +140,22 @@ class Searcher:
         if not toks:
             return {}
         marks = ",".join("?" * len(toks))
-        rows = self.store.db.execute(
-            f"SELECT DISTINCT chunk_id FROM symbols WHERE lower(name) IN ({marks})"
-            f" LIMIT ?", (*toks, limit)).fetchall()
+        cond, params = _path_cond(path_filter, "c.file_id")
+        if cond:
+            rows = self.store.db.execute(
+                f"SELECT DISTINCT s.chunk_id FROM symbols s "  # noqa: S608 — ?-placeholders only
+                f"JOIN chunks c ON c.id = s.chunk_id "
+                f"WHERE lower(s.name) IN ({marks}){cond} LIMIT ?",
+                (*toks, *params, limit)).fetchall()
+        else:
+            rows = self.store.db.execute(
+                f"SELECT DISTINCT chunk_id FROM symbols "  # noqa: S608 — ?-placeholders only
+                f"WHERE lower(name) IN ({marks}) LIMIT ?",
+                (*toks, limit)).fetchall()
         return {r[0]: 1.0 for r in rows}
 
-    def _path_leg(self, query: str, limit: int) -> dict[int, float]:
+    def _path_leg(self, query: str, limit: int,
+                  path_filter: str | None = None) -> dict[int, float]:
         """Filename-intent probe — path atoms + EN->VN lexicon atoms when the
         corpus actually names files in Vietnamese."""
         atoms = query_terms(query)
@@ -116,13 +175,16 @@ class Searcher:
         file_atoms: dict[str, set[str]] = {}
         file_best_chunk: dict[str, tuple[int, float]] = {}
         atom_idf: dict[str, float] = {}
+        cond, params = _path_cond(path_filter, "c.file_id")
         for atom in atoms[:24]:
             try:
                 rows = self.store.db.execute(
                     "SELECT c.id, c.file_id, bm25(fts_chunks) s "
                     "FROM fts_chunks f JOIN chunks c ON c.id=f.chunk_id "
-                    "WHERE fts_chunks MATCH ? ORDER BY s LIMIT 200",
-                    (f"path_tokens : {_fts_escape(atom)}",)).fetchall()
+                    "WHERE fts_chunks MATCH ?" + cond +
+                    " ORDER BY s LIMIT 200",
+                    (f"path_tokens : {_fts_escape(atom)}", *params)
+                ).fetchall()
             except sqlite3.OperationalError:
                 continue
             if not rows:
@@ -144,14 +206,16 @@ class Searcher:
 
     # ---------- fuse ----------
 
-    def search(self, query: str, limit: int = 10, session: str = "") -> list[dict]:
+    def search(self, query: str, limit: int = 10, session: str = "",
+               path_filter: str | None = None,
+               event_tool: str = "search") -> list[dict]:
         pool = limit * 8
-        path_leg = self._path_leg(query, pool)
+        path_leg = self._path_leg(query, pool, path_filter)
         legs = [
-            self._fts_leg(query, pool),
-            self._vector_leg(query, pool),
-            self._symbol_leg(query, pool),
-            self._folded_leg(query, pool),
+            self._fts_leg(query, pool, path_filter),
+            self._vector_leg(query, pool, path_filter),
+            self._symbol_leg(query, pool, path_filter),
+            self._folded_leg(query, pool, path_filter),
         ]
         score: dict[int, float] = {}
         for leg in legs:
@@ -167,7 +231,7 @@ class Searcher:
                 score[cid] = score.get(cid, 0.0) + 0.06 * (sc / peak)
         top = sorted(score, key=score.get, reverse=True)[:limit]
         if not top:
-            self.store.log_event("search", session, query, hit_count=0)
+            self.store.log_event(event_tool, session, query, hit_count=0)
             return []
         marks = ",".join("?" * len(top))
         rows = self.store.db.execute(
@@ -183,7 +247,7 @@ class Searcher:
                             "score": round(score[cid], 4),
                             "content": r[5]})
         self.store.log_event(
-            "search", session, query,
+            event_tool, session, query,
             top_paths=";".join(dict.fromkeys(o["path"] for o in out[:5])),
             hit_count=len(out))
         return out

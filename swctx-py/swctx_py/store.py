@@ -8,7 +8,10 @@ import sqlite3
 import time
 from pathlib import Path
 
-HOME = Path.home() / ".swctx-py"
+# SWCTX_PY_HOME replaces the whole state dir (indexes/, records.db,
+# workspaces.json) — mirrors the Swift engine's SWCTX_HOME test seam.
+HOME = (Path(os.environ["SWCTX_PY_HOME"])
+        if os.environ.get("SWCTX_PY_HOME") else Path.home() / ".swctx-py")
 INDEXES = HOME / "indexes"
 MODELS = HOME / "models"
 CATALOG = HOME / "workspaces.json"
@@ -33,8 +36,9 @@ CREATE INDEX IF NOT EXISTS idx_edges_name ON edges(dst_name);
 CREATE TABLE IF NOT EXISTS embeddings (
     chunk_id INTEGER PRIMARY KEY, vec BLOB);
 CREATE TABLE IF NOT EXISTS records (
-    id INTEGER PRIMARY KEY AUTOINCREMENT, kind TEXT, title TEXT,
-    body TEXT, created_at REAL);
+    id INTEGER PRIMARY KEY AUTOINCREMENT, kind TEXT, source TEXT,
+    status TEXT NOT NULL DEFAULT 'completed', title TEXT, payload TEXT,
+    created_at REAL, head_sha TEXT, anchors TEXT);
 CREATE TABLE IF NOT EXISTS usage_events (
     id INTEGER PRIMARY KEY AUTOINCREMENT, ts REAL, tool TEXT,
     session TEXT, query TEXT, arg_path TEXT, top_paths TEXT, hit_count INT);
@@ -51,7 +55,10 @@ def index_path(path: str) -> Path:
 
 class Store:
     def __init__(self, workspace: str, create: bool = True):
-        self.workspace = os.path.abspath(workspace)
+        # realpath (not abspath): symlinked paths must key identically
+        # whether they arrive via `swctx-py index /var/...` or the MCP
+        # auto-resolution — Swift resolves symlinks before Store.key.
+        self.workspace = os.path.realpath(workspace)
         self.key = workspace_key(self.workspace)
         db_path = index_path(self.workspace)
         if not create and not db_path.exists():
@@ -60,6 +67,7 @@ class Store:
         self.db = sqlite3.connect(str(db_path), check_same_thread=False)
         self.db.execute("PRAGMA journal_mode=WAL")
         self.db.executescript(SCHEMA)
+        self._migrate_records()
         self.fts_ok = self._probe_fts()
         if self.fts_ok:
             self.db.execute(
@@ -67,6 +75,39 @@ class Store:
                 "content, path_tokens, symbol_tokens, folded, chunk_id UNINDEXED)")
         self._vn_corpus: bool | None = None
         self.register()
+
+    def _migrate_records(self) -> None:
+        """In-place upgrade of pre-parity ledgers: body->payload rename plus
+        the source/status/head_sha/anchors staleness columns the Swift
+        records table gained at schema v2/v4. Backfill: commit rows came
+        from the git ingester ('git'), everything else was MCP-written."""
+        try:
+            cols = {r[1] for r in self.db.execute(
+                "PRAGMA table_info(records)")}
+            changed = False
+            if "body" in cols and "payload" not in cols:
+                self.db.execute(
+                    "ALTER TABLE records RENAME COLUMN body TO payload")
+                cols.discard("body")
+                cols.add("payload")
+                changed = True
+            for col in ("source", "status", "head_sha", "anchors"):
+                if col not in cols:
+                    self.db.execute(
+                        f"ALTER TABLE records ADD COLUMN {col} TEXT")
+                    changed = True
+            if changed:
+                self.db.execute(
+                    "UPDATE records SET source='git' "
+                    "WHERE source IS NULL AND kind='commit'")
+                self.db.execute(
+                    "UPDATE records SET source='mcp' WHERE source IS NULL")
+                self.db.execute(
+                    "UPDATE records SET status='completed' "
+                    "WHERE status IS NULL")
+                self.db.commit()
+        except sqlite3.Error:
+            pass  # degraded: reads fall back to whatever columns exist
 
     def _probe_fts(self) -> bool:
         try:

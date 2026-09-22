@@ -26,12 +26,10 @@ DENY = frozenset({
     "true", "false", "none", "nil", "null", "undefined", "self", "this",
     "super", "init", "sizeof", "typeof", "where", "guard", "some", "any",
     "print", "println", "echo", "printf", "panic", "len", "str", "int",
-    "float", "bool", "list", "dict", "set", "tuple", "range", "type",
-    "isinstance", "hasattr", "getattr", "setattr", "enumerate", "zip",
+    "float", "bool", "list", "dict", "set", "tuple", "range", "isinstance", "hasattr", "getattr", "setattr", "enumerate", "zip",
     "map", "filter", "min", "max", "sum", "abs", "sorted", "open",
     "make", "append", "copy", "cap", "close", "select", "chan", "go",
-    "void", "char", "long", "double", "string", "foreach", "elif",
-    "endif", "then", "fi", "done", "esac", "until", "repeat",
+    "void", "char", "long", "double", "string", "foreach", "endif", "then", "fi", "done", "esac", "until", "repeat",
 })
 
 # Inheritance/implements per language: (regex, kind). Applied per line.

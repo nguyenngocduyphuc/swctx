@@ -104,7 +104,7 @@ def suspects(store: Store, resolved: list[dict]) -> list[dict]:
         "ORDER BY c.file_id LIMIT 20", (last["chunk_id"],)).fetchall()
     recent: set[str] = set()
     for (body,) in store.db.execute(
-            "SELECT body FROM records WHERE kind='commit' "
+            "SELECT payload FROM records WHERE kind='commit' "
             "ORDER BY id DESC LIMIT 20"):
         try:
             recent.update(_json.loads(body).get("files", []))
