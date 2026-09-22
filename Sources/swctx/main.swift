@@ -13,7 +13,7 @@ struct Swctx: AsyncParsableCommand {
         commandName: "swctx",
         abstract: "Local semantic code index + MCP server (Swift reimplementation of the ctxe model).",
         version: "0.1.0",
-        subcommands: [IndexCmd.self, StatusCmd.self, PrimeCmd.self, SearchCmd.self, RerankCmd.self, Rerank2Cmd.self, Rerank3Cmd.self, TreeCmd.self, EmbedCmd.self, DiscoverCmd.self, WatchCmd.self, WatchAllCmd.self, AskCmd.self, AnswerCmd.self, SimulateCmd.self, ModelCmd.self, McpCmd.self, McpConfigCmd.self, InstallAgentCmd.self, GcCmd.self, StatsCmd.self],
+        subcommands: [IndexCmd.self, StatusCmd.self, PrimeCmd.self, SearchCmd.self, RerankCmd.self, Rerank2Cmd.self, Rerank3Cmd.self, TreeCmd.self, EmbedCmd.self, DiscoverCmd.self, WatchCmd.self, WatchAllCmd.self, AskCmd.self, AnswerCmd.self, CheckpointCmd.self, SimulateCmd.self, ModelCmd.self, McpCmd.self, McpConfigCmd.self, InstallAgentCmd.self, GcCmd.self, StatsCmd.self],
         defaultSubcommand: nil)
 }
 
@@ -1060,6 +1060,27 @@ struct AnswerCmd: AsyncParsableCommand {
         if let lim = d["limitations"] as? String, !lim.isEmpty {
             FileHandle.standardError.write("limitations: \(lim)\n".data(using: .utf8)!)
         }
+    }
+}
+
+/// `swctx checkpoint` — same session_checkpoint record the MCP tool writes
+/// (HEAD + branch + dirty files around the summary), so hooks like
+/// scripts/hooks/session_checkpoint.py can checkpoint without an MCP client.
+struct CheckpointCmd: AsyncParsableCommand {
+    static let configuration = CommandConfiguration(commandName: "checkpoint",
+        abstract: "Save a session checkpoint to the workspace+global records ledgers.")
+    @Argument(help: "Workspace path") var path: String = "."
+    @Option(name: .long, help: "What this session did") var summary: String
+    @Option(name: .long, help: "Suggested next step") var next: String = ""
+
+    func run() async throws {
+        let out = try await SwctxTools.call(name: "checkpoint", arguments: [
+            "workspace": .string(
+                URL(fileURLWithPath: path).standardizedFileURL.path),
+            "summary": .string(summary),
+            "next": .string(next),
+        ])
+        print(out)
     }
 }
 
