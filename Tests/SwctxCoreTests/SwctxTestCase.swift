@@ -20,6 +20,10 @@ class SwctxTestCase: XCTestCase {
         try? FileManager.default.createDirectory(
             at: dir, withIntermediateDirectories: true)
         setenv("SWCTX_HOME", dir.path, 1)
+        // GitRunnerTests flaked under full-suite parallel load — the 15s
+        // git() deadline is right for production but tight when hundreds of
+        // tests compete for the global queue. Tests get headroom.
+        setenv("SWCTX_GIT_TIMEOUT_S", "60", 0)
         return dir
     }()
 

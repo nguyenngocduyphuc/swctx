@@ -386,16 +386,18 @@ public final class GlobalRecords: @unchecked Sendable {
             errData.append(err.fileHandleForReading.readDataToEndOfFile())
             drain.leave()
         }
+        let timeout = ProcessInfo.processInfo.environment["SWCTX_GIT_TIMEOUT_S"]
+            .flatMap(TimeInterval.init) ?? 15
         let sem = DispatchSemaphore(value: 0)
         DispatchQueue.global().async { p.waitUntilExit(); sem.signal() }
-        if sem.wait(timeout: .now() + .seconds(15)) == .timedOut {
+        if sem.wait(timeout: .now() + timeout) == .timedOut {
             p.terminate()
             _ = sem.wait(timeout: .now() + .milliseconds(300))
             _ = drain.wait(timeout: .now() + .seconds(2))
             let e = String(decoding: errData as Data, as: UTF8.self)
                 .trimmingCharacters(in: .whitespacesAndNewlines)
             var msg = "swctx: git \(args.joined(separator: " ")) "
-                + "timed out after 15s (cwd: \(cwd.path))"
+                + "timed out after \(Int(timeout))s (cwd: \(cwd.path))"
             if !e.isEmpty { msg += ": \(e.suffix(400))" }
             FileHandle.standardError.write((msg + "\n").data(using: .utf8)!)
             return nil
