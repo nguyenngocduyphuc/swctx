@@ -862,8 +862,14 @@ public enum Answer {
             break
         }
         preflightLock.lock()
-        autoProbed = true
-        autoResult = found
+        // Only a FOUND backend is pinned for the process — caching the
+        // negative would pin ollama for the process's life just because
+        // every CLI happened to be down or slow at first probe. A nil
+        // verdict re-probes next call (PATH scans are ~free).
+        if let found {
+            autoProbed = true
+            autoResult = found
+        }
         preflightLock.unlock()
         return found
     }
@@ -1030,12 +1036,15 @@ public enum Answer {
             drain.leave()
         }
         let sem = DispatchSemaphore(value: 0)
-        DispatchQueue.global().async {
+        // Dedicated thread, not GCD: under parallel-suite load a global()
+        // block can sit unscheduled past `timeout`, turning sem.wait into
+        // a measure of queue latency and SIGKILL-ing a live process group.
+        Thread {
             var st: Int32 = 0
             _ = waitpid(pid, &st, 0)
             wstatus.raw = st
             sem.signal()
-        }
+        }.start()
         if sem.wait(timeout: .now() + .seconds(timeout)) == .timedOut {
             kill(-pid, SIGTERM)
             _ = sem.wait(timeout: .now() + .milliseconds(300))

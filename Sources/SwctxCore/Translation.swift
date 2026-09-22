@@ -849,12 +849,16 @@ public enum Translation {
             drain.leave()
         }
         let sem = DispatchSemaphore(value: 0)
-        DispatchQueue.global().async {
+        // Dedicated thread, not GCD: under parallel load a global()
+        // block can sit unscheduled past `timeoutMs` — the group-kill
+        // path below would then SIGKILL a live child for a scheduling
+        // delay, not a real overrun.
+        Thread {
             var st: Int32 = 0
             _ = waitpid(pid, &st, 0)
             wstatus.raw = st
             sem.signal()
-        }
+        }.start()
         if sem.wait(timeout: .now() + .milliseconds(timeoutMs)) == .timedOut {
             // Whole-group SIGTERM, short grace, then whole-group SIGKILL —
             // TERM-ignoring children AND their descendants all die.

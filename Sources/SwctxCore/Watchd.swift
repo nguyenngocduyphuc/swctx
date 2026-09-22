@@ -220,10 +220,19 @@ public enum Watchd {
                 : "launchd: " + picked.joined(separator: " · "))
             // The daemon keeps running the binary it was bootstrapped
             // with — after a rebuild it drifts from what `swctx` is now.
+            // Path equality alone misses a same-path overwrite, so also
+            // compare the current binary's mtime against the daemon's
+            // start time: file newer than the process = it exec'd an
+            // older inode that has since been replaced.
             if let pid = launchdPID(r.output),
                let daemonBin = pidPath(pid),
                let current = currentBinaryPath() {
-                lines.append(daemonBin == current
+                var same = daemonBin == current
+                if same, let mt = fileMtime(current),
+                   let started = pidStartTime(pid), mt > started {
+                    same = false
+                }
+                lines.append(same
                     ? "binary_stale: false"
                     : "binary_stale: true (daemon pid \(pid) runs "
                         + "\(daemonBin), current is \(current))")
@@ -309,6 +318,28 @@ public enum Watchd {
             .resolvingSymlinksInPath().standardizedFileURL.path
     }
 
+    /// When `pid` started, in unix seconds — PROC_PIDTBSDINFO carries
+    /// pbi_start_tvsec directly. nil when the process is gone or not
+    /// inspectable.
+    static func pidStartTime(_ pid: Int32) -> TimeInterval? {
+        var info = proc_bsdinfo()
+        let n = proc_pidinfo(pid, PROC_PIDTBSDINFO, 0, &info,
+                             Int32(MemoryLayout<proc_bsdinfo>.size))
+        guard n == Int32(MemoryLayout<proc_bsdinfo>.size)
+        else { return nil }
+        return TimeInterval(info.pbi_start_tvsec)
+            + TimeInterval(info.pbi_start_tvusec) / 1e6
+    }
+
+    /// Modification time of the file at `path`, unix seconds —
+    /// nil when it doesn't exist.
+    static func fileMtime(_ path: String) -> TimeInterval? {
+        var st = stat()
+        guard stat(path, &st) == 0 else { return nil }
+        return TimeInterval(st.st_mtimespec.tv_sec)
+            + TimeInterval(st.st_mtimespec.tv_nsec) / 1e9
+    }
+
     /// `launchctl args` → exit status + combined stdout/stderr. Pipes
     /// drain concurrently with the wait (`launchctl print` can exceed
     /// the 64KB pipe buffer) — same discipline as `Prime.probe`.
@@ -320,6 +351,11 @@ public enum Watchd {
         let out = Pipe(), err = Pipe()
         p.standardOutput = out
         p.standardError = err
+        let sem = DispatchSemaphore(value: 0)
+        // terminationHandler runs on Foundation's process monitor — a
+        // GCD waitUntilExit block could sit unscheduled under load and
+        // the timeout would measure queue latency, not launchctl.
+        p.terminationHandler = { _ in sem.signal() }
         do { try p.run() } catch {
             return (-1, "launchctl spawn failed: \(error.localizedDescription)")
         }
@@ -337,8 +373,6 @@ public enum Watchd {
             errData.append(err.fileHandleForReading.readDataToEndOfFile())
             drain.leave()
         }
-        let sem = DispatchSemaphore(value: 0)
-        DispatchQueue.global().async { p.waitUntilExit(); sem.signal() }
         if sem.wait(timeout: .now() + .seconds(15)) == .timedOut {
             p.terminate()
             _ = drain.wait(timeout: .now() + .seconds(2))

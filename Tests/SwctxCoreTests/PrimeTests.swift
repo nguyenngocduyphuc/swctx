@@ -159,6 +159,35 @@ final class PrimeTests: SwctxTestCase {
         XCTAssertTrue(card.contains("Resume:"))
     }
 
+    /// A session_checkpoint filed under a DIFFERENT ws must not become
+    /// this workspace's resume line — the unscoped newest-row query let
+    /// one repo's checkpoint leak into every prime card.
+    func testResumeIgnoresForeignWorkspaceCheckpoint() throws {
+        guard let g = GlobalRecords.shared else {
+            throw XCTSkip("global ledger unavailable")
+        }
+        let (dir, store) = try makeWorkspace()
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let otherWs = "foreign-\(UUID().uuidString.prefix(8))"
+        defer {
+            try? g.pool.write { db in
+                try db.execute(
+                    sql: "DELETE FROM records WHERE ws = ?",
+                    arguments: [otherWs])
+            }
+        }
+        let tag = UUID().uuidString.prefix(8)
+        try g.insert(
+            ws: otherWs, kind: "session_checkpoint", source: "test",
+            status: "completed", title: "foreign resume \(tag)",
+            payload: #"{"next": "foreign next"}"#)
+        let snap = try Prime.snapshot(store: store, root: store.workspaceRoot)
+        if let resume = snap["resume"] as? String {
+            XCTAssertFalse(resume.contains(tag),
+                           "foreign ws checkpoint leaked into resume")
+        }
+    }
+
     /// snapshot emits JSON-safe values for --format json consumers.
     func testPrimeSnapshotJSON() throws {
         let (dir, store) = try makeWorkspace()

@@ -265,14 +265,17 @@ public enum Prime {
                     (r["title"] as? String) ?? "", 60)]
             }
         }
-        // Resume: newest session_checkpoint carries a next-step so the
-        // incoming session picks up exactly where the last one stopped.
+        // Resume: newest session_checkpoint FOR THIS REPO carries a
+        // next-step so the incoming session picks up exactly where the
+        // last one stopped. The ws predicate matters — an unscoped newest
+        // row made every workspace inherit some other repo's resume line.
         if let g = GlobalRecords.shared,
            let row = try? g.pool.read({ db in
                try Row.fetchOne(db, sql: """
                    SELECT title, payload FROM records
-                   WHERE kind='session_checkpoint' ORDER BY id DESC LIMIT 1
-                   """)
+                   WHERE kind='session_checkpoint' AND ws = ?
+                   ORDER BY id DESC LIMIT 1
+                   """, arguments: [GlobalRecords.repoKey(for: root)])
            }) {
             var resume = (row["title"] as? String) ?? ""
             if let payload = (row["payload"] as? String)?.data(using: .utf8),

@@ -131,7 +131,7 @@ wanting prose with no LLM in the loop) — not this workflow.
 
 | Risk | Mitigation |
 |---|---|
-| `in_body_only` VN stratum still loses to ctxe's planner (§3) | Phase 2 legs: graph one-hop + concept-flow + corpus-mined lexicon; agent enumeration (T5) meanwhile |
+| `in_body_only` VN stratum still loses to ctxe's planner (§3) | Graph one-hop tried + failed preregistered gate (0 rescue/70 frozen q) — next attempt must be probe-layer/file-level scoring, not another weak fusion leg; agent enumeration (T5) meanwhile |
 | Multi-round planner quality on messy multi-hop questions unproven | `answer --plan` / `cli:*` exists; gate = cited-R@1 staying ahead on new manifests |
 | vn22 is tuned — a regression detector, not proof | Frozen blind manifests (linkeldn 25q, fleet 23q, aiteam 13q) decide claims |
 | `voyage-code-4` (1024-d) vs BGE (768-d) embedding quality | Measured parity so far; reranker (W15) only if a gap reappears — 3/3 rerankers already rejected on evidence |

@@ -11,9 +11,11 @@ Cập nhật 2026-09-22 — mọi con số đo trên manifest đã đăng ký tr
    linkeldn blind union 10/13 vs ctxe 13/13; fleet union 7/11 vs ctxe
    9/11 (paired Sep-20). Nguyên nhân đã chứng minh là **pool coverage**
    (gold không vào candidate pool) — 3/3 reranker bị reject vì không
-   rerank được cái fusion chưa surface. Hướng fix: leg mới (graph
-   one-hop, concept-flow, lexicon mine từ usage), không phải model lớn
-   hơn.
+   rerank được cái fusion chưa surface. Graph one-hop leg đã thử và
+   fail gate pre-register (0 rescue/0 drop trên 70 câu frozen — probe
+   prepend ngoài fusion chặn weak-leg, gold không adjacent top-hit) →
+   reverted. Hướng còn lại: probe-layer hoặc file-level scoring
+   (concept-flow, lexicon mine từ usage), không phải model lớn hơn.
 2. **`vn_to_en` đã đóng — không còn là 0/5.** Nhờ `enLexicon` (EN→VN
    filename atoms) + acronym tokenizer + vnLexicon +34: holdout
    unseen-repo aiteam 8/13 → 13/13 R@5, zero regression trên 3 manifest.

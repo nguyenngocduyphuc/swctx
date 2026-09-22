@@ -364,6 +364,12 @@ public final class GlobalRecords: @unchecked Sendable {
         let out = Pipe(), err = Pipe()
         p.standardOutput = out
         p.standardError = err
+        let sem = DispatchSemaphore(value: 0)
+        // terminationHandler fires on Foundation's process monitor — a
+        // `waitUntilExit` inside a GCD block can sit unscheduled under
+        // parallel load, making sem.wait measure queueing latency, not
+        // the process (false 60s timeouts on an already-exited git).
+        p.terminationHandler = { _ in sem.signal() }
         do {
             try p.run()
         } catch {
@@ -388,8 +394,6 @@ public final class GlobalRecords: @unchecked Sendable {
         }
         let timeout = ProcessInfo.processInfo.environment["SWCTX_GIT_TIMEOUT_S"]
             .flatMap(TimeInterval.init) ?? 15
-        let sem = DispatchSemaphore(value: 0)
-        DispatchQueue.global().async { p.waitUntilExit(); sem.signal() }
         if sem.wait(timeout: .now() + timeout) == .timedOut {
             p.terminate()
             _ = sem.wait(timeout: .now() + .milliseconds(300))
