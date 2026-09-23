@@ -1,6 +1,30 @@
 # swctx — Handoff & Status
 
-Date: 2026-09-23 (embed drain + reformulation leg + full-credit ctxe eval) · Status: **working — nightly 36/36, A/B 18/22, 258 tests green, HEAD `8f55428` pushed**
+Date: 2026-09-23 (round-2 + substring rescue → **A/B 22/22**) · Status: **working — nightly 36/36 PASS, A/B 22/22 (3 identical warm runs), 262 tests green, HEAD `4cc8759`**
+
+## 2026-09-23 (chiều) — Round-2 reformulation + substring filename rescue → 22/22
+
+**Commits** (branch main):
+
+| Commit | Nội dung |
+|---|---|
+| `930d980` | Champion-flood guard (`SWCTX_CHAMP_FLOOD`, default 6): ≥6 below-bar champions = generic atom set → no prepend. seo-10 gold repaired → `p8_link_injector.py` (stale `ghost_link_builder_apply.py`). 19/22. |
+| `6d026aa` | **Round-2 reformulation** + **substring filename rescue**. Query-keyed round-2 cache (`~/.swctx/round2_cache.json`, version `r2v6`, model qwen2.5:3b, 1500ms deadline, 3 rolls: judge+pick then names-only brainstorm). Substring LIKE probe reaches token SUFFIXES FTS prefix can't (`ctl`→sitectl, `hoach`→ke-hoach.md, `doi`→doi-ngu.md, `nap`+`serp`→nap_serp.py). Candidate order: live→corroborated→stem-coverage→stemEx→cr→rarity; vendors/ demotes with archive/test. Promotion: confident heads yield only to stemEx/strict-corroborated; non-confident take ≤1 query-central champion; jargon tail-only; pick reorders in-window when probe2 has no name evidence. 22/22. |
+| `4cc8759` | **swctx-py `answer` port** — strict-JSON cited synthesis, backend auto = fleet CLIs (agy→codex→claude)→ollama, pack-only degrade, kind=ask record. 7/7 py tests + live `cli:agy` smoke (12.6s). Closes the last ctxe-only surface. |
+
+**Verification**: vn A/B **22/22 recall@5** — 3 consecutive identical runs (deterministic warm) · nightly ratchet **PASS** 36/36, p95 147ms, schema 26/26 · **262 tests 0 fail**.
+
+**Bench determinism fix** (applies to both harnesses): cold 3B rolls race the result deadline but still write the durable cache — a one-shot cold run measures roll luck. `engine_ab.py` and `recall_mcp.py` now run a discarded warmup pass over all queries first (production MCP is long-lived → warm cache IS steady state). Without it the same code scored 18–19/22 with rotating misses.
+
+**Key design lessons** (đừng re-introduce):
+- `bm25()` throws inside `GROUP BY` — materialize ranks in a `LIMIT -1` subquery (same workaround as `ftsFileProbe`).
+- Subword atoms: PREFIX-only — a suffix subword self-matches its source token ("edin"→linkedin) and inflates matched-count.
+- Model jargon ("workflow" lands in every roll) must never be head-eligible — centrality gate: atom derivable from query text, translation, round-1 filename guesses, or command suffixes.
+- stemEx must strip non-alphanumerics ("AuditSustainability+.swift").
+- Strict (3-char) lane = raw folded query tokens only — camel subtokens are derived, not syllables the user typed.
+- Round-2 cache key = query ONLY (seenPaths keying proliferated entries on fused-order jitter).
+
+**Residual**: p95 gate margin thin (147/150) — cold first-query on a new workspace still pays ~1.5s round-2 window. ctxe `effort=high` baseline still pending — account had zero credit balance (`402 insufficient_credit`); runner `bench/ask_high_all.py` is ready, auto-resumes on top-up.
 
 ## 2026-09-23 — Reformulation leg + ctxe full-credit baseline
 
