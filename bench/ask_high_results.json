@@ -1,0 +1,559 @@
+{
+ "timestamp": "2026-09-23T13:35:39+0700",
+ "effort": "high",
+ "compose": false,
+ "wire_timeout_s": 480,
+ "recovery_budget_s": 600,
+ "summary": {
+  "n_done": 22,
+  "n_total": 22,
+  "hits": 0,
+  "mean_latency_s": 0.3,
+  "max_latency_s": 1.5,
+  "blocked": "ctxe account insufficient_credit (402 quota_exceeded): no ask_context executed — top up the ctxe wallet and rerun (error rows are retried automatically)"
+ },
+ "ctxe_index": {
+  "/Users/phuongnam/02.AI/NP_AI_macos/8.P8_SEO_Clean": {
+   "indexed": true,
+   "state": "Degraded",
+   "attempts": 1,
+   "files": 3121
+  },
+  "/Users/phuongnam/02.AI/NP_AI_macos/18.CRM-Nam-Pham": {
+   "indexed": true,
+   "state": "Degraded",
+   "attempts": 1,
+   "files": 83
+  }
+ },
+ "queries": [
+  {
+   "id": "seo-01",
+   "workspace": "/Users/phuongnam/02.AI/NP_AI_macos/8.P8_SEO_Clean",
+   "query": "script kiểm tra google có đang chọn canonical khác với url mình khai báo không",
+   "expected_path": "scripts/p8_canonical_check.py",
+   "hit": false,
+   "rank": 0,
+   "latency_s": 1.5,
+   "top_paths": [],
+   "record_id": null,
+   "live": {
+    "paths": [],
+    "latency_ms": 685.5,
+    "status": "error",
+    "error": "rpc -32603: internal error: ask dispatch: internal: ask_v4 internal error: embed query: provider call failed (status Some(402), code quota_exceeded, dispatch NotDispatched): insufficient_credit: Insufficient credit balance (run `ctxe wallet` to check balance) [correlation_id=2d450030-8cdb-4471-86d6-cf891441a289]"
+   },
+   "record": {
+    "id": null,
+    "status": "skipped",
+    "note": "ask errored at rpc/tool level"
+   },
+   "status": "error",
+   "error": "rpc -32603: internal error: ask dispatch: internal: ask_v4 internal error: embed query: provider call failed (status Some(402), code quota_exceeded, dispatch NotDispatched): insufficient_credit: Insufficient credit balance (run `ctxe wallet` to check balance) [correlation_id=2d450030-8cdb-4471-86d6-cf891441a289]"
+  },
+  {
+   "id": "seo-02",
+   "workspace": "/Users/phuongnam/02.AI/NP_AI_macos/8.P8_SEO_Clean",
+   "query": "gate phát hiện link nội bộ bị gãy 404 trong bài trước khi publish",
+   "expected_path": "scripts/p8_link_health.py",
+   "hit": false,
+   "rank": 0,
+   "latency_s": 0.2,
+   "top_paths": [],
+   "record_id": null,
+   "live": {
+    "paths": [],
+    "latency_ms": 232.7,
+    "status": "error",
+    "error": "rpc -32603: internal error: ask dispatch: internal: ask_v4 internal error: embed query: provider call failed (status Some(402), code quota_exceeded, dispatch NotDispatched): insufficient_credit: Insufficient credit balance (run `ctxe wallet` to check balance) [correlation_id=c9ff2ee5-98d9-495b-b3a8-b911c70a6c50]"
+   },
+   "record": {
+    "id": null,
+    "status": "skipped",
+    "note": "ask errored at rpc/tool level"
+   },
+   "status": "error",
+   "error": "rpc -32603: internal error: ask dispatch: internal: ask_v4 internal error: embed query: provider call failed (status Some(402), code quota_exceeded, dispatch NotDispatched): insufficient_credit: Insufficient credit balance (run `ctxe wallet` to check balance) [correlation_id=c9ff2ee5-98d9-495b-b3a8-b911c70a6c50]"
+  },
+  {
+   "id": "seo-03",
+   "workspace": "/Users/phuongnam/02.AI/NP_AI_macos/8.P8_SEO_Clean",
+   "query": "script tạo file excel để sinh link utm cho chiến dịch zalo linkedin",
+   "expected_path": "scripts/p8_utm_builder.py",
+   "hit": false,
+   "rank": 0,
+   "latency_s": 0.3,
+   "top_paths": [],
+   "record_id": null,
+   "live": {
+    "paths": [],
+    "latency_ms": 290.8,
+    "status": "error",
+    "error": "rpc -32603: internal error: ask dispatch: internal: ask_v4 internal error: embed query: provider call failed (status Some(402), code quota_exceeded, dispatch NotDispatched): insufficient_credit: Insufficient credit balance (run `ctxe wallet` to check balance) [correlation_id=a6c21e8e-972f-42a7-856f-9691eb35e44d]"
+   },
+   "record": {
+    "id": null,
+    "status": "skipped",
+    "note": "ask errored at rpc/tool level"
+   },
+   "status": "error",
+   "error": "rpc -32603: internal error: ask dispatch: internal: ask_v4 internal error: embed query: provider call failed (status Some(402), code quota_exceeded, dispatch NotDispatched): insufficient_credit: Insufficient credit balance (run `ctxe wallet` to check balance) [correlation_id=a6c21e8e-972f-42a7-856f-9691eb35e44d]"
+  },
+  {
+   "id": "seo-04",
+   "workspace": "/Users/phuongnam/02.AI/NP_AI_macos/8.P8_SEO_Clean",
+   "query": "worker tự sinh ảnh minh họa cho các mục h2 còn thiếu ảnh",
+   "expected_path": "scripts/p8_image_worker.py",
+   "hit": false,
+   "rank": 0,
+   "latency_s": 0.2,
+   "top_paths": [],
+   "record_id": null,
+   "live": {
+    "paths": [],
+    "latency_ms": 217.3,
+    "status": "error",
+    "error": "rpc -32603: internal error: ask dispatch: internal: ask_v4 internal error: embed query: provider call failed (status Some(402), code quota_exceeded, dispatch NotDispatched): insufficient_credit: Insufficient credit balance (run `ctxe wallet` to check balance) [correlation_id=5ea1a026-6a11-4f46-9f43-34571830a97a]"
+   },
+   "record": {
+    "id": null,
+    "status": "skipped",
+    "note": "ask errored at rpc/tool level"
+   },
+   "status": "error",
+   "error": "rpc -32603: internal error: ask dispatch: internal: ask_v4 internal error: embed query: provider call failed (status Some(402), code quota_exceeded, dispatch NotDispatched): insufficient_credit: Insufficient credit balance (run `ctxe wallet` to check balance) [correlation_id=5ea1a026-6a11-4f46-9f43-34571830a97a]"
+  },
+  {
+   "id": "seo-05",
+   "workspace": "/Users/phuongnam/02.AI/NP_AI_macos/8.P8_SEO_Clean",
+   "query": "lệnh đồng bộ thông tin của từng site thành một file entity mesh chung",
+   "expected_path": "factory/sitectl.py",
+   "hit": false,
+   "rank": 0,
+   "latency_s": 0.2,
+   "top_paths": [],
+   "record_id": null,
+   "live": {
+    "paths": [],
+    "latency_ms": 232.7,
+    "status": "error",
+    "error": "rpc -32603: internal error: ask dispatch: internal: ask_v4 internal error: embed query: provider call failed (status Some(402), code quota_exceeded, dispatch NotDispatched): insufficient_credit: Insufficient credit balance (run `ctxe wallet` to check balance) [correlation_id=7b8810f1-fb49-43f6-aa31-9a2c20fa7ad8]"
+   },
+   "record": {
+    "id": null,
+    "status": "skipped",
+    "note": "ask errored at rpc/tool level"
+   },
+   "status": "error",
+   "error": "rpc -32603: internal error: ask dispatch: internal: ask_v4 internal error: embed query: provider call failed (status Some(402), code quota_exceeded, dispatch NotDispatched): insufficient_credit: Insufficient credit balance (run `ctxe wallet` to check balance) [correlation_id=7b8810f1-fb49-43f6-aa31-9a2c20fa7ad8]"
+  },
+  {
+   "id": "seo-06",
+   "workspace": "/Users/phuongnam/02.AI/NP_AI_macos/8.P8_SEO_Clean",
+   "query": "trang liệt kê tình trạng các worker trong đội hạm con nào đang bị block",
+   "expected_path": "docs-fleet/doi-ngu.md",
+   "hit": false,
+   "rank": 0,
+   "latency_s": 0.2,
+   "top_paths": [],
+   "record_id": null,
+   "live": {
+    "paths": [],
+    "latency_ms": 244.0,
+    "status": "error",
+    "error": "rpc -32603: internal error: ask dispatch: internal: ask_v4 internal error: embed query: provider call failed (status Some(402), code quota_exceeded, dispatch NotDispatched): insufficient_credit: Insufficient credit balance (run `ctxe wallet` to check balance) [correlation_id=d0446ddf-1429-42fd-8711-85d8677269d8]"
+   },
+   "record": {
+    "id": null,
+    "status": "skipped",
+    "note": "ask errored at rpc/tool level"
+   },
+   "status": "error",
+   "error": "rpc -32603: internal error: ask dispatch: internal: ask_v4 internal error: embed query: provider call failed (status Some(402), code quota_exceeded, dispatch NotDispatched): insufficient_credit: Insufficient credit balance (run `ctxe wallet` to check balance) [correlation_id=d0446ddf-1429-42fd-8711-85d8677269d8]"
+  },
+  {
+   "id": "seo-07",
+   "workspace": "/Users/phuongnam/02.AI/NP_AI_macos/8.P8_SEO_Clean",
+   "query": "tài liệu quy trình chuẩn để push nội dung bài viết lên site",
+   "expected_path": "WORKFLOW.md",
+   "hit": false,
+   "rank": 0,
+   "latency_s": 0.2,
+   "top_paths": [],
+   "record_id": null,
+   "live": {
+    "paths": [],
+    "latency_ms": 210.7,
+    "status": "error",
+    "error": "rpc -32603: internal error: ask dispatch: internal: ask_v4 internal error: embed query: provider call failed (status Some(402), code quota_exceeded, dispatch NotDispatched): insufficient_credit: Insufficient credit balance (run `ctxe wallet` to check balance) [correlation_id=5d0ee6dd-7d89-41a7-b7e6-617fff423e9a]"
+   },
+   "record": {
+    "id": null,
+    "status": "skipped",
+    "note": "ask errored at rpc/tool level"
+   },
+   "status": "error",
+   "error": "rpc -32603: internal error: ask dispatch: internal: ask_v4 internal error: embed query: provider call failed (status Some(402), code quota_exceeded, dispatch NotDispatched): insufficient_credit: Insufficient credit balance (run `ctxe wallet` to check balance) [correlation_id=5d0ee6dd-7d89-41a7-b7e6-617fff423e9a]"
+  },
+  {
+   "id": "seo-08",
+   "workspace": "/Users/phuongnam/02.AI/NP_AI_macos/8.P8_SEO_Clean",
+   "query": "generate hero image and set featured image for articles missing one",
+   "expected_path": "scripts/p8_fix_featured_images.py",
+   "hit": false,
+   "rank": 0,
+   "latency_s": 0.2,
+   "top_paths": [],
+   "record_id": null,
+   "live": {
+    "paths": [],
+    "latency_ms": 223.4,
+    "status": "error",
+    "error": "rpc -32603: internal error: ask dispatch: internal: ask_v4 internal error: embed query: provider call failed (status Some(402), code quota_exceeded, dispatch NotDispatched): insufficient_credit: Insufficient credit balance (run `ctxe wallet` to check balance) [correlation_id=68441a71-6da5-4b0f-bf25-e02ef16d3e42]"
+   },
+   "record": {
+    "id": null,
+    "status": "skipped",
+    "note": "ask errored at rpc/tool level"
+   },
+   "status": "error",
+   "error": "rpc -32603: internal error: ask dispatch: internal: ask_v4 internal error: embed query: provider call failed (status Some(402), code quota_exceeded, dispatch NotDispatched): insufficient_credit: Insufficient credit balance (run `ctxe wallet` to check balance) [correlation_id=68441a71-6da5-4b0f-bf25-e02ef16d3e42]"
+  },
+  {
+   "id": "crm-01",
+   "workspace": "/Users/phuongnam/02.AI/NP_AI_macos/18.CRM-Nam-Pham",
+   "query": "script tính chấm công của nhân viên từ nhật ký hoạt động",
+   "expected_path": "crm-nam-pham/09-build/cham_cong.py",
+   "hit": false,
+   "rank": 0,
+   "latency_s": 0.3,
+   "top_paths": [],
+   "record_id": null,
+   "live": {
+    "paths": [],
+    "latency_ms": 264.9,
+    "status": "error",
+    "error": "rpc -32603: internal error: ask dispatch: internal: ask_v4 internal error: embed query: provider call failed (status Some(402), code quota_exceeded, dispatch NotDispatched): insufficient_credit: Insufficient credit balance (run `ctxe wallet` to check balance) [correlation_id=cfb609b3-8b85-43ac-b1a3-669903f4128a]"
+   },
+   "record": {
+    "id": null,
+    "status": "skipped",
+    "note": "ask errored at rpc/tool level"
+   },
+   "status": "error",
+   "error": "rpc -32603: internal error: ask dispatch: internal: ask_v4 internal error: embed query: provider call failed (status Some(402), code quota_exceeded, dispatch NotDispatched): insufficient_credit: Insufficient credit balance (run `ctxe wallet` to check balance) [correlation_id=cfb609b3-8b85-43ac-b1a3-669903f4128a]"
+  },
+  {
+   "id": "crm-02",
+   "workspace": "/Users/phuongnam/02.AI/NP_AI_macos/18.CRM-Nam-Pham",
+   "query": "đoạn code tóm tắt hôm qua làm gì và việc nào sắp tới hạn chấm cho CEO",
+   "expected_path": "crm-nam-pham/09-build/so_tay.py",
+   "hit": false,
+   "rank": 0,
+   "latency_s": 0.2,
+   "top_paths": [],
+   "record_id": null,
+   "live": {
+    "paths": [],
+    "latency_ms": 248.1,
+    "status": "error",
+    "error": "rpc -32603: internal error: ask dispatch: internal: ask_v4 internal error: embed query: provider call failed (status Some(402), code quota_exceeded, dispatch NotDispatched): insufficient_credit: Insufficient credit balance (run `ctxe wallet` to check balance) [correlation_id=c9150f8c-4b8d-4389-a10d-10bf67d594bb]"
+   },
+   "record": {
+    "id": null,
+    "status": "skipped",
+    "note": "ask errored at rpc/tool level"
+   },
+   "status": "error",
+   "error": "rpc -32603: internal error: ask dispatch: internal: ask_v4 internal error: embed query: provider call failed (status Some(402), code quota_exceeded, dispatch NotDispatched): insufficient_credit: Insufficient credit balance (run `ctxe wallet` to check balance) [correlation_id=c9150f8c-4b8d-4389-a10d-10bf67d594bb]"
+  },
+  {
+   "id": "crm-03",
+   "workspace": "/Users/phuongnam/02.AI/NP_AI_macos/18.CRM-Nam-Pham",
+   "query": "hàm tạo mảnh tin telegram báo có lead mới hôm qua",
+   "expected_path": "crm-nam-pham/09-build/tin_lead.py",
+   "hit": false,
+   "rank": 0,
+   "latency_s": 0.2,
+   "top_paths": [],
+   "record_id": null,
+   "live": {
+    "paths": [],
+    "latency_ms": 227.6,
+    "status": "error",
+    "error": "rpc -32603: internal error: ask dispatch: internal: ask_v4 internal error: embed query: provider call failed (status Some(402), code quota_exceeded, dispatch NotDispatched): insufficient_credit: Insufficient credit balance (run `ctxe wallet` to check balance) [correlation_id=5b68559b-91a0-4849-9d8b-accf6aa32d84]"
+   },
+   "record": {
+    "id": null,
+    "status": "skipped",
+    "note": "ask errored at rpc/tool level"
+   },
+   "status": "error",
+   "error": "rpc -32603: internal error: ask dispatch: internal: ask_v4 internal error: embed query: provider call failed (status Some(402), code quota_exceeded, dispatch NotDispatched): insufficient_credit: Insufficient credit balance (run `ctxe wallet` to check balance) [correlation_id=5b68559b-91a0-4849-9d8b-accf6aa32d84]"
+  },
+  {
+   "id": "crm-04",
+   "workspace": "/Users/phuongnam/02.AI/NP_AI_macos/18.CRM-Nam-Pham",
+   "query": "script đối soát quyết định của CEO với trạng thái việc thật để đóng vòng",
+   "expected_path": "crm-nam-pham/09-build/dong_vong.py",
+   "hit": false,
+   "rank": 0,
+   "latency_s": 0.2,
+   "top_paths": [],
+   "record_id": null,
+   "live": {
+    "paths": [],
+    "latency_ms": 212.8,
+    "status": "error",
+    "error": "rpc -32603: internal error: ask dispatch: internal: ask_v4 internal error: embed query: provider call failed (status Some(402), code quota_exceeded, dispatch NotDispatched): insufficient_credit: Insufficient credit balance (run `ctxe wallet` to check balance) [correlation_id=ee891112-0a9b-45e4-aa78-c840d4608555]"
+   },
+   "record": {
+    "id": null,
+    "status": "skipped",
+    "note": "ask errored at rpc/tool level"
+   },
+   "status": "error",
+   "error": "rpc -32603: internal error: ask dispatch: internal: ask_v4 internal error: embed query: provider call failed (status Some(402), code quota_exceeded, dispatch NotDispatched): insufficient_credit: Insufficient credit balance (run `ctxe wallet` to check balance) [correlation_id=ee891112-0a9b-45e4-aa78-c840d4608555]"
+  },
+  {
+   "id": "crm-05",
+   "workspace": "/Users/phuongnam/02.AI/NP_AI_macos/18.CRM-Nam-Pham",
+   "query": "middleware gác cửa kiểm tra đăng nhập bằng vân tay passkey",
+   "expected_path": "crm-nam-pham/functions/_middleware.js",
+   "hit": false,
+   "rank": 0,
+   "latency_s": 0.3,
+   "top_paths": [],
+   "record_id": null,
+   "live": {
+    "paths": [],
+    "latency_ms": 253.3,
+    "status": "error",
+    "error": "rpc -32603: internal error: ask dispatch: internal: ask_v4 internal error: embed query: provider call failed (status Some(402), code quota_exceeded, dispatch NotDispatched): insufficient_credit: Insufficient credit balance (run `ctxe wallet` to check balance) [correlation_id=2aeaf55c-e383-4d11-b9ca-163c93a7b38e]"
+   },
+   "record": {
+    "id": null,
+    "status": "skipped",
+    "note": "ask errored at rpc/tool level"
+   },
+   "status": "error",
+   "error": "rpc -32603: internal error: ask dispatch: internal: ask_v4 internal error: embed query: provider call failed (status Some(402), code quota_exceeded, dispatch NotDispatched): insufficient_credit: Insufficient credit balance (run `ctxe wallet` to check balance) [correlation_id=2aeaf55c-e383-4d11-b9ca-163c93a7b38e]"
+  },
+  {
+   "id": "crm-06",
+   "workspace": "/Users/phuongnam/02.AI/NP_AI_macos/18.CRM-Nam-Pham",
+   "query": "tài liệu giải thích CEO đăng nhập bằng google qua cloudflare access",
+   "expected_path": "crm-nam-pham/07-docs/DANG_NHAP.md",
+   "hit": false,
+   "rank": 0,
+   "latency_s": 0.2,
+   "top_paths": [],
+   "record_id": null,
+   "live": {
+    "paths": [],
+    "latency_ms": 221.0,
+    "status": "error",
+    "error": "rpc -32603: internal error: ask dispatch: internal: ask_v4 internal error: embed query: provider call failed (status Some(402), code quota_exceeded, dispatch NotDispatched): insufficient_credit: Insufficient credit balance (run `ctxe wallet` to check balance) [correlation_id=4335b0ce-8eee-4468-ad6c-2c46674ba53a]"
+   },
+   "record": {
+    "id": null,
+    "status": "skipped",
+    "note": "ask errored at rpc/tool level"
+   },
+   "status": "error",
+   "error": "rpc -32603: internal error: ask dispatch: internal: ask_v4 internal error: embed query: provider call failed (status Some(402), code quota_exceeded, dispatch NotDispatched): insufficient_credit: Insufficient credit balance (run `ctxe wallet` to check balance) [correlation_id=4335b0ce-8eee-4468-ad6c-2c46674ba53a]"
+  },
+  {
+   "id": "crm-07",
+   "workspace": "/Users/phuongnam/02.AI/NP_AI_macos/18.CRM-Nam-Pham",
+   "query": "script nạp file csv export từ serpupdate vào lịch sử từ khóa",
+   "expected_path": "crm-nam-pham/09-build/nap_serp.py",
+   "hit": false,
+   "rank": 0,
+   "latency_s": 0.3,
+   "top_paths": [],
+   "record_id": null,
+   "live": {
+    "paths": [],
+    "latency_ms": 330.8,
+    "status": "error",
+    "error": "rpc -32603: internal error: ask dispatch: internal: ask_v4 internal error: embed query: provider call failed (status Some(402), code quota_exceeded, dispatch NotDispatched): insufficient_credit: Insufficient credit balance (run `ctxe wallet` to check balance) [correlation_id=f81e5442-a9e0-49de-9ca7-e8ca7f310cf5]"
+   },
+   "record": {
+    "id": null,
+    "status": "skipped",
+    "note": "ask errored at rpc/tool level"
+   },
+   "status": "error",
+   "error": "rpc -32603: internal error: ask dispatch: internal: ask_v4 internal error: embed query: provider call failed (status Some(402), code quota_exceeded, dispatch NotDispatched): insufficient_credit: Insufficient credit balance (run `ctxe wallet` to check balance) [correlation_id=f81e5442-a9e0-49de-9ca7-e8ca7f310cf5]"
+  },
+  {
+   "id": "crm-08",
+   "workspace": "/Users/phuongnam/02.AI/NP_AI_macos/18.CRM-Nam-Pham",
+   "query": "shared helper writing one decision row into the operations ledger",
+   "expected_path": "crm-nam-pham/09-build/ghi_so.py",
+   "hit": false,
+   "rank": 0,
+   "latency_s": 0.3,
+   "top_paths": [],
+   "record_id": null,
+   "live": {
+    "paths": [],
+    "latency_ms": 308.4,
+    "status": "error",
+    "error": "rpc -32603: internal error: ask dispatch: internal: ask_v4 internal error: embed query: provider call failed (status Some(402), code quota_exceeded, dispatch NotDispatched): insufficient_credit: Insufficient credit balance (run `ctxe wallet` to check balance) [correlation_id=8d5c05da-1b7d-4146-93b3-00cec2fef92c]"
+   },
+   "record": {
+    "id": null,
+    "status": "skipped",
+    "note": "ask errored at rpc/tool level"
+   },
+   "status": "error",
+   "error": "rpc -32603: internal error: ask dispatch: internal: ask_v4 internal error: embed query: provider call failed (status Some(402), code quota_exceeded, dispatch NotDispatched): insufficient_credit: Insufficient credit balance (run `ctxe wallet` to check balance) [correlation_id=8d5c05da-1b7d-4146-93b3-00cec2fef92c]"
+  },
+  {
+   "id": "seo-09",
+   "workspace": "/Users/phuongnam/02.AI/NP_AI_macos/8.P8_SEO_Clean",
+   "query": "bộ não phân tích SEO đọc dữ liệu GSC GA4 thật rồi gọi DeepSeek sinh hành động kèm bằng chứng",
+   "expected_path": "scripts/p8_brain.py",
+   "hit": false,
+   "rank": 0,
+   "latency_s": 0.3,
+   "top_paths": [],
+   "record_id": null,
+   "live": {
+    "paths": [],
+    "latency_ms": 289.6,
+    "status": "error",
+    "error": "rpc -32603: internal error: ask dispatch: internal: ask_v4 internal error: embed query: provider call failed (status Some(402), code quota_exceeded, dispatch NotDispatched): insufficient_credit: Insufficient credit balance (run `ctxe wallet` to check balance) [correlation_id=c26aa137-5f08-4b6f-b266-19be87d5da9f]"
+   },
+   "record": {
+    "id": null,
+    "status": "skipped",
+    "note": "ask errored at rpc/tool level"
+   },
+   "status": "error",
+   "error": "rpc -32603: internal error: ask dispatch: internal: ask_v4 internal error: embed query: provider call failed (status Some(402), code quota_exceeded, dispatch NotDispatched): insufficient_credit: Insufficient credit balance (run `ctxe wallet` to check balance) [correlation_id=c26aa137-5f08-4b6f-b266-19be87d5da9f]"
+  },
+  {
+   "id": "seo-10",
+   "workspace": "/Users/phuongnam/02.AI/NP_AI_macos/8.P8_SEO_Clean",
+   "query": "script áp dụng các gợi ý link nội bộ vào bài viết trên site",
+   "expected_path": "scripts/p8_link_injector.py",
+   "hit": false,
+   "rank": 0,
+   "latency_s": 0.3,
+   "top_paths": [],
+   "record_id": null,
+   "live": {
+    "paths": [],
+    "latency_ms": 272.8,
+    "status": "error",
+    "error": "rpc -32603: internal error: ask dispatch: internal: ask_v4 internal error: embed query: provider call failed (status Some(402), code quota_exceeded, dispatch NotDispatched): insufficient_credit: Insufficient credit balance (run `ctxe wallet` to check balance) [correlation_id=a2449a6b-ba5d-42e9-a20a-5b0a934301e6]"
+   },
+   "record": {
+    "id": null,
+    "status": "skipped",
+    "note": "ask errored at rpc/tool level"
+   },
+   "status": "error",
+   "error": "rpc -32603: internal error: ask dispatch: internal: ask_v4 internal error: embed query: provider call failed (status Some(402), code quota_exceeded, dispatch NotDispatched): insufficient_credit: Insufficient credit balance (run `ctxe wallet` to check balance) [correlation_id=a2449a6b-ba5d-42e9-a20a-5b0a934301e6]"
+  },
+  {
+   "id": "seo-11",
+   "workspace": "/Users/phuongnam/02.AI/NP_AI_macos/8.P8_SEO_Clean",
+   "query": "tài liệu kế hoạch công việc của đội trong docs-fleet",
+   "expected_path": "docs-fleet/ke-hoach.md",
+   "hit": false,
+   "rank": 0,
+   "latency_s": 0.2,
+   "top_paths": [],
+   "record_id": null,
+   "live": {
+    "paths": [],
+    "latency_ms": 205.3,
+    "status": "error",
+    "error": "rpc -32603: internal error: ask dispatch: internal: ask_v4 internal error: embed query: provider call failed (status Some(402), code quota_exceeded, dispatch NotDispatched): insufficient_credit: Insufficient credit balance (run `ctxe wallet` to check balance) [correlation_id=b10f85a3-9582-4c9f-8cf6-f5ad99d1e9d4]"
+   },
+   "record": {
+    "id": null,
+    "status": "skipped",
+    "note": "ask errored at rpc/tool level"
+   },
+   "status": "error",
+   "error": "rpc -32603: internal error: ask dispatch: internal: ask_v4 internal error: embed query: provider call failed (status Some(402), code quota_exceeded, dispatch NotDispatched): insufficient_credit: Insufficient credit balance (run `ctxe wallet` to check balance) [correlation_id=b10f85a3-9582-4c9f-8cf6-f5ad99d1e9d4]"
+  },
+  {
+   "id": "crm-09",
+   "workspace": "/Users/phuongnam/02.AI/NP_AI_macos/18.CRM-Nam-Pham",
+   "query": "script kiểm tra hệ thiết kế, bắt lỗi ai viết mã màu thẳng vào trang",
+   "expected_path": "crm-nam-pham/09-build/kiem_he_thiet_ke.py",
+   "hit": false,
+   "rank": 0,
+   "latency_s": 0.2,
+   "top_paths": [],
+   "record_id": null,
+   "live": {
+    "paths": [],
+    "latency_ms": 246.3,
+    "status": "error",
+    "error": "rpc -32603: internal error: ask dispatch: internal: ask_v4 internal error: embed query: provider call failed (status Some(402), code quota_exceeded, dispatch NotDispatched): insufficient_credit: Insufficient credit balance (run `ctxe wallet` to check balance) [correlation_id=eae22877-3213-492e-80c3-cfa62d4629a9]"
+   },
+   "record": {
+    "id": null,
+    "status": "skipped",
+    "note": "ask errored at rpc/tool level"
+   },
+   "status": "error",
+   "error": "rpc -32603: internal error: ask dispatch: internal: ask_v4 internal error: embed query: provider call failed (status Some(402), code quota_exceeded, dispatch NotDispatched): insufficient_credit: Insufficient credit balance (run `ctxe wallet` to check balance) [correlation_id=eae22877-3213-492e-80c3-cfa62d4629a9]"
+  },
+  {
+   "id": "crm-10",
+   "workspace": "/Users/phuongnam/02.AI/NP_AI_macos/18.CRM-Nam-Pham",
+   "query": "realign local issue ids with the D1 database when fingerprints match but ids differ",
+   "expected_path": "crm-nam-pham/09-build/vaid_issues.py",
+   "hit": false,
+   "rank": 0,
+   "latency_s": 0.3,
+   "top_paths": [],
+   "record_id": null,
+   "live": {
+    "paths": [],
+    "latency_ms": 264.2,
+    "status": "error",
+    "error": "rpc -32603: internal error: ask dispatch: internal: ask_v4 internal error: embed query: provider call failed (status Some(402), code quota_exceeded, dispatch NotDispatched): insufficient_credit: Insufficient credit balance (run `ctxe wallet` to check balance) [correlation_id=f7977a9b-8c90-412b-a86e-ea60eaf44545]"
+   },
+   "record": {
+    "id": null,
+    "status": "skipped",
+    "note": "ask errored at rpc/tool level"
+   },
+   "status": "error",
+   "error": "rpc -32603: internal error: ask dispatch: internal: ask_v4 internal error: embed query: provider call failed (status Some(402), code quota_exceeded, dispatch NotDispatched): insufficient_credit: Insufficient credit balance (run `ctxe wallet` to check balance) [correlation_id=f7977a9b-8c90-412b-a86e-ea60eaf44545]"
+  },
+  {
+   "id": "crm-11",
+   "workspace": "/Users/phuongnam/02.AI/NP_AI_macos/18.CRM-Nam-Pham",
+   "query": "script ghi nhật ký hoạt động của người dùng theo thời gian thực",
+   "expected_path": "crm-nam-pham/09-build/log_activity_live.py",
+   "hit": false,
+   "rank": 0,
+   "latency_s": 0.2,
+   "top_paths": [],
+   "record_id": null,
+   "live": {
+    "paths": [],
+    "latency_ms": 208.7,
+    "status": "error",
+    "error": "rpc -32603: internal error: ask dispatch: internal: ask_v4 internal error: embed query: provider call failed (status Some(402), code quota_exceeded, dispatch NotDispatched): insufficient_credit: Insufficient credit balance (run `ctxe wallet` to check balance) [correlation_id=15633f5a-888e-4ff7-96b1-ef49963f8a20]"
+   },
+   "record": {
+    "id": null,
+    "status": "skipped",
+    "note": "ask errored at rpc/tool level"
+   },
+   "status": "error",
+   "error": "rpc -32603: internal error: ask dispatch: internal: ask_v4 internal error: embed query: provider call failed (status Some(402), code quota_exceeded, dispatch NotDispatched): insufficient_credit: Insufficient credit balance (run `ctxe wallet` to check balance) [correlation_id=15633f5a-888e-4ff7-96b1-ef49963f8a20]"
+  }
+ ]
+}
