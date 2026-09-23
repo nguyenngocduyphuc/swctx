@@ -382,16 +382,56 @@ public enum Search {
             .flatMap(Double.init) ?? def
     }
 
+    /// Result of `plannerPathProbe`: emitted hits plus the count of
+    /// trailing below-bar champions. Emit order is strong-first —
+    /// `scored` sorts surgical then rank-descending, so every emitted
+    /// hit with rank ≥ bar precedes all below-bar champions; the dir/
+    /// basename caps preserve that relative order. Callers that merge
+    /// probe hits into a fused window use `strongCount` to give weak
+    /// champions tail slots instead of the head.
+    struct ProbeResult {
+        var hits: [SearchHit]
+        var belowBarCount: Int
+        var strongCount: Int { hits.count - belowBarCount }
+        var champions: ArraySlice<SearchHit> { hits.dropFirst(strongCount) }
+        static let empty = ProbeResult(hits: [], belowBarCount: 0)
+    }
+
+    /// Merge probe hits into a fused result window. Strong probe hits
+    /// (surgical or rank ≥ bar) lead up to `cap`; below-bar champions
+    /// are name-guess tail coverage — at most `champPrepend` lead, the
+    /// rest append after the fused hits. When the emitted set is all
+    /// champions at the flood line (default: the prepend cap itself —
+    /// a champion set that could fill the whole window means generic
+    /// name fodder), no champion leads at all (crm-02: six below-bar
+    /// champions buried the fused rank-5 answer).
+    static func mergeProbeHits(_ hits: [SearchHit],
+                               probe: ProbeResult,
+                               cap: Int = 6,
+                               champPrepend: Int = 1,
+                               flood: Int = 6) -> [SearchHit] {
+        guard !probe.hits.isEmpty else { return hits }
+        var prepend = champPrepend
+        if probe.strongCount == 0 && probe.belowBarCount >= flood {
+            prepend = 0
+        }
+        let probePaths = Set(probe.hits.map(\.path))
+        return Array(probe.hits.prefix(min(cap, probe.strongCount)))
+            + Array(probe.champions.prefix(prepend))
+            + hits.filter { !probePaths.contains($0.path) }
+            + Array(probe.champions.dropFirst(prepend))
+    }
+
     static func plannerPathProbe(store: Store, atoms: [String],
                                  weakAtoms: Set<String> = [],
                                  championlessAtoms: Set<String> = [],
                                  pathFilter: String? = nil,
                                  rareMaxFiles: Int = 60,
                                  midMaxFiles: Int = 200,
-                                 limit: Int = 10) throws -> [SearchHit] {
+                                 limit: Int = 10) throws -> ProbeResult {
         let rareMaxFiles = envInt("SWCTX_PROBE_RARE", rareMaxFiles)
         let midMaxFiles = envInt("SWCTX_PROBE_MID", midMaxFiles)
-        guard !atoms.isEmpty else { return [] }
+        guard !atoms.isEmpty else { return .empty }
         func fileCount(_ match: String) -> Int {
             (try? store.pool.read { db in
                 try Int.fetchOne(db, sql: """
@@ -440,7 +480,7 @@ public enum Search {
         // the flood control; `link* AND folded:(404|broken)` reaches
         // p8_link_health.py where the bare gate dropped the atom.
         let probed = atoms.filter { (pathDF[$0] ?? 0) > 0 }
-        guard !probed.isEmpty else { return [] }
+        guard !probed.isEmpty else { return .empty }
         // Content-DF orders the folded-AND discriminators — an atom rare
         // in paths but common in prose ("dang", "trang") narrows nothing.
         // (Counted in the parallel DF pass above.)
@@ -752,6 +792,7 @@ public enum Search {
         var dirCount: [String: Int] = [:]
         var seenBasenames: Set<String> = []
         var out: [SearchHit] = []
+        var belowBar = 0
         let rankBar = envDouble("SWCTX_PROBE_BAR", 2.0)
         for s in scored {
             // Champions emit even at sd 0: Next.js pages carry intent in
@@ -764,10 +805,11 @@ public enum Search {
             if (dirCount[dir] ?? 0) >= 2 { continue }
             guard seenBasenames.insert(base).inserted else { continue }
             dirCount[dir] = (dirCount[dir] ?? 0) + 1
+            if s.rank < rankBar { belowBar += 1 }
             out.append(s.hit)
             if out.count >= limit { break }
         }
-        return out
+        return ProbeResult(hits: out, belowBarCount: belowBar)
     }
 
     /// File-level FTS probe: one row per FILE (the chunk achieving the

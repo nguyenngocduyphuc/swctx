@@ -210,7 +210,7 @@ public enum Answer {
         // join for free — a cache lookup only, never a model call.
         let probe = try pathProbe(store: store, query: query,
                                   pathFilter: pathFilter)
-        _ = try? acc.addSearchHits(store: store, hits: probe,
+        _ = try? acc.addSearchHits(store: store, hits: probe.hits,
                                    why: "path-probe", cap: 6)
 
         let hits = try Search.hybrid(store: store, embedder: store.embedder,
@@ -266,7 +266,8 @@ public enum Answer {
     /// only, never a model call).
     static func pathProbe(store: Store, query: String,
                           pathFilter: String?,
-                          extraAtoms: [String] = []) throws -> [SearchHit] {
+                          extraAtoms: [String] = []) throws
+        -> Search.ProbeResult {
         var terms = extraAtoms
         terms += Translation.lexiconTerms(for: query)
         // EN→VN rescue: an English query has no VN atoms to probe
@@ -285,11 +286,11 @@ public enum Answer {
         let guessed = Translation.filenameTerms(for: query) ?? []
         let (atoms, weak, championless) = Search.plannerProbeAtomSets(
             query: query, extraTerms: terms, guessedTerms: guessed)
-        guard !atoms.isEmpty else { return [] }
+        guard !atoms.isEmpty else { return .empty }
         return (try? Search.plannerPathProbe(
             store: store, atoms: atoms, weakAtoms: weak,
             championlessAtoms: championless,
-            pathFilter: pathFilter)) ?? []
+            pathFilter: pathFilter)) ?? .empty
     }
 
     /// One planner search: the filename probe runs FIRST (`why=
@@ -306,7 +307,7 @@ public enum Answer {
         let probe = try pathProbe(store: store, query: query,
                                   pathFilter: pathFilter,
                                   extraAtoms: probeAtoms)
-        added += try acc.addSearchHits(store: store, hits: probe,
+        added += try acc.addSearchHits(store: store, hits: probe.hits,
                                        why: "planner-path", cap: 6)
         let hits = try Search.hybrid(store: store, embedder: store.embedder,
                                      query: query, limit: 16,

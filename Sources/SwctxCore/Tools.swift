@@ -255,13 +255,13 @@ public enum SwctxTools {
         // callers choosing a single leg asked for exactly that leg.
         if mode == "hybrid" || mode == "identifier" {
             let probe = (try? Answer.pathProbe(store: store, query: q,
-                                               pathFilter: pathFilter)) ?? []
-            if !probe.isEmpty {
-                let probePaths = Set(probe.map(\.path))
-                let cap = Search.envInt("SWCTX_PROBE_CAP", 6)
-                hits = Array(probe.prefix(cap))
-                    + hits.filter { !probePaths.contains($0.path) }
-            }
+                                               pathFilter: pathFilter))
+                ?? .empty
+            hits = Search.mergeProbeHits(
+                hits, probe: probe,
+                cap: Search.envInt("SWCTX_PROBE_CAP", 6),
+                champPrepend: Search.envInt("SWCTX_CHAMP_PREPEND", 1),
+                flood: Search.envInt("SWCTX_CHAMP_FLOOD", 6))
             hits = Array(hits.prefix(limit))
         }
         // Optional cross-encoder stage (`rerank: true`): pin the top-3

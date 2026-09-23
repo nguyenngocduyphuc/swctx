@@ -500,7 +500,7 @@ final class PlannerTests: SwctxTestCase {
         defer { cleanup(dir) }
         let hits = try Search.plannerPathProbe(
             store: store, atoms: ["brixel", "zzznomatch", "neverthere"])
-        XCTAssertEqual(hits.map(\.path), ["brixel.py"])
+        XCTAssertEqual(hits.hits.map(\.path), ["brixel.py"])
     }
 
     /// Multi-atom coverage surfaces the file whose path shares the
@@ -511,7 +511,7 @@ final class PlannerTests: SwctxTestCase {
         defer { cleanup(dir) }
         let hits = try Search.plannerPathProbe(
             store: store, atoms: ["sub", "other", "nomatch"])
-        XCTAssertEqual(hits.first?.path, "sub/other.py")
+        XCTAssertEqual(hits.hits.first?.path, "sub/other.py")
     }
 
     /// Zero-coverage atoms yield nothing — a gibberish probe never
@@ -521,7 +521,7 @@ final class PlannerTests: SwctxTestCase {
         defer { cleanup(dir) }
         let hits = try Search.plannerPathProbe(
             store: store, atoms: ["qqqzzz", "nevermatch"])
-        XCTAssertTrue(hits.isEmpty)
+        XCTAssertTrue(hits.hits.isEmpty)
     }
 
     /// Integration: collectPlannerEvidence on a query whose hybrid leg

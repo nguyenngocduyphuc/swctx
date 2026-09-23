@@ -260,7 +260,7 @@
       "query_intent": "concept_flow",
       "path_signal": "in_body_only",
       "query": "script áp dụng các gợi ý link nội bộ vào bài viết trên site",
-      "expected_path": "scripts/ghost_link_builder_apply.py"
+      "expected_path": "scripts/p8_link_injector.py"
     },
     {
       "id": "seo-11",
