@@ -1,6 +1,37 @@
 # swctx — Handoff & Status
 
-Date: 2026-09-19 (overnight loop + SWE-2 wave) · Status: **working, verified end-to-end on 6 workspaces**
+Date: 2026-09-23 (embed drain + reformulation leg + full-credit ctxe eval) · Status: **working — nightly 36/36, A/B 18/22, 258 tests green, HEAD `8f55428` pushed**
+
+## 2026-09-23 — Reformulation leg + ctxe full-credit baseline
+
+**Commits pushed** (`github.com:nguyenngocduyphuc/swctx`, branch main):
+
+| Commit | Nội dung |
+|---|---|
+| `fb200f1` | Embedder ANE exhaustion fix (autoreleasepool per call — cap 16,381/process gone, 175,015/175,015 vectors drained). Probe stem atoms (weak) + acronym atoms (champion-eligible). Grok delta-3: `*/` dir-pattern ancestor-prefix match, `*/build/` anchored glob, `nearestDecl` chunk-end, resolved-first dependents/suspects. |
+| `4e37d8b` | Archive/legacy demotion per-path-segment (fused −0.03/seg, probe −0.5). Deterministic parallel probe merge (indexed slots — `concurrentPerform` append order was the BriefAudience flake). |
+| `08a74db` | Subword path atoms (`serpupdate`→`serp`, prefix/suffix len 4-7). Wide-OR discriminators for high-DF anchors. Numeric atoms can't crown surgical. |
+| `8f55428` | **Reformulation leg**: Ollama translation prompt v5 emits `filename_terms` alongside `english_terms` — model-guessed filename atoms ("sổ tay"→`so_tay`,`digest`,`nhat_ky`) ride the same single call, same cache entry, feed path probe as weak+champion-eligible tier (no surgical — hallucination must not crown). High-DF anchors (pathDF>15) get rare-only discriminators; bare fallback gated pathDF≤15; whole-name +0.75 bonus for single-token canonical stems (WORKFLOW.md). Task-jargon cluster in prompt (summary→digest/so_tay, check→health/audit, importer→ingest/nap, doc→sop/workflow, controller→ctl/cmd). |
+
+**Verification**: nightly ratchet **36/36 recall**, p95 **121ms**, schema **26/26** · **258 tests 0 fail** · A/B 22-query VN probe **18/22** (16→17→18 across the day). Daemon `com.swctx.watchd` kickstarted onto new binary.
+
+**ctxe full-credit eval** (ask_context effort=medium, real credits, on the 6 misses): rescued **4/6** at evidence rank 1 — but **22–67s per query** vs swctx ~140ms. ctxe's edge is the 6-round iterative planner reformulation, NOT base retrieval — swctx already fetches the right files into the probe pool on 3 of 4 residual misses; they just rank below the cut.
+
+**Residual misses (4)**:
+- `seo-05` `factory/sitectl.py` — tight fold works (`site* AND mesh|collection|pool` = 8 rows w/ target) but model nondeterminism on which filename_terms get emitted.
+- `seo-07` `WORKFLOW.md` — fixed on CLI form (rank 3); bench query form drowns it in the workflow-named audit-report flood.
+- `crm-02` `so_tay.py` — fused rank **5** but 6+ below-bar guessed-atom **champions prepend ahead of it** → pushed past top-5. **Next fix: champion emission policy** (below-bar guessed champions shouldn't displace strong fused hits — append after fused top-N or require rk≥bar for guessed-atom champions).
+- `seo-10` `ghost_link_builder_apply.py` — **stale gold** (file no longer on disk; only `_legacy/` copies). ctxe found successor `p8_link_injector.py`. Benchmark maintenance, not a code bug.
+
+## Road to beating ctxe 100% (next session — ctxe credits authorized for comparison)
+
+1. **Fix gold staleness first** — re-verify all 22 expected files exist; update seo-10 gold to `p8_link_injector.py` or drop. Honest benchmark is the prerequisite.
+2. **Champion-prepend policy fix** (+1 likely: crm-02).
+3. **Round-2 local reformulation** — feed the round-1 fetched file list back to Ollama ("which file answers X / what filename is missing?") — mimics ctxe's planner loop locally, free, ~1-2s worst case, cacheable. Targets seo-05/seo-07-bench/crm-02.
+4. **True-ceiling ctxe baseline** — run ask_context effort=high on ALL 22 queries (not just misses) with credits → the real bar to beat.
+5. **`answer` port to swctx-py + fleet-CLI compose benchmark** — closes the last ctxe-only surface (server-side synthesis).
+
+Ceiling estimate: items 1-3 plausibly reach 20-21/22; whether that's "win" depends on ctxe's high-effort ceiling from item 4.
 
 ## 2026-09-22 — Joint audit (Codex+Grok) + watchd governance + lexicon rescue
 
