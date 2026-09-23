@@ -13,7 +13,7 @@ struct Swctx: AsyncParsableCommand {
         commandName: "swctx",
         abstract: "Local semantic code index + MCP server (Swift reimplementation of the ctxe model).",
         version: "0.1.0",
-        subcommands: [IndexCmd.self, StatusCmd.self, PrimeCmd.self, SearchCmd.self, RerankCmd.self, Rerank2Cmd.self, Rerank3Cmd.self, TreeCmd.self, EmbedCmd.self, DiscoverCmd.self, WatchCmd.self, WatchAllCmd.self, AskCmd.self, AnswerCmd.self, CheckpointCmd.self, SimulateCmd.self, ModelCmd.self, McpCmd.self, McpConfigCmd.self, InstallAgentCmd.self, GcCmd.self, StatsCmd.self],
+        subcommands: [IndexCmd.self, StatusCmd.self, PrimeCmd.self, SearchCmd.self, RerankCmd.self, Rerank2Cmd.self, Rerank3Cmd.self, TreeCmd.self, EmbedCmd.self, DiscoverCmd.self, WatchCmd.self, WatchAllCmd.self, AskCmd.self, AnswerCmd.self, CheckpointCmd.self, MissCmd.self, SimulateCmd.self, ModelCmd.self, McpCmd.self, McpConfigCmd.self, InstallAgentCmd.self, GcCmd.self, StatsCmd.self],
         defaultSubcommand: nil)
 }
 
@@ -1082,6 +1082,36 @@ struct CheckpointCmd: AsyncParsableCommand {
                 URL(fileURLWithPath: path).standardizedFileURL.path),
             "summary": .string(summary),
             "next": .string(next),
+        ])
+        print(out)
+    }
+}
+
+/// `swctx miss` — log a live retrieval miss as eval gold: query Q should have
+/// returned file E but didn't. Writes a kind=miss record (dual-write like
+/// put_record); bench/daily_eval.py mines these into the live-gold set.
+struct MissCmd: AsyncParsableCommand {
+    static let configuration = CommandConfiguration(commandName: "miss",
+        abstract: "Log a search miss — query Q should have returned file E. Becomes eval gold.")
+    @Argument(help: "Workspace path") var path: String = "."
+    @Option(name: .long, help: "The query that missed") var query: String
+    @Option(name: .long, help: "The file it should have returned") var expected: String
+    @Option(name: .long, help: "Optional note") var note: String = ""
+
+    func run() async throws {
+        let payload: [String: Any] = [
+            "workspace": URL(fileURLWithPath: path).standardizedFileURL.path,
+            "expected_path": expected,
+            "note": note,
+        ]
+        let body = String(data: try JSONSerialization.data(withJSONObject: payload),
+                          encoding: .utf8)!
+        let out = try await SwctxTools.call(name: "put_record", arguments: [
+            "workspace": .string(
+                URL(fileURLWithPath: path).standardizedFileURL.path),
+            "kind": .string("miss"),
+            "title": .string(query),
+            "payload": .string(body),
         ])
         print(out)
     }

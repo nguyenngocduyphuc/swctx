@@ -1481,7 +1481,7 @@ public enum SwctxTools {
     /// telemetry kinds agents may also file deliberately.
     static let putRecordKinds: Set<String> = [
         "note", "finding", "decision", "todo", "context_pack", "ask",
-        "engine_eval", "session_checkpoint",
+        "engine_eval", "session_checkpoint", "miss",
     ]
 
     /// put_record anchor capture. Symbol anchors: identifier tokens (≥3
