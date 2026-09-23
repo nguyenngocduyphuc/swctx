@@ -320,6 +320,10 @@ public enum Search {
         where a.count >= 3 && seen.insert(a).inserted {
             out.append(a)
             weak.insert(a)
+            // Model guesses fetch+claim only — never a champion slot:
+            // "workflow" lands in nearly every roll, and a championed
+            // guess buries fused hits on untuned queries (holdout).
+            championless.insert(a)
         }
         let qToks = foldText(query)
             .components(separatedBy: CharacterSet.alphanumerics.inverted)
@@ -397,6 +401,12 @@ public enum Search {
         /// means the probe could only fetch coverage-flood hits or weak
         /// name guesses: the round-2 reformulation trigger.
         var confidentCount: Int
+        /// Like confidentCount but only counts hits whose surgical
+        /// carrier atom is DETERMINISTIC (query/lexicon/derived — no
+        /// cache- or model-fed vocabulary). Gates that decide whether a
+        /// model leg runs must use this: a cache-warmth-dependent gate
+        /// flips eligibility between runs on the same query.
+        var detConfident: Int = 0
         var strongCount: Int { hits.count - belowBarCount }
         var champions: ArraySlice<SearchHit> { hits.dropFirst(strongCount) }
         static let empty = ProbeResult(hits: [], belowBarCount: 0,
@@ -428,9 +438,94 @@ public enum Search {
             + Array(probe.champions.dropFirst(prepend))
     }
 
+    /// Single-slot tail rescue. A rescue candidate may take at most ONE
+    /// slot and only from a fused occupant whose basename shares no
+    /// token with the deterministic query atoms — a file fusion never
+    /// name-justified. The protected prefix (default 2) is never
+    /// touched; a fully name-corroborated window admits nothing. This
+    /// replaces champion-prepend: on untuned queries a plausible-but-
+    /// wrong champion (package.json via "package", trang.html via
+    /// "trang") was evicting fused gold.
+    static func tailRescue(_ hits: [SearchHit],
+                           candidates: [SearchHit],
+                           verifiedPaths: Set<String> = [],
+                           stemExPaths: Set<String> = [],
+                           queryNameAtoms: Set<String>,
+                           limit: Int, protect: Int = 2) -> [SearchHit] {
+        guard !candidates.isEmpty else { return hits }
+        let have = Set(hits.map(\.path))
+        // A candidate whose basename the window already shows adds no
+        // name evidence — a second entity.json in another directory is
+        // the same name. Eligibility requires a NEW basename as well
+        // as a new path.
+        let windowBases = Set(hits.map {
+            ($0.path as NSString).lastPathComponent })
+        func eligible(_ h: SearchHit) -> Bool {
+            !have.contains(h.path)
+                && !windowBases.contains(
+                    (h.path as NSString).lastPathComponent)
+        }
+        var out = hits
+        if out.count < limit {
+            if let r = candidates.first(where: eligible) {
+                out.append(r)
+            }
+            return out
+        }
+        if ProcessInfo.processInfo.environment["SWCTX_PROBE_DEBUG"] == "1" {
+            FileHandle.standardError.write(
+                ("rescue: cands=\(candidates.map(\.path)) "
+                    + "verified=\(verifiedPaths) "
+                    + "occ=\(out.map { ($0.path as NSString).lastPathComponent })\n")
+                    .data(using: .utf8)!)
+        }
+        func uncorroborated(_ path: String) -> Bool {
+            let base = (path as NSString).lastPathComponent
+            let toks = Set(base.lowercased().split(
+                omittingEmptySubsequences: true,
+                whereSeparator: { !$0.isLetter && !$0.isNumber })
+                .map(String.init))
+            return toks.isDisjoint(with: queryNameAtoms)
+        }
+        // Pass 1: the best candidate may take the weakest slot whose
+        // occupant fusion never name-justified. Verified evidence wins
+        // over unverified guesses when both compete for the slot.
+        for i in stride(from: limit - 1, through: protect, by: -1)
+        where uncorroborated(out[i].path) {
+            let r = candidates.first(where: {
+                eligible($0) && verifiedPaths.contains($0.path)
+            }) ?? candidates.first(where: eligible)
+            guard let r else { return out }
+            out[i] = r
+            return out
+        }
+        // Pass 2: every tail occupant is name-justified — only a
+        // CONTENT-VERIFIED candidate may still displace, and only the
+        // weakest slot. Stem-equality (the file is literally NAMED an
+        // atom) is the strongest name evidence a rescue can carry and
+        // wins first; other verified evidence follows in pool order.
+        // Unverified guesses may not touch the window.
+        guard let r = candidates.first(where: {
+            eligible($0) && stemExPaths.contains($0.path)
+        }) ?? candidates.first(where: {
+            eligible($0) && verifiedPaths.contains($0.path)
+        }) else {
+            if ProcessInfo.processInfo.environment["SWCTX_PROBE_DEBUG"] == "1" {
+                FileHandle.standardError.write(
+                    ("rescue p2: none eligible+verified of "
+                        + "\(candidates.count) cands; verified=\(verifiedPaths)\n")
+                        .data(using: .utf8)!)
+            }
+            return out
+        }
+        out[limit - 1] = r
+        return out
+    }
+
     static func plannerPathProbe(store: Store, atoms: [String],
                                  weakAtoms: Set<String> = [],
                                  championlessAtoms: Set<String> = [],
+                                 detAtoms: Set<String> = [],
                                  pathFilter: String? = nil,
                                  rareMaxFiles: Int = 60,
                                  midMaxFiles: Int = 200,
@@ -508,7 +603,9 @@ public enum Search {
             // common atoms ("link", "internal") are what the target's
             // content actually speaks.
             let others = atoms.filter { $0 != a }
-                .sorted { (contentDF[$0] ?? 0) < (contentDF[$1] ?? 0) }
+                .sorted { (contentDF[$0] ?? 0) != (contentDF[$1] ?? 0)
+                    ? (contentDF[$0] ?? 0) < (contentDF[$1] ?? 0)
+                    : $0 < $1 }
             // Anchors past the rare band need RARE-ONLY
             // discriminators — common atoms in the OR (file, data)
             // match every path a DF-42 anchor names, so the 20-row
@@ -586,7 +683,7 @@ public enum Search {
         }
         if raw.isEmpty, let e = firstFetchError { throw e }
         var seenFiles: Set<String> = []
-        var scored: [(hit: SearchHit, surgical: Bool,
+        var scored: [(hit: SearchHit, surgical: Bool, detSurgical: Bool,
                       effectiveCover: Int, stemDensity: Double,
                       rank: Double, idfScore: Double,
                       atoms: Set<String>, stemLen: Int)] = []
@@ -738,7 +835,18 @@ public enum Search {
                     (pathDF[$0] ?? 0) == 1 && !weakAtoms.contains($0)
                         && $0.rangeOfCharacter(from: .letters) != nil
                 }
-            scored.append((h, surgical, effectiveCover, stemDensity,
+            // Deterministic-carrier surgical: same sole-carrier test but
+            // the carrier must come from cache-free vocabulary — the
+            // round-2 gate reads this so a warm/cold translation cache
+            // can't flip eligibility between runs.
+            let detSurgical = !testLike && rarityMatters
+                && stemAtoms.contains {
+                    (pathDF[$0] ?? 0) == 1 && !weakAtoms.contains($0)
+                        && detAtoms.contains($0)
+                        && $0.rangeOfCharacter(from: .letters) != nil
+                }
+            scored.append((h, surgical, detSurgical, effectiveCover,
+                           stemDensity,
                            rank - (testLike ? 0.5 : 0)
                                - 0.5 * Double(archiveDepth),
                            idfScore,
@@ -760,7 +868,10 @@ public enum Search {
                 return $0.atoms.count > $1.atoms.count
             }
             if $0.stemLen != $1.stemLen { return $0.stemLen < $1.stemLen }
-            return $0.hit.score > $1.hit.score
+            if $0.hit.score != $1.hit.score {
+                return $0.hit.score > $1.hit.score
+            }
+            return $0.hit.path < $1.hit.path
         }
         if ProcessInfo.processInfo.environment["SWCTX_PROBE_DEBUG"] == "1" {
             FileHandle.standardError.write(
@@ -800,6 +911,7 @@ public enum Search {
         var out: [SearchHit] = []
         var belowBar = 0
         var confident = 0
+        var detConfident = 0
         let rankBar = envDouble("SWCTX_PROBE_BAR", 2.0)
         for s in scored {
             // Champions emit even at sd 0: Next.js pages carry intent in
@@ -814,11 +926,14 @@ public enum Search {
             dirCount[dir] = (dirCount[dir] ?? 0) + 1
             if s.rank < rankBar { belowBar += 1 }
             if s.surgical && s.rank >= rankBar { confident += 1 }
+            if s.detSurgical && s.rank >= rankBar { detConfident += 1 }
             out.append(s.hit)
             if out.count >= limit { break }
         }
-        return ProbeResult(hits: out, belowBarCount: belowBar,
-                           confidentCount: confident)
+        var pr = ProbeResult(hits: out, belowBarCount: belowBar,
+                             confidentCount: confident)
+        pr.detConfident = detConfident
+        return pr
     }
 
     /// File-level FTS probe: one row per FILE (the chunk achieving the
@@ -855,7 +970,7 @@ public enum Search {
                 sql += " WHERE f.path LIKE ?"
                 args.append(p.hasSuffix("/") ? p + "%" : p + "/%")
             }
-            sql += " GROUP BY sub.file_id ORDER BY rank LIMIT ?"
+            sql += " GROUP BY sub.file_id ORDER BY rank, f.path LIMIT ?"
             args.append(limit)
             return try Row.fetchAll(db, sql: sql,
                 arguments: StatementArguments(args)).map { row in
@@ -887,7 +1002,8 @@ public enum Search {
                                    perAtom: Int = 5,
                                    limit: Int = 5)
         throws -> [(hit: SearchHit, atoms: Set<String>,
-                    exact: Bool, stemEx: Bool, strictOnly: Bool)] {
+                    exact: Bool, stemEx: Bool, strictOnly: Bool,
+                    corroborated: Bool)] {
         try store.pool.read { db in
             // path → (hit, atomDF, exact, basenameHits, matchedAtoms). A
             // file whose NAME contains several guessed atoms is the
@@ -1147,7 +1263,8 @@ public enum Search {
                 if a.matched.count != b.matched.count {
                     return a.matched.count > b.matched.count
                 }
-                return a.df < b.df
+                if a.df != b.df { return a.df < b.df }
+                return a.hit.path < b.hit.path
             }
             // Strict-only candidates with zero content corroboration
             // are pure syllable noise — drop them from emission (they
@@ -1162,7 +1279,8 @@ public enum Search {
                         .data(using: .utf8)!)
             }
             return kept.prefix(limit).map {
-                ($0.hit, $0.matched, $0.exact, $0.stemEx, $0.strictOnly)
+                ($0.hit, $0.matched, $0.exact, $0.stemEx, $0.strictOnly,
+                 contentRank[$0.hit.path] != nil)
             }
         }
     }
@@ -1257,7 +1375,7 @@ public enum Search {
             if !excluding.isEmpty {
                 sql += " AND c.id NOT IN (\(excluding.map { String($0) }.joined(separator: ",")))"
             }
-            sql += " ORDER BY rank LIMIT ?"
+            sql += " ORDER BY rank, path LIMIT ?"
             args.append(limit)
             return try Row.fetchAll(db, sql: sql, arguments: StatementArguments(args)).map { row in
                 SearchHit(
@@ -1343,7 +1461,7 @@ public enum Search {
         for i in 0..<n where scores[i] > 0.05 {
             scored.append((e.ids[i], scores[i]))
         }
-        scored.sort { $0.1 > $1.1 }
+        scored.sort { $0.1 != $1.1 ? $0.1 > $1.1 : $0.0 < $1.0 }
         let top = scored.prefix(limit)
         guard !top.isEmpty else { return [] }
 
@@ -1518,7 +1636,7 @@ public enum Search {
                 byID[cid] = row
             }
         }
-        scored.sort { $0.1 > $1.1 }
+        scored.sort { $0.1 != $1.1 ? $0.1 > $1.1 : $0.0 < $1.0 }
         return scored.prefix(limit).compactMap { (cid, score) in
             guard let row = byID[cid] else { return nil }
             return SearchHit(
@@ -1927,7 +2045,7 @@ public enum Search {
                 let excl = excluding.map { String($0) }.joined(separator: ",")
                 sql += " AND c.id NOT IN (\(excl))"
             }
-            sql += " ORDER BY rank LIMIT ?"
+            sql += " ORDER BY rank, path LIMIT ?"
             args.append(limit)
             return try Row.fetchAll(db, sql: sql, arguments: StatementArguments(args)).map { row in
                 SearchHit(

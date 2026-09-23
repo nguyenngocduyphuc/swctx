@@ -277,19 +277,26 @@ public enum Answer {
         if Translation.corpusHasVNFilenames(store: store) {
             terms += Translation.vnTerms(for: query)
         }
+        // Deterministic carrier set: everything derivable without a
+        // model roll or cache read — query atoms, lexicon/VN lookups,
+        // and their derived stems/subwords/acronyms. Computed by re-
+        // running the atomizer on cache-free inputs; membership is what
+        // matters, so the 24-cap ordering difference is irrelevant.
+        let detAtoms = Set(Search.plannerProbeAtomSets(
+            query: query, extraTerms: terms).atoms)
         if let t = Translation.activeCache.get(Translation.cacheKey(query)) {
             terms += t
         }
         // Reformulation leg: model-guessed filename vocabulary ("sổ tay"
         // → "so_tay","digest") — rides the translation roll, lands in
-        // the same cache, stays weak+champion-eligible in the probe.
+        // the same cache, stays weak+championless in the probe.
         let guessed = Translation.filenameTerms(for: query) ?? []
         let (atoms, weak, championless) = Search.plannerProbeAtomSets(
             query: query, extraTerms: terms, guessedTerms: guessed)
         guard !atoms.isEmpty else { return .empty }
         return (try? Search.plannerPathProbe(
             store: store, atoms: atoms, weakAtoms: weak,
-            championlessAtoms: championless,
+            championlessAtoms: championless, detAtoms: detAtoms,
             pathFilter: pathFilter)) ?? .empty
     }
 

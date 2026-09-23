@@ -257,11 +257,24 @@ public enum SwctxTools {
             let probe = (try? Answer.pathProbe(store: store, query: q,
                                                pathFilter: pathFilter))
                 ?? .empty
+            // Strong probe hits (surgical or rank ≥ bar, content-AND
+            // verified) still lead — that evidence predates the rescue
+            // layers and held the Sep-19 baseline. Champions no longer
+            // prepend: a below-bar name guess goes to the rescue pool
+            // where it may claim at most ONE tail slot.
             hits = Search.mergeProbeHits(
                 hits, probe: probe,
                 cap: Search.envInt("SWCTX_PROBE_CAP", 6),
-                champPrepend: Search.envInt("SWCTX_CHAMP_PREPEND", 1),
+                champPrepend: 0,
                 flood: Search.envInt("SWCTX_CHAMP_FLOOD", 6))
+            var rescuePool = Array(probe.champions)
+            var rescueSeen = Set(rescuePool.map(\.path))
+            // Content-verified candidates earn a stronger privilege:
+            // when every tail occupant is name-justified they may still
+            // take the weakest slot. Below-bar probe champions are
+            // name-guesses only — never verified.
+            var verifiedPaths = Set<String>()
+            var stemExPaths = Set<String>()
             // Deterministic substring vocabulary — model-free, so it
             // runs on EVERY query for the cost of a few ms LIKE scans:
             // the query's own folded atoms (the most central atoms
@@ -320,17 +333,16 @@ public enum SwctxTools {
                 [Search.foldText(q)])
                 .filter { $0.count == 3
                     && !Search.vnStopwords.contains($0) }
-            var probe2Confident = 0
             var r2pick: String?
-            // Round-2 reformulation: when the probe found no confident
-            // surgical hit (name evidence + coverage — coverage-flood
-            // ranks can look "strong" while naming nothing), show the
-            // model the paths round-1 returned — it picks the answering
-            // file or names the missing file's vocabulary, and that
-            // vocabulary gets a second probe pass. Cached per (query,
-            // shown paths) and deadline-bounded; only queries the probe
-            // couldn't crown pay, and only once per result window.
-            if probe.confidentCount == 0 {
+            // Round-2 reformulation: when the probe found no
+            // DETERMINISTIC-carrier surgical hit (detConfident is
+            // cache-free, so the gate can't flip between runs as the
+            // translation cache warms), show the model the paths
+            // round-1 returned — it picks the answering file or names
+            // the missing file's vocabulary, and that vocabulary gets
+            // a second probe pass. Model-vocab hits are rescue
+            // candidates only — never head inserts.
+            if probe.detConfident == 0 {
                 let r2 = Translation.round2(
                     query: q, seenPaths: hits.prefix(10).map(\.path))
                 r2pick = r2?.pick
@@ -355,12 +367,18 @@ public enum SwctxTools {
                         weakAtoms: Set(atoms2),
                         pathFilter: pathFilter),
                        !probe2.hits.isEmpty {
-                        probe2Confident = probe2.confidentCount
-                        hits = Search.mergeProbeHits(
-                            hits, probe: probe2,
-                            cap: Search.envInt("SWCTX_PROBE_CAP", 6),
-                            champPrepend: Search.envInt("SWCTX_CHAMP_PREPEND", 1),
-                            flood: Search.envInt("SWCTX_CHAMP_FLOOD", 6))
+                        // probe2 hits are AND-folded content-verified —
+                        // the path atom matched AND the content speaks
+                        // the query's atoms. Above-bar hits earn the
+                        // verified slot; below-bar champions stay
+                        // unverified guesses.
+                        verifiedPaths.formUnion(
+                            probe2.hits.prefix(probe2.strongCount)
+                                .map(\.path))
+                        for h in probe2.hits
+                        where rescueSeen.insert(h.path).inserted {
+                            rescuePool.append(h)
+                        }
                     }
                     // Model atoms join the substring lane too — ≥4
                     // chars (3-char model syllables like "noi"/"tai"
@@ -376,104 +394,74 @@ public enum SwctxTools {
             // semantics for a name guess. Candidates are rescored on
             // CONTENT against the translated terms so `sitectl` beats
             // `p8ctl` when the docstring speaks the question. All hits
-            // are fragment matches: below-bar champions, never
-            // surgical.
+            // are fragment matches: rescue candidates, never surgical.
             if let subs = try? Search.pathSubstringProbe(
                 store: store, atoms: subAtoms,
                 strictAtoms: strictSubAtoms,
                 pathFilter: pathFilter,
                 contentTerms: rescoreTerms), !subs.isEmpty {
-                if probe.confidentCount == 0 {
-                    // No freshness filter: a substring match on a
-                    // fused-tail file is the rescue — the merge's own
-                    // dedup pulls it out of `hits` and re-adds it at
-                    // the champion slot (promotion).
-                    //
-                    // Head slot is gated on atom centrality: the atom
-                    // that named the champion must be derivable from
-                    // the QUERY itself (folded atoms, translation,
-                    // round-1 filename guesses, command-suffix
-                    // conventions). Model-jargon atoms like "workflow"
-                    // land in every r2 roll; without the gate an
-                    // exact-stem WORKFLOW.md crowns every probe-miss
-                    // query and buries the fused answer.
-                    var central = Set(Search.plannerProbeAtoms(
-                        query: q, extraTerms: rescoreTerms))
-                    central.formUnion(
-                        Translation.commandSuffixAtoms(for: q))
-                    central.formUnion(camelSubs)
-                    let centralSubs = subs.filter {
-                        !$0.atoms.isDisjoint(with: central)
-                    }.map(\.hit)
-                    let jargonSubs = subs.filter {
-                        $0.atoms.isDisjoint(with: central)
-                    }.map(\.hit)
-                    if !centralSubs.isEmpty {
-                        hits = Search.mergeProbeHits(
-                            hits,
-                            probe: Search.ProbeResult(
-                                hits: centralSubs,
-                                belowBarCount: centralSubs.count,
-                                confidentCount: 0),
-                            cap: Search.envInt("SWCTX_PROBE_CAP", 6),
-                            champPrepend: Search.envInt(
-                                "SWCTX_CHAMP_PREPEND", 1),
-                            flood: Search.envInt(
-                                "SWCTX_CHAMP_FLOOD", 6))
+                // Deterministic-vocab candidates lead the rescue pool;
+                // jargon-atom matches (model words like "workflow" that
+                // land in every r2 roll) trail — they enter the window
+                // only when nothing query-derived qualified.
+                var central = Set(Search.plannerProbeAtoms(
+                    query: q, extraTerms: rescoreTerms))
+                central.formUnion(
+                    Translation.commandSuffixAtoms(for: q))
+                central.formUnion(camelSubs)
+                // Verified substring tiers: content-corroborated,
+                // stem-equality (the file is literally named an atom),
+                // or multi-atom exact-token matches. Single-fragment
+                // matches ("trang" → trang.html) stay unverified.
+                for c in subs
+                where c.corroborated || c.stemEx
+                    || (c.exact && !c.strictOnly && c.atoms.count >= 2) {
+                    verifiedPaths.insert(c.hit.path)
+                }
+                for c in subs where c.stemEx {
+                    stemExPaths.insert(c.hit.path)
+                }
+                for c in subs where !c.atoms.isDisjoint(with: central) {
+                    if rescueSeen.insert(c.hit.path).inserted {
+                        rescuePool.append(c.hit)
                     }
-                    if !jargonSubs.isEmpty {
-                        // Jargon-fragment matches carry no query
-                        // signal — tail coverage only, never the
-                        // head slot.
-                        hits = Search.mergeProbeHits(
-                            hits,
-                            probe: Search.ProbeResult(
-                                hits: jargonSubs,
-                                belowBarCount: jargonSubs.count,
-                                confidentCount: 0),
-                            cap: 0, champPrepend: 0, flood: 0)
-                    }
-                } else {
-                    // The probe already crowned a confident answer —
-                    // only stem-equality name evidence may contest the
-                    // head: the file is literally NAMED a query-derived
-                    // atom (WORKFLOW.md for "workflow"). Token-in-stem
-                    // matches (status.md, index.html) are too common to
-                    // displace a confident fused answer.
-                    let exactSubs = subs.filter {
-                        $0.stemEx || $0.strictOnly
-                            || ($0.exact && $0.atoms.count > 1)
-                    }.map(\.hit)
-                    if !exactSubs.isEmpty {
-                        hits = Search.mergeProbeHits(
-                            hits,
-                            probe: Search.ProbeResult(
-                                hits: exactSubs,
-                                belowBarCount: exactSubs.count,
-                                confidentCount: 0),
-                            cap: Search.envInt("SWCTX_PROBE_CAP", 6),
-                            champPrepend: Search.envInt(
-                                "SWCTX_CHAMP_PREPEND", 1),
-                            flood: Search.envInt(
-                                "SWCTX_CHAMP_FLOOD", 6))
+                }
+                for c in subs where c.atoms.isDisjoint(with: central) {
+                    if rescueSeen.insert(c.hit.path).inserted {
+                        rescuePool.append(c.hit)
                     }
                 }
             }
             // The pick is an explicit judgment over our own list — it
-            // leads when the model's missing_terms probe found no name
-            // evidence of its own (confidentCount, not strongCount —
-            // coverage-flood ranks look "strong" while naming
-            // nothing). It can only reorder paths already in the
-            // window (never injects), so a substring rescue below it
-            // stays a hit anyway; a right pick beats a wrong fragment
-            // match (seo-11's pick named the gold while the substring
-            // lane crowned a plausible-but-wrong sibling).
-            if probe2Confident == 0, let pick = r2pick,
-               hits.first?.path != pick,
-               let idx = hits.firstIndex(where: { $0.path == pick }) {
-                hits.insert(hits.remove(at: idx), at: 0)
+            // wins the rescue slot if its path is a candidate, or
+            // reorders within the unprotected window if fusion already
+            // surfaced it. It can NEVER inject a path the retrieval
+            // layers didn't produce, and never crosses the protected
+            // prefix.
+            let protect = Search.envInt("SWCTX_PROTECT", 2)
+            if let pick = r2pick,
+               let pi = rescuePool.firstIndex(where: {
+                   $0.path == pick }) {
+                rescuePool.insert(rescuePool.remove(at: pi), at: 0)
             }
-            hits = Array(hits.prefix(limit))
+            // Name corroboration for the tail-occupant test: every atom
+            // derivable from the query text itself — folded atoms,
+            // camel subtokens, strict syllables, command suffixes. A
+            // fused occupant sharing none of these was never
+            // name-justified, so it's the slot a rescue may take.
+            let detNameAtoms = Set(qAtoms + camelSubs + strictSubAtoms
+                + Translation.commandSuffixAtoms(for: q))
+            var window = Search.tailRescue(
+                Array(hits.prefix(limit)), candidates: rescuePool,
+                verifiedPaths: verifiedPaths, stemExPaths: stemExPaths,
+                queryNameAtoms: detNameAtoms,
+                limit: limit, protect: protect)
+            if let pick = r2pick,
+               let idx = window.firstIndex(where: { $0.path == pick }),
+               idx > protect {
+                window.insert(window.remove(at: idx), at: protect)
+            }
+            hits = window
         }
         // Optional cross-encoder stage (`rerank: true`): pin the top-3
         // fused hits, rescore the rest of a 30-candidate pool with the

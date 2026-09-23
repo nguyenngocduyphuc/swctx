@@ -549,6 +549,13 @@ public enum Translation {
         var cooldownUntil = Date.distantPast
         var cacheOverride: Cache?
         var round2CacheOverride: Cache?
+        // In-flight registry for round-2 rolls: one roll-set per key
+        // ever runs at a time. A second caller while the first is
+        // mid-flight waits on the same completion instead of spawning
+        // a racing generation — two racing aggregates used to both
+        // commit, and which one a read observed depended on timing.
+        var r2Running: Set<String> = []
+        var r2Waiters: [String: [DispatchSemaphore]] = [:]
     }
     static let state = StateBox()
     /// Test seam — when set, lookups consult this cache instead of the
@@ -1196,16 +1203,43 @@ public enum Translation {
         guard !inCooldown() else { dbg("cooldown"); return nil }
         guard let bin = ollamaBin() else { dbg("no ollama bin"); return nil }
         let deadline = deadlineMs ?? round2DeadlineMs
+        // Single-flight: the first caller owns the roll-set; later
+        // callers register a waiter and read the aggregate it commits —
+        // every consumer of one key sees the same completed entry.
+        state.lock.lock()
+        if state.r2Running.contains(key) {
+            let w = DispatchSemaphore(value: 0)
+            state.r2Waiters[key, default: []].append(w)
+            state.lock.unlock()
+            if deadline > 0 {
+                _ = w.wait(timeout: .now() + .milliseconds(deadline))
+            }
+            guard let atoms = activeRound2Cache.get(key) else {
+                return nil
+            }
+            return (atoms,
+                    activeRound2Cache.getFilenameTerms(key)?.first)
+        }
+        state.r2Running.insert(key)
+        state.lock.unlock()
         let sema = DispatchSemaphore(value: 0)
         DispatchQueue.global(qos: .userInitiated).async {
-            defer { sema.signal() }
+            defer {
+                state.lock.lock()
+                state.r2Running.remove(key)
+                let waiters = state.r2Waiters.removeValue(forKey: key) ?? []
+                state.lock.unlock()
+                waiters.forEach { $0.signal() }
+                sema.signal()
+            }
             // Three rolls of two kinds: roll 1 judges the shown list
             // (pick + missing atoms); rolls 2-3 run the names-only
             // prompt — no list to anchor on, so their entropy stays on
             // vocabulary instead of echoing shown names. Atoms union,
-            // first non-zero pick wins. Each roll's merge lands in the
-            // cache immediately — a deadline that cuts roll 3 still
-            // leaves earlier rolls usable for this query AND the next.
+            // first non-zero pick wins. NOTHING lands in the cache
+            // until the roll loop ends — a partial aggregate used to
+            // become durable state mid-flight, so repeated calls read
+            // different entries and results rotated between runs.
             var mergedAtoms: [String] = []
             var mergedPick: String?
             var seenAtom: Set<String> = []
@@ -1226,11 +1260,6 @@ public enum Translation {
                         mergedAtoms.append(a)
                     }
                     if mergedPick == nil { mergedPick = r.pick }
-                    if !mergedAtoms.isEmpty || mergedPick != nil {
-                        activeRound2Cache.put(
-                            key, terms: mergedAtoms,
-                            filenames: mergedPick.map { [$0] } ?? [])
-                    }
                 case .timedOut:
                     dbg("timeout \(spawnCapMs)ms")
                     tripCooldown(timeoutCooldownSeconds)
@@ -1240,13 +1269,20 @@ public enum Translation {
                 }
                 if inCooldown() { break }
             }
+            // Single atomic commit — the aggregate the completed loop
+            // produced. A call whose deadline expired mid-roll returns
+            // nil now but finds this entry on the next identical query.
+            if !mergedAtoms.isEmpty || mergedPick != nil {
+                activeRound2Cache.put(
+                    key, terms: mergedAtoms,
+                    filenames: mergedPick.map { [$0] } ?? [])
+            }
         }
         if deadline > 0 {
             _ = sema.wait(timeout: .now() + .milliseconds(deadline))
         }
-        // Read the cache again either way — a slow generation that beat
-        // neither deadline nor cap is nil now but cached for next time;
-        // a just-late one may have landed between wait and read.
+        // The cache read serves a completed aggregate or nothing — the
+        // still-running task above commits once, for the next call.
         guard let atoms = activeRound2Cache.get(key) else { return nil }
         return (atoms, activeRound2Cache.getFilenameTerms(key)?.first)
     }

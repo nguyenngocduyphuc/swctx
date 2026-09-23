@@ -655,12 +655,13 @@ final class SwctxCoreTests: SwctxTestCase {
         XCTAssertFalse(atoms2.contains("do"))
     }
 
-    /// Reformulation guesses land as weak, champion-ELIGIBLE atoms —
-    /// a guessed token that names a file is name evidence (the model
-    /// pointed at that word), but it never earns surgical: a
-    /// hallucination must not crown. Guesses emit ahead of stems so
-    /// dense queries spend the 24-cap on real vocabulary first.
-    func testProbeGuessedAtomsWeakChampionEligible() {
+    /// Reformulation guesses land as weak, championless atoms — a
+    /// guessed token may fetch and claim path evidence, but it never
+    /// earns surgical and never takes a champion slot: a model
+    /// hallucination ("workflow" lands in nearly every roll) must not
+    /// crown or bury fused hits on untuned queries. Guesses emit ahead
+    /// of stems so dense queries spend the 24-cap on real vocabulary.
+    func testProbeGuessedAtomsWeakChampionless() {
         let (atoms, weak, championless) = Search.plannerProbeAtomSets(
             query: "tóm tắt hoạt động hôm qua",
             guessedTerms: ["so_tay", "daily digest", "deadline"])
@@ -672,8 +673,8 @@ final class SwctxCoreTests: SwctxTestCase {
         XCTAssertFalse(atoms.contains("so"))
         for a in ["tay", "digest", "deadline", "daily"] {
             XCTAssertTrue(weak.contains(a), "\(a) must be weak")
-            XCTAssertFalse(championless.contains(a),
-                           "\(a) stays champion-eligible")
+            XCTAssertTrue(championless.contains(a),
+                          "\(a) is championless — guesses never crown")
         }
         // Stems still derive from query atoms, not from guesses:
         // stemAtom("deadline") must NOT appear as a weak stem.

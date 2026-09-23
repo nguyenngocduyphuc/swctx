@@ -185,12 +185,15 @@ def main():
         return 2
 
     # Warm durable caches before measuring — steady state (see engine_ab).
+    # Same limit as the measured call: round-2 rolls key on the query but
+    # roll against the seen-paths window, so a mismatched warmup window
+    # would commit atoms the measured call never asked for.
     for queries in sets.values():
         for q in queries:
             try:
                 s.call_tool("search", {"workspace": q["workspace"],
                                        "query": q["query"], "mode": "auto",
-                                       "limit": 1}, retries=0, timeout=60)
+                                       "limit": 5}, retries=0, timeout=60)
             except Exception:
                 pass
 
