@@ -1,6 +1,34 @@
 # swctx — Handoff & Status
 
-Date: 2026-09-23 (round-2 + substring rescue → **A/B 22/22**) · Status: **working — nightly 36/36 PASS, A/B 22/22 (3 identical warm runs), 262 tests green, HEAD `4cc8759`**
+Date: 2026-09-23 (tối) · Status: **working — holdout restored 11/20 deterministic (3 identical runs), vn-tuning 20/22, ratchet PASS 35/36, 262 tests green**
+
+## 2026-09-23 (tối) — Holdout-regression repair: protected fused head + deterministic round-2
+
+**Root cause** (independent Grok + Codex review, same diagnosis): the 22/22 tuning result was partly overfit — post-fusion head promotion (strong-hits + champions prepended, round-2 pick hoisted to index 0) evicted fused gold on *unseen* queries: filename false-friends (`p8ctl`>sitectl, `package.json`>deploy file, `trang.html`). Frozen holdout measured **11/20 → 7/20** with rotating misses. Second cause: round-2 wrote a partial cache entry **after every roll** — later calls read different aggregates, and `confidentCount` (gate for probe2/subAtoms/pick) flipped with cache warmth. Third: tie-order instability (RRF/FTS/substring sorts had no path tie-break; SQL `ORDER BY rank` only).
+
+**Fix** (this change):
+
+- **Protected fused head**: `champPrepend → 0` in the main merge; strong probe hits still lead, but below-bar champions/picks/substring candidates go to a single `tailRescue` pass — at most one slot, never inside `protect` (default 2, `SWCTX_PROTECT`).
+- **`tailRescue`** (Search.swift): dedup by path + basename; if window has room, append best eligible; pass 1 replaces weakest non-name-corroborated tail occupant, preferring verified candidates; pass 2 (all occupants name-corroborated) only `stemEx`/verified candidates may displace. Unverified single-fragment guesses (`trang`→trang.html) can never displace a name-corroborated hit.
+- **Verified tiers**: `verifiedPaths` = content-corroborated / stemEx / ≥2-atom matches; `stemExPaths` (basename stem literally equals an atom, `+`-normalized) outranks other verified candidates.
+- **Model-free confidence gate**: `probe.detConfident` counts surgical hits on deterministic atoms only (query+lexicon+VN terms — no translation cache, no model guesses). Round-2 now gates on `detConfident == 0`, so cache warmth can't change branch eligibility. Guessed atoms are weak + **championless** (fetch/claim evidence, never surgical, never champion).
+- **Round-2 single-commit + single-flight**: rolls aggregate in memory, one `put` after the loop; concurrent same-key callers wait on a semaphore in `StateBox` (`r2Running`/`r2Waiters`) and read the completed aggregate — no partial writes, no duplicate roll sets. Pick no longer persists a resolved path — live reorder inside the unprotected region only.
+- **Deterministic ordering**: `ORDER BY rank, path` in FTS SQL; chunk-id tie-break on float scores; path tie-break in probe/substring/RRF comparators.
+- **`daily_eval.py` warmup `limit: 1 → 5`** — warmup must see the same result window as measured calls (round-2 atoms depend on seenPaths; warmup with limit 1 committed a different aggregate → eval read 8/20 vs true 11/20).
+
+**Verification**:
+
+| Check | Result |
+|---|---|
+| holdout (frozen 20q) | **11/20** — 3 consecutive identical runs (= Sep-19 baseline); rescue neutral (same 11/20 with `SWCTX_PROTECT=99`) |
+| vn-tuning (22q) | **20/22** — seo-07 recovered via stemEx; seo-05/seo-10 remain misses |
+| nightly ratchet | **PASS** — recall@5 0.9722 (35/36 ≥ 0.95), p95 140.3ms ≤ 150ms, schema 26/26 |
+| tests | **262, 0 fail** — `testProbeGuessedAtomsWeakChampionless` re-encoded the new contract |
+| daily_eval ledger | sha `16675e6`+dirty: tuning r@1 0.32, holdout r@1 0.20 — head-room for rank quality |
+
+**Remaining misses — reachability, not eviction**: holdout misses (hseo-02/03/04/05/07/09, hcrm-03/05/08) never reach the candidate window; seo-05 (`sitectl.py`)/seo-10 (`p8_link_injector.py`) lose to same-tier plausible candidates. Accepting these over adding promotion pressure that re-breaks the holdout.
+
+**Caveats**: r@1 still low (holdout 0.20) — top-slot quality is the next quality lever. Round-2 cache is query-keyed only, so a stale aggregate can carry atoms brainstormed for a different result window; single-flight + aligned warmup remove the variance but the key design is unchanged. ctxe effort=high baseline still blocked on zero credit.
 
 ## 2026-09-23 (chiều) — Round-2 reformulation + substring filename rescue → 22/22
 
