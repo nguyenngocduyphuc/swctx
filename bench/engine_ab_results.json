@@ -1,25 +1,202 @@
 {
- "timestamp": "2026-09-23T07:27:07+00:00",
+ "timestamp": "2026-09-23T12:02:12+00:00",
  "probe": "vn_queries.json",
  "limit": 5,
- "ask_sample": [],
+ "ask_sample": [
+  "seo-01",
+  "seo-09",
+  "crm-04",
+  "crm-11"
+ ],
  "session_notes": {},
- "ctxe_index": {},
+ "ctxe_index": {
+  "/Users/phuongnam/02.AI/NP_AI_macos/8.P8_SEO_Clean": {
+   "indexed": true,
+   "state": "Degraded",
+   "files": 3121
+  },
+  "/Users/phuongnam/02.AI/NP_AI_macos/18.CRM-Nam-Pham": {
+   "indexed": true,
+   "state": "Degraded",
+   "files": 83
+  }
+ },
  "latency_ms": {
+  "ctxe:ask_context(min,nocompose)": {
+   "p50": 276.9,
+   "p95": 645.7,
+   "n_calls": 4
+  },
+  "ctxe:find_definitions": {
+   "p50": 7.4,
+   "p95": 8.5,
+   "n_calls": 4
+  },
+  "ctxe:workspace_tree(raw)": {
+   "p50": 84.1,
+   "p95": 107.2,
+   "n_calls": 11
+  },
+  "ctxe:workspace_tree(token-sweep)": {
+   "p50": 844.9,
+   "p95": 1026.5,
+   "n_calls": 11
+  },
   "swctx:find_definitions": {
-   "p50": 16.1,
-   "p95": 20.0,
+   "p50": 11.2,
+   "p95": 12.9,
    "n_calls": 4
   },
   "swctx:search": {
-   "p50": 1417.9,
-   "p95": 2637.8,
+   "p50": 283.4,
+   "p95": 1254.9,
    "n_calls": 22
   }
  },
- "ctxe_no_surface_queries": [],
+ "ctxe_no_surface_queries": [
+  "seo-05",
+  "seo-06",
+  "seo-07",
+  "crm-05",
+  "seo-10"
+ ],
  "ctxe_index_missing_expected": [],
  "aggregate": {
+  "ctxe:ask_context(min,nocompose)": {
+   "ALL": {
+    "n": 4,
+    "hits": 0,
+    "recall_at_5": 0.0
+   },
+   "concept_flow": {
+    "n": 4,
+    "hits": 0,
+    "recall_at_5": 0.0
+   },
+   "symbol_lookup": {
+    "n": 0,
+    "hits": 0,
+    "recall_at_5": null
+   },
+   "in_path": {
+    "n": 2,
+    "hits": 0,
+    "recall_at_5": 0.0
+   },
+   "in_body_only": {
+    "n": 2,
+    "hits": 0,
+    "recall_at_5": 0.0
+   }
+  },
+  "ctxe:find_definitions": {
+   "ALL": {
+    "n": 4,
+    "hits": 3,
+    "recall_at_5": 0.75
+   },
+   "concept_flow": {
+    "n": 0,
+    "hits": 0,
+    "recall_at_5": null
+   },
+   "symbol_lookup": {
+    "n": 4,
+    "hits": 3,
+    "recall_at_5": 0.75
+   },
+   "in_path": {
+    "n": 0,
+    "hits": 0,
+    "recall_at_5": null
+   },
+   "in_body_only": {
+    "n": 4,
+    "hits": 3,
+    "recall_at_5": 0.75
+   }
+  },
+  "ctxe:none": {
+   "ALL": {
+    "n": 0,
+    "hits": 0,
+    "recall_at_5": null
+   },
+   "concept_flow": {
+    "n": 0,
+    "hits": 0,
+    "recall_at_5": null
+   },
+   "symbol_lookup": {
+    "n": 0,
+    "hits": 0,
+    "recall_at_5": null
+   },
+   "in_path": {
+    "n": 0,
+    "hits": 0,
+    "recall_at_5": null
+   },
+   "in_body_only": {
+    "n": 0,
+    "hits": 0,
+    "recall_at_5": null
+   }
+  },
+  "ctxe:workspace_tree(raw)": {
+   "ALL": {
+    "n": 11,
+    "hits": 0,
+    "recall_at_5": 0.0
+   },
+   "concept_flow": {
+    "n": 11,
+    "hits": 0,
+    "recall_at_5": 0.0
+   },
+   "symbol_lookup": {
+    "n": 0,
+    "hits": 0,
+    "recall_at_5": null
+   },
+   "in_path": {
+    "n": 11,
+    "hits": 0,
+    "recall_at_5": 0.0
+   },
+   "in_body_only": {
+    "n": 0,
+    "hits": 0,
+    "recall_at_5": null
+   }
+  },
+  "ctxe:workspace_tree(token-sweep)": {
+   "ALL": {
+    "n": 11,
+    "hits": 3,
+    "recall_at_5": 0.2727
+   },
+   "concept_flow": {
+    "n": 11,
+    "hits": 3,
+    "recall_at_5": 0.2727
+   },
+   "symbol_lookup": {
+    "n": 0,
+    "hits": 0,
+    "recall_at_5": null
+   },
+   "in_path": {
+    "n": 11,
+    "hits": 3,
+    "recall_at_5": 0.2727
+   },
+   "in_body_only": {
+    "n": 0,
+    "hits": 0,
+    "recall_at_5": null
+   }
+  },
   "swctx:find_definitions": {
    "ALL": {
     "n": 4,
@@ -50,13 +227,13 @@
   "swctx:search": {
    "ALL": {
     "n": 22,
-    "hits": 19,
-    "recall_at_5": 0.8636
+    "hits": 22,
+    "recall_at_5": 1.0
    },
    "concept_flow": {
     "n": 18,
-    "hits": 15,
-    "recall_at_5": 0.8333
+    "hits": 18,
+    "recall_at_5": 1.0
    },
    "symbol_lookup": {
     "n": 4,
@@ -70,8 +247,8 @@
    },
    "in_body_only": {
     "n": 11,
-    "hits": 8,
-    "recall_at_5": 0.7273
+    "hits": 11,
+    "recall_at_5": 1.0
    }
   }
  },
@@ -91,16 +268,44 @@
     "swctx:search": {
      "paths": [
       "scripts/p8_canonical_check.py",
-      "docs-fleet/public/console/duyet/hoso/chong-lap/index.html",
+      "docs-fleet/public/console/duyet/hoso/t3-m1-gdd/index.html",
+      "docs-fleet/estate/index.md",
       "scripts/p8_repo_health_check.py",
-      "scripts/_legacy/2026-05-08/p8_health_check.py",
-      "docs-fleet/estate/index.md"
+      "config/GOOGLE_SEO_2026_CHECKLIST.md"
      ],
      "rank": 1,
-     "latency_ms": 2637.8,
+     "latency_ms": 1478.4,
      "status": "ok"
+    },
+    "ctxe:workspace_tree(raw)": {
+     "paths": [],
+     "rank": 0,
+     "latency_ms": 86.2,
+     "status": "ok",
+     "n_files": 0
+    },
+    "ctxe:workspace_tree(token-sweep)": {
+     "paths": [
+      "scripts/_legacy/p8_canonical_normalizer.py",
+      "scripts/_legacy/2026-05-08/extract_metrics.py",
+      "scripts/_legacy/2026-05-08/extract_prompts.py",
+      "scripts/_legacy/2026-05-08/extract_prompts_b3.py",
+      "scripts/_legacy/2026-05-08/extract_prompts_b4.py"
+     ],
+     "rank": 0,
+     "latency_ms": 1026.5,
+     "status": "ok",
+     "n_candidates": 375
+    },
+    "ctxe:ask_context(min,nocompose)": {
+     "paths": [],
+     "rank": 0,
+     "latency_ms": 645.7,
+     "status": "error",
+     "error": "rpc -32603: internal error: ask dispatch: internal: ask_v4 internal error: embed query: provider call failed (status Some(402), code quota_exceeded, dispatch NotDispatched): insufficient_credit: Insufficient credit balance (run `ctxe wallet` to check balance) [correlation_id=383a4e4e-12df-4163-bae5-4d900207fea9]"
     }
-   }
+   },
+   "ctxe_index_has_expected": true
   },
   {
    "id": "seo-02",
@@ -116,17 +321,38 @@
    "results": {
     "swctx:search": {
      "paths": [
-      "content/images/manifest/reports/20260511_wave2/all_article_links.json",
-      "scripts/p8_link_health.py",
       "scripts/p8_publish_gate.py",
+      "scripts/p8_link_health.py",
       "config/PRE_PUBLISH_CHECKLIST.json",
-      "vendors/codex-plugin-cc/plugins/codex/prompts/stop-review-gate.md"
+      "archive/legacy-audits/audits/audit-report/publish-gate-dry-run.md",
+      "archive/legacy-audits/misc/claude_project_context/2026-05-09/12_PRE_PUBLISH_CHECKLIST.json"
      ],
      "rank": 2,
-     "latency_ms": 1839.0,
+     "latency_ms": 826.5,
      "status": "ok"
+    },
+    "ctxe:workspace_tree(raw)": {
+     "paths": [],
+     "rank": 0,
+     "latency_ms": 107.2,
+     "status": "ok",
+     "n_files": 0
+    },
+    "ctxe:workspace_tree(token-sweep)": {
+     "paths": [
+      "archive/legacy-audits/audits/audit-report/publish-gate-dry-run-v2.md",
+      "archive/legacy-audits/audits/audit-report/publish-gate-dry-run-v4.md",
+      "archive/legacy-audits/audits/audit-report/publish-gate-dry-run.md",
+      "docs/handoffs/HANDOFF_20260814_gate100-phien-1dev2.md",
+      "scripts/p8_content_publish_gate_check.py"
+     ],
+     "rank": 0,
+     "latency_ms": 1026.1,
+     "status": "ok",
+     "n_candidates": 202
     }
-   }
+   },
+   "ctxe_index_has_expected": true
   },
   {
    "id": "seo-03",
@@ -142,17 +368,38 @@
    "results": {
     "swctx:search": {
      "paths": [
-      "scripts/p8_utm_builder.py",
       "WORKFLOW.md",
+      "scripts/p8_utm_builder.py",
       "archive/legacy-audits/misc/external/seo-geo-claude-skills/optimize/on-page-seo-auditor/references/bulk-audit-playbook.md",
       "scripts/SCRIPT_INDEX.md",
       "docs/seo/playbooks/SEO_PLAYBOOK_PORTABLE.md"
      ],
-     "rank": 1,
-     "latency_ms": 518.9,
+     "rank": 2,
+     "latency_ms": 457.8,
      "status": "ok"
+    },
+    "ctxe:workspace_tree(raw)": {
+     "paths": [],
+     "rank": 0,
+     "latency_ms": 84.9,
+     "status": "ok",
+     "n_files": 0
+    },
+    "ctxe:workspace_tree(token-sweep)": {
+     "paths": [
+      "docs/archive/legacy-2026/ai_sessions/nampham_net_scaffold_2026-05-24/scripts/check-internal-links.js",
+      "docs/archive/phamducphuongnam-seo/phase-2/T7-anchor/script.py",
+      "docs/archive/phamducphuongnam-seo/phase-2/T9-internal-link/script.py",
+      "scripts/_legacy/fix_xem_them_anchors.py",
+      "scripts/_legacy/ghost_link_builder_apply.py"
+     ],
+     "rank": 0,
+     "latency_ms": 1016.2,
+     "status": "ok",
+     "n_candidates": 349
     }
-   }
+   },
+   "ctxe_index_has_expected": true
   },
   {
    "id": "seo-04",
@@ -168,17 +415,38 @@
    "results": {
     "swctx:search": {
      "paths": [
+      "content/posts/C3.5/content.md",
       "docs/plans/AUDIT_5_MUC_WORDPRESS_AUTOMATION_2026-09-15.md",
       "content/posts/C5.5/content.md",
       "content/gioi-thieu-content.html",
-      "scripts/p8_image_worker.py",
-      "content/images/C1.4/huong_dan_chen_anh.md"
+      "scripts/p8_image_worker.py"
      ],
-     "rank": 4,
-     "latency_ms": 664.0,
+     "rank": 5,
+     "latency_ms": 530.9,
      "status": "ok"
+    },
+    "ctxe:workspace_tree(raw)": {
+     "paths": [],
+     "rank": 0,
+     "latency_ms": 84.1,
+     "status": "ok",
+     "n_files": 0
+    },
+    "ctxe:workspace_tree(token-sweep)": {
+     "paths": [
+      "docs/resources/ska_mining/converted/EBOOK_Augmented_Worker.md",
+      "scripts/p8_content_depth_worker.py",
+      "scripts/_legacy/2026-05-28_worker_sprawl/batch_fix_minh_bach.py",
+      "scripts/_legacy/2026-05-28_worker_sprawl/convert_intro_blockquotes.py",
+      "scripts/_legacy/2026-05-28_worker_sprawl/fix_p1_content_issues.py"
+     ],
+     "rank": 0,
+     "latency_ms": 860.1,
+     "status": "ok",
+     "n_candidates": 314
     }
-   }
+   },
+   "ctxe_index_has_expected": true
   },
   {
    "id": "seo-05",
@@ -194,17 +462,25 @@
    "results": {
     "swctx:search": {
      "paths": [
-      "factory/sites/unify/entity.json",
-      "docs/fleet/ENTITY_SCHEMA_ROADMAP.md",
       "factory/sites/phamducphuongnam/entity.json",
-      "config/fleet/entity_mesh.json",
-      "docs/archive/session-reports/data_2026-05-24/site_summary.json"
+      "docs/fleet/MESH.md",
+      "factory/sites/unify/entity.json",
+      "factory/sitectl.py",
+      "archive/legacy-audits/misc/external/seo-geo-claude-skills/cross-cutting/entity-optimizer/references/entity-signal-checklist.md"
      ],
-     "rank": 0,
-     "latency_ms": 698.6,
+     "rank": 4,
+     "latency_ms": 686.0,
      "status": "ok"
+    },
+    "ctxe:none": {
+     "paths": [],
+     "rank": 0,
+     "latency_ms": null,
+     "status": "no-surface",
+     "note": "no free workspace-wide NL retrieval; inspect_path needs a dir scope, ask_context costs credits"
     }
-   }
+   },
+   "ctxe_index_has_expected": true
   },
   {
    "id": "seo-06",
@@ -220,17 +496,25 @@
    "results": {
     "swctx:search": {
      "paths": [
-      "docs-fleet/ship-log/reports/worker-tony-integration-opportunities.md",
-      "archive/legacy-audits/misc/external/seo-geo-claude-skills/optimize/technical-seo-checker/references/bulk-audit-playbook.md",
       "docs-fleet/doi-ngu.md",
-      "docs/seo/playbooks/SEO_PLAYBOOK_PORTABLE.md",
-      "docs/fleet/SITE_BUILD_PLAYBOOK.md"
+      "docs-fleet/ship-log/reports/worker-aof-v2-audit.md",
+      "WORKFLOW.md",
+      "archive/legacy-audits/misc/external/seo-geo-claude-skills/optimize/technical-seo-checker/references/bulk-audit-playbook.md",
+      "docs/seo/playbooks/SEO_PLAYBOOK_PORTABLE.md"
      ],
-     "rank": 3,
-     "latency_ms": 1758.9,
+     "rank": 1,
+     "latency_ms": 716.2,
      "status": "ok"
+    },
+    "ctxe:none": {
+     "paths": [],
+     "rank": 0,
+     "latency_ms": null,
+     "status": "no-surface",
+     "note": "no free workspace-wide NL retrieval; inspect_path needs a dir scope, ask_context costs credits"
     }
-   }
+   },
+   "ctxe_index_has_expected": true
   },
   {
    "id": "seo-07",
@@ -247,16 +531,24 @@
     "swctx:search": {
      "paths": [
       "docs/handoffs/HANDOFF_20260727_dinh-dang-noi-dung.md",
+      "WORKFLOW.md",
       "archive/knowhows/knowhows/20_workflows/WORKFLOW_VIET_BAI_SEO.md",
-      "content/images/manifest/reports/20260511_recovery_v12_exec1/after/post_2169_tai-sao-du-an-pharma-4-0-that-bai-phan-tich-he-thong_after_20260511_214228.txt",
       "content/images/manifest/reports/20260511_recovery_v12_exec1/rollback/post_2169_tai-sao-du-an-pharma-4-0-that-bai-phan-tich-he-thong_before_20260511_214228.txt",
       "content/images/manifest/reports/20260511_recovery_v12_exec2/after/post_2169_tai-sao-du-an-pharma-4-0-that-bai-phan-tich-he-thong_after_20260511_214523.txt"
      ],
-     "rank": 0,
-     "latency_ms": 657.2,
+     "rank": 2,
+     "latency_ms": 787.9,
      "status": "ok"
+    },
+    "ctxe:none": {
+     "paths": [],
+     "rank": 0,
+     "latency_ms": null,
+     "status": "no-surface",
+     "note": "no free workspace-wide NL retrieval; inspect_path needs a dir scope, ask_context costs credits"
     }
-   }
+   },
+   "ctxe_index_has_expected": true
   },
   {
    "id": "seo-08",
@@ -279,10 +571,31 @@
       "content/images/manifest/reports/20260511_recovery_v12_exec1/after/post_2073_audit-trail-gmp-cau-hinh-dung-tu-dau_after_20260511_214259.txt"
      ],
      "rank": 2,
-     "latency_ms": 535.0,
+     "latency_ms": 466.8,
      "status": "ok"
+    },
+    "ctxe:workspace_tree(raw)": {
+     "paths": [],
+     "rank": 0,
+     "latency_ms": 86.6,
+     "status": "ok",
+     "n_files": 0
+    },
+    "ctxe:workspace_tree(token-sweep)": {
+     "paths": [
+      "docs/archive/phamducphuongnam-seo/phase-2/T3-favicon-og/generate_brand_kit_v2.py",
+      "archive/theme/phamducphuongnam-v2_STALE_2026-05-28/template-parts/hero-image.php",
+      "docs/archive/legacy-2026/ai_sessions/nampham_net_scaffold_2026-05-24/components/case-study/MetricsHero.tsx",
+      "docs/archive/legacy-2026/themes/2026-05-25_phamducphuongnam_legacy/template-parts/hero-image.php",
+      "content/images/manifest/reports/20260511_genspark_handoff.md"
+     ],
+     "rank": 0,
+     "latency_ms": 852.8,
+     "status": "ok",
+     "n_candidates": 539
     }
-   }
+   },
+   "ctxe_index_has_expected": true
   },
   {
    "id": "crm-01",
@@ -298,17 +611,38 @@
    "results": {
     "swctx:search": {
      "paths": [
-      "crm-nam-pham/09-build/cham_cong.py",
-      "crm-nam-pham/cham-cong.json",
-      "crm-nam-pham/04-app-frontend/cham-cong.html",
       "crm-nam-pham/09-build/log_activity_live.py",
-      "crm-nam-pham/04-app-frontend/nhat-ky.html"
+      "crm-nam-pham/09-build/cham_cong.py",
+      "crm-nam-pham/09-build/so_tay.py",
+      "crm-nam-pham/07-docs/AUDIT_TONG_KIEM_20260806_grok.md",
+      "crm-nam-pham/artifacts/team/audit-daily-checklist/notes.md"
+     ],
+     "rank": 2,
+     "latency_ms": 92.2,
+     "status": "ok"
+    },
+    "ctxe:workspace_tree(raw)": {
+     "paths": [],
+     "rank": 0,
+     "latency_ms": 8.6,
+     "status": "ok",
+     "n_files": 0
+    },
+    "ctxe:workspace_tree(token-sweep)": {
+     "paths": [
+      "crm-nam-pham/09-build/cham_cong.py",
+      "crm-nam-pham/08-scripts/pull-crm-weekly.MOCK.py",
+      "crm-nam-pham/08-scripts/test-backend-local.MOCK.py",
+      "crm-nam-pham/_archive-genspark/06-import-scripts/import_csv_nampham_landing.py",
+      "crm-nam-pham/_archive-genspark/06-import-scripts/import_csv_pdpn.py"
      ],
      "rank": 1,
-     "latency_ms": 1067.5,
-     "status": "ok"
+     "latency_ms": 77.3,
+     "status": "ok",
+     "n_candidates": 5
     }
-   }
+   },
+   "ctxe_index_has_expected": true
   },
   {
    "id": "crm-02",
@@ -324,14 +658,14 @@
    "results": {
     "swctx:search": {
      "paths": [
-      "crm-nam-pham/04-app-frontend/ceo-cockpit.html",
-      "HANDOFF-CRM-20260724.md",
-      "0-MASTER-PLAN-AUDIT.md",
       "crm-nam-pham/09-build/so_tay.py",
-      "crm-nam-pham/07-docs/COWORK_AUDIT.md"
+      "crm-nam-pham/04-app-frontend/cham-cong.html",
+      "crm-nam-pham/07-docs/AUDIT_3_SURFACE_CEO_20260820_agy.md",
+      "crm-nam-pham/07-docs/REVIEW_FRONTEND_NEN_20260820.md",
+      "HANDOFF-CRM-20260724.md"
      ],
-     "rank": 4,
-     "latency_ms": 1304.3,
+     "rank": 1,
+     "latency_ms": 60.1,
      "status": "ok"
     },
     "swctx:find_definitions": {
@@ -339,13 +673,25 @@
       "crm-nam-pham/09-build/so_tay.py"
      ],
      "rank": 1,
-     "latency_ms": 14.5,
+     "latency_ms": 3.1,
+     "status": "ok",
+     "symbols": [
+      "tom_tat"
+     ]
+    },
+    "ctxe:find_definitions": {
+     "paths": [
+      "crm-nam-pham/09-build/so_tay.py"
+     ],
+     "rank": 1,
+     "latency_ms": 8.5,
      "status": "ok",
      "symbols": [
       "tom_tat"
      ]
     }
-   }
+   },
+   "ctxe_index_has_expected": true
   },
   {
    "id": "crm-03",
@@ -362,12 +708,13 @@
     "swctx:search": {
      "paths": [
       "crm-nam-pham/09-build/tin_lead.py",
-      "crm-nam-pham/07-docs/RECAP_PHIEN_20260820.html",
       "crm-nam-pham/09-build/push_d1.py",
-      "crm-nam-pham/09-build/so_tay.py"
+      "crm-nam-pham/09-build/so_tay.py",
+      "crm-nam-pham/artifacts/team/audit-daily-checklist/notes.md",
+      "github/workflows/daily-build.yml"
      ],
      "rank": 1,
-     "latency_ms": 1376.7,
+     "latency_ms": 50.2,
      "status": "ok"
     },
     "swctx:find_definitions": {
@@ -375,13 +722,25 @@
       "crm-nam-pham/09-build/tin_lead.py"
      ],
      "rank": 1,
-     "latency_ms": 17.8,
+     "latency_ms": 12.9,
+     "status": "ok",
+     "symbols": [
+      "format_fragment"
+     ]
+    },
+    "ctxe:find_definitions": {
+     "paths": [
+      "crm-nam-pham/09-build/tin_lead.py"
+     ],
+     "rank": 1,
+     "latency_ms": 7.4,
      "status": "ok",
      "symbols": [
       "format_fragment"
      ]
     }
-   }
+   },
+   "ctxe_index_has_expected": true
   },
   {
    "id": "crm-04",
@@ -399,15 +758,43 @@
      "paths": [
       "crm-nam-pham/09-build/dong_vong.py",
       "crm-nam-pham/04-app-frontend/trang.html",
-      "crm-nam-pham/04-app-frontend/bang-quyet-dinh.html",
+      "crm-nam-pham/09-build/audit_sites.py",
       "crm-nam-pham/07-docs/AUDIT_3_SURFACE_CEO_20260820_agy.md",
-      "crm-nam-pham/artifacts/team/audit-daily-checklist/notes.md"
+      "PLAN-ceo-nampham-net.md"
      ],
      "rank": 1,
-     "latency_ms": 1345.4,
+     "latency_ms": 69.1,
      "status": "ok"
+    },
+    "ctxe:workspace_tree(raw)": {
+     "paths": [],
+     "rank": 0,
+     "latency_ms": 8.3,
+     "status": "ok",
+     "n_files": 0
+    },
+    "ctxe:workspace_tree(token-sweep)": {
+     "paths": [
+      "crm-nam-pham/08-scripts/pull-crm-weekly.MOCK.py",
+      "crm-nam-pham/08-scripts/test-backend-local.MOCK.py",
+      "crm-nam-pham/_archive-genspark/06-import-scripts/import_csv_nampham_landing.py",
+      "crm-nam-pham/_archive-genspark/06-import-scripts/import_csv_pdpn.py",
+      "PLAN-ceo-nampham-net.md"
+     ],
+     "rank": 0,
+     "latency_ms": 94.1,
+     "status": "ok",
+     "n_candidates": 10
+    },
+    "ctxe:ask_context(min,nocompose)": {
+     "paths": [],
+     "rank": 0,
+     "latency_ms": 170.8,
+     "status": "error",
+     "error": "rpc -32603: internal error: ask dispatch: internal: ask_v4 internal error: embed query: provider call failed (status Some(402), code quota_exceeded, dispatch NotDispatched): insufficient_credit: Insufficient credit balance (run `ctxe wallet` to check balance) [correlation_id=d2c49b8b-8671-4907-83d6-15428cffb403]"
     }
-   }
+   },
+   "ctxe_index_has_expected": true
   },
   {
    "id": "crm-05",
@@ -423,17 +810,25 @@
    "results": {
     "swctx:search": {
      "paths": [
+      "crm-nam-pham/07-docs/DANG_NHAP.md",
       "crm-nam-pham/functions/_middleware.js",
       "crm-nam-pham/07-docs/AUDIT_TONG_KIEM_20260806_grok.md",
-      "crm-nam-pham/07-docs/DANG_NHAP.md",
-      "crm-nam-pham/09-build/so_tay.py",
-      "crm-nam-pham/04-app-frontend/bang-quyet-dinh.html"
+      "crm-nam-pham/04-app-frontend/bang-quyet-dinh.html",
+      "crm-nam-pham/09-build/test_tra_lai_khong_mat_du_lieu.py"
      ],
-     "rank": 1,
-     "latency_ms": 1375.7,
+     "rank": 2,
+     "latency_ms": 51.4,
      "status": "ok"
+    },
+    "ctxe:none": {
+     "paths": [],
+     "rank": 0,
+     "latency_ms": null,
+     "status": "no-surface",
+     "note": "no free workspace-wide NL retrieval; inspect_path needs a dir scope, ask_context costs credits"
     }
-   }
+   },
+   "ctxe_index_has_expected": true
   },
   {
    "id": "crm-06",
@@ -450,16 +845,37 @@
     "swctx:search": {
      "paths": [
       "crm-nam-pham/07-docs/DANG_NHAP.md",
+      "crm-nam-pham/07-docs/AUDIT_TONG_KIEM_20260806_grok.md",
       "PLAN-ceo-nampham-net.md",
       "crm-nam-pham/07-docs/AUDIT_3_SURFACE_CEO_20260820_agy.md",
-      "crm-nam-pham/07-docs/RESEARCH_CEO_ADMIN_UI_20260820.md",
-      "crm-nam-pham/04-app-frontend/ceo-cockpit.html"
+      "crm-nam-pham/07-docs/RESEARCH_CEO_ADMIN_UI_20260820.md"
      ],
      "rank": 1,
-     "latency_ms": 1514.9,
+     "latency_ms": 50.9,
      "status": "ok"
+    },
+    "ctxe:workspace_tree(raw)": {
+     "paths": [],
+     "rank": 0,
+     "latency_ms": 8.6,
+     "status": "ok",
+     "n_files": 0
+    },
+    "ctxe:workspace_tree(token-sweep)": {
+     "paths": [
+      "crm-nam-pham/07-docs/PLAN_UI_QUANTRI_CEO_20260820.md",
+      "crm-nam-pham/07-docs/CUNGUNG_DULIEU_CRM_20260820.md",
+      "crm-nam-pham/07-docs/THAMCHIEU_1MKT_DULIEU_20260820.md",
+      "crm-nam-pham/09-build/test_tra_lai_khong_mat_du_lieu.py",
+      "PLAN-ceo-nampham-net.md"
+     ],
+     "rank": 0,
+     "latency_ms": 93.8,
+     "status": "ok",
+     "n_candidates": 10
     }
-   }
+   },
+   "ctxe_index_has_expected": true
   },
   {
    "id": "crm-07",
@@ -476,16 +892,37 @@
     "swctx:search": {
      "paths": [
       "crm-nam-pham/_archive-genspark/06-import-scripts/import_csv_pdpn.py",
-      "crm-nam-pham/_archive-genspark/06-import-scripts/import_csv_nampham_landing.py",
       "crm-nam-pham/09-build/nap_serp.py",
+      "crm-nam-pham/_archive-genspark/06-import-scripts/import_csv_nampham_landing.py",
       "crm-nam-pham/02-seed-data/data-csv-keywords_202630.README.txt",
       "crm-nam-pham/09-build/tin_lead.py"
      ],
-     "rank": 3,
-     "latency_ms": 1459.1,
+     "rank": 2,
+     "latency_ms": 55.3,
      "status": "ok"
+    },
+    "ctxe:workspace_tree(raw)": {
+     "paths": [],
+     "rank": 0,
+     "latency_ms": 8.5,
+     "status": "ok",
+     "n_files": 0
+    },
+    "ctxe:workspace_tree(token-sweep)": {
+     "paths": [
+      "crm-nam-pham/_archive-genspark/06-import-scripts/import_csv_nampham_landing.py",
+      "crm-nam-pham/_archive-genspark/06-import-scripts/import_csv_pdpn.py",
+      "crm-nam-pham/08-scripts/pull-crm-weekly.MOCK.py",
+      "crm-nam-pham/08-scripts/test-backend-local.MOCK.py",
+      "crm-nam-pham/07-docs/PIPELINE_BUOC_DDL_snapshot.md"
+     ],
+     "rank": 0,
+     "latency_ms": 70.4,
+     "status": "ok",
+     "n_candidates": 9
     }
-   }
+   },
+   "ctxe_index_has_expected": true
   },
   {
    "id": "crm-08",
@@ -501,14 +938,14 @@
    "results": {
     "swctx:search": {
      "paths": [
+      "crm-nam-pham/09-build/audit_sites.py",
       "crm-nam-pham/09-build/ghi_so.py",
       "crm-nam-pham/09-build/daily.sh",
       "crm-nam-pham/09-build/push_d1.py",
-      "crm-nam-pham/07-docs/SECURITY_THREAT_MODEL_codex-security_20260729.md",
-      "crm-nam-pham/09-build/daily.sh"
+      "crm-nam-pham/07-docs/SECURITY_THREAT_MODEL_codex-security_20260729.md"
      ],
-     "rank": 1,
-     "latency_ms": 1533.2,
+     "rank": 2,
+     "latency_ms": 39.1,
      "status": "ok"
     },
     "swctx:find_definitions": {
@@ -516,13 +953,25 @@
       "crm-nam-pham/09-build/ghi_so.py"
      ],
      "rank": 1,
-     "latency_ms": 5.6,
+     "latency_ms": 12.0,
+     "status": "ok",
+     "symbols": [
+      "ghi_quyet_dinh"
+     ]
+    },
+    "ctxe:find_definitions": {
+     "paths": [
+      "crm-nam-pham/09-build/ghi_so.py"
+     ],
+     "rank": 1,
+     "latency_ms": 7.4,
      "status": "ok",
      "symbols": [
       "ghi_quyet_dinh"
      ]
     }
-   }
+   },
+   "ctxe_index_has_expected": true
   },
   {
    "id": "seo-09",
@@ -538,17 +987,25 @@
    "results": {
     "swctx:search": {
      "paths": [
+      "docs/plans/asana_payloads/2026-06-24-gsc-ga4-phase1/D01-link-ga4-gsc.md",
       "scripts/p8_brain.py",
       "docs/seo/analytics/README.md",
-      "docs/plans/asana_payloads/2026-06-24-gsc-ga4-phase1/D01-link-ga4-gsc.md",
       "docs/references/seo/gsc-ga4-mcp-operating-playbook.md",
       "docs/handoffs/awgs_mcp_ga4_gsc_foreman_2026-07-21.md"
      ],
-     "rank": 1,
-     "latency_ms": 1592.0,
+     "rank": 2,
+     "latency_ms": 1254.9,
      "status": "ok"
+    },
+    "ctxe:ask_context(min,nocompose)": {
+     "paths": [],
+     "rank": 0,
+     "latency_ms": 383.0,
+     "status": "error",
+     "error": "rpc -32603: internal error: ask dispatch: internal: ask_v4 internal error: embed query: provider call failed (status Some(402), code quota_exceeded, dispatch NotDispatched): insufficient_credit: Insufficient credit balance (run `ctxe wallet` to check balance) [correlation_id=4a47e8b2-395b-432f-b32f-3d8c69b9f440]"
     }
-   }
+   },
+   "ctxe_index_has_expected": true
   },
   {
    "id": "seo-10",
@@ -565,16 +1022,24 @@
     "swctx:search": {
      "paths": [
       "content/images/manifest/reports/20260511_wave2/all_article_links.json",
-      "docs/archive/session-reports/data_2026-05-24/keyword_suggest_summary.json",
-      "content/images/manifest/reports/20260511_all_posts_links.json",
-      "content/posts/_archive/STT_019/content.md",
-      "docs/archive/phamducphuongnam-seo/phase-4/verify/pic-s-data-integrity-checklist-viet-nam/internal-link-check.json"
+      "content/posts/C3.5/content.md",
+      "scripts/p8_link_injector.py",
+      "config/internal_link_matrix.json",
+      "content/posts/C2.8/inbound-link-targets.md"
      ],
-     "rank": 0,
-     "latency_ms": 1681.8,
+     "rank": 3,
+     "latency_ms": 687.7,
      "status": "ok"
+    },
+    "ctxe:none": {
+     "paths": [],
+     "rank": 0,
+     "latency_ms": null,
+     "status": "no-surface",
+     "note": "no free workspace-wide NL retrieval; inspect_path needs a dir scope, ask_context costs credits"
     }
-   }
+   },
+   "ctxe_index_has_expected": true
   },
   {
    "id": "seo-11",
@@ -591,16 +1056,37 @@
     "swctx:search": {
      "paths": [
       "docs-fleet/ke-hoach.md",
-      "docs/plans/MASTER_PLAN_aivault_team_20260820.html",
-      "docs/plans/PLAN_memory_doc_lap_database_20260820.md",
-      "docs/handoffs/HANDOFF_20260820_ke-hoach-9-viec-va-luat-dong-main.md",
-      "docs/operations/TEAM_ORCHESTRATION.md"
+      "docs-fleet/doi-ngu.md",
+      "docs-fleet/public/console/duyet/hoso/workflow/index.html",
+      "docs-fleet/index.md",
+      "docs-fleet/ship-log/reports/worker-skill-audit-round1.md"
      ],
      "rank": 1,
-     "latency_ms": 2642.6,
+     "latency_ms": 1030.6,
      "status": "ok"
+    },
+    "ctxe:workspace_tree(raw)": {
+     "paths": [],
+     "rank": 0,
+     "latency_ms": 84.1,
+     "status": "ok",
+     "n_files": 0
+    },
+    "ctxe:workspace_tree(token-sweep)": {
+     "paths": [
+      "docs-fleet/ke-hoach.md",
+      "docs/handoffs/HANDOFF_20260820_ke-hoach-9-viec-va-luat-dong-main.md",
+      "docs/archive/legacy-2026/ai_sessions/nampham_net_scaffold_2026-05-24/tailwind.config.js",
+      "docs/archive/session-reports/P8_BLUEMOUNTAIN_COMPETITOR_MAPPING_2026-05-27.md",
+      "docs/archive/session-reports/P8_BLUEMOUNTAIN_FORMAT_MAPPING_2026-05-27.md"
+     ],
+     "rank": 1,
+     "latency_ms": 844.9,
+     "status": "ok",
+     "n_candidates": 279
     }
-   }
+   },
+   "ctxe_index_has_expected": true
   },
   {
    "id": "crm-09",
@@ -616,17 +1102,38 @@
    "results": {
     "swctx:search": {
      "paths": [
-      "crm-nam-pham/04-app-frontend/trang.html",
       "crm-nam-pham/09-build/kiem_he_thiet_ke.py",
-      "crm-nam-pham/07-docs/MAU_GIAODIEN_CEO_20260820.html",
-      "crm-nam-pham/04-app-frontend/he-thiet-ke.css",
-      "crm-nam-pham/04-app-frontend/he-thiet-ke.css"
+      "crm-nam-pham/04-app-frontend/trang.html",
+      "crm-nam-pham/07-docs/AUDIT_TONG_KIEM_20260806_grok.md",
+      "crm-nam-pham/07-docs/REVIEW_FRONTEND_NEN_20260820.md",
+      "crm-nam-pham/07-docs/MAU_GIAODIEN_CEO_20260820.html"
      ],
-     "rank": 2,
-     "latency_ms": 2103.8,
+     "rank": 1,
+     "latency_ms": 109.0,
      "status": "ok"
+    },
+    "ctxe:workspace_tree(raw)": {
+     "paths": [],
+     "rank": 0,
+     "latency_ms": 8.5,
+     "status": "ok",
+     "n_files": 0
+    },
+    "ctxe:workspace_tree(token-sweep)": {
+     "paths": [
+      "crm-nam-pham/09-build/kiem_he_thiet_ke.py",
+      "crm-nam-pham/09-build/test_bundle_khong_bo_sot_trang.py",
+      "crm-nam-pham/08-scripts/pull-crm-weekly.MOCK.py",
+      "crm-nam-pham/08-scripts/test-backend-local.MOCK.py",
+      "crm-nam-pham/_archive-genspark/06-import-scripts/import_csv_nampham_landing.py"
+     ],
+     "rank": 1,
+     "latency_ms": 87.0,
+     "status": "ok",
+     "n_candidates": 11
     }
-   }
+   },
+   "ctxe_index_has_expected": true
   },
   {
    "id": "crm-10",
@@ -642,28 +1149,45 @@
    "results": {
     "swctx:search": {
      "paths": [
+      "crm-nam-pham/08-scripts/test-backend-local.MOCK.py",
       "crm-nam-pham/09-build/vaid_issues.py",
       "crm-nam-pham/09-build/push_d1.py",
       "crm-nam-pham/09-build/pull_d1.py",
-      "crm-nam-pham/09-build/pull_d1.py",
-      "crm-nam-pham/09-build/push_d1.py"
+      "crm-nam-pham/09-build/pull_d1.py"
      ],
-     "rank": 1,
-     "latency_ms": 1366.2,
+     "rank": 2,
+     "latency_ms": 46.6,
      "status": "ok"
     },
     "swctx:find_definitions": {
      "paths": [],
      "rank": 0,
-     "latency_ms": 20.0,
+     "latency_ms": 10.3,
      "status": "ok",
      "symbols": [
       "realign",
       "realign_issue_ids",
       "realign_issues"
      ]
+    },
+    "ctxe:find_definitions": {
+     "paths": [],
+     "rank": 0,
+     "latency_ms": 6.9,
+     "status": "ok",
+     "symbols": [
+      "realign",
+      "realign_issue_ids",
+      "realign_issues"
+     ],
+     "not_found": [
+      "realign",
+      "realign_issue_ids",
+      "realign_issues"
+     ]
     }
-   }
+   },
+   "ctxe_index_has_expected": true
   },
   {
    "id": "crm-11",
@@ -680,16 +1204,24 @@
     "swctx:search": {
      "paths": [
       "crm-nam-pham/09-build/log_activity_live.py",
-      "crm-nam-pham/09-build/dong_vong.py",
+      "crm-nam-pham/09-build/build_activity.py",
+      "github/workflows/daily-build.yml",
       "crm-nam-pham/07-docs/THAMCHIEU_1MKT_DULIEU_20260820.md",
-      "HANDOFF-CRM-20260724.md",
       "crm-nam-pham/08-scripts/test-backend-local.MOCK.py"
      ],
      "rank": 1,
-     "latency_ms": 2149.3,
+     "latency_ms": 52.8,
      "status": "ok"
+    },
+    "ctxe:ask_context(min,nocompose)": {
+     "paths": [],
+     "rank": 0,
+     "latency_ms": 154.4,
+     "status": "error",
+     "error": "rpc -32603: internal error: ask dispatch: internal: ask_v4 internal error: embed query: provider call failed (status Some(402), code quota_exceeded, dispatch NotDispatched): insufficient_credit: Insufficient credit balance (run `ctxe wallet` to check balance) [correlation_id=5f39709a-eaa5-4b35-8d11-774f646b2173]"
     }
-   }
+   },
+   "ctxe_index_has_expected": true
   }
  ]
 }

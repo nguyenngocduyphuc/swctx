@@ -409,9 +409,10 @@ def start_ctxe(bin_path, workspaces):
     for ws in workspaces:
         payload, _, err = s.call_tool("get_status", {"workspace": ws},
                                       retries=2, timeout=90)
+        state = (payload or {}).get("base", {}).get("state")
         ok = bool(payload and payload.get("base", {}).get("indexed")
-                  and payload.get("base", {}).get("state") == "Ready")
-        indexed[ws] = {"indexed": ok,
+                  and state in ("Ready", "Degraded"))
+        indexed[ws] = {"indexed": ok, "state": state,
                        **({"error": err} if err else {}),
                        **({"files": payload["base"].get("indexed_files")}
                           if ok else {})}
