@@ -279,8 +279,12 @@ public enum Answer {
         if let t = Translation.activeCache.get(Translation.cacheKey(query)) {
             terms += t
         }
+        // Reformulation leg: model-guessed filename vocabulary ("sổ tay"
+        // → "so_tay","digest") — rides the translation roll, lands in
+        // the same cache, stays weak+champion-eligible in the probe.
+        let guessed = Translation.filenameTerms(for: query) ?? []
         let (atoms, weak, championless) = Search.plannerProbeAtomSets(
-            query: query, extraTerms: terms)
+            query: query, extraTerms: terms, guessedTerms: guessed)
         guard !atoms.isEmpty else { return [] }
         return (try? Search.plannerPathProbe(
             store: store, atoms: atoms, weakAtoms: weak,

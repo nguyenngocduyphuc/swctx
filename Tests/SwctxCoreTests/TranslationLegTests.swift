@@ -97,6 +97,30 @@ final class TranslationLegTests: SwctxTestCase {
             #"{"english_terms":["!!!","a"]}"#, query: q))
     }
 
+    /// filename_terms (the reformulation leg) rides the same reply:
+    /// parsed, shape-validated, deduped against english_terms, capped —
+    /// and absent on old-shape replies without failing the parse.
+    func testParseReplyFilenameTerms() {
+        let q = "viết sổ tay tóm tắt cho nhân viên"
+        let r = Translation.parseReply(
+            #"{"english_terms":["daily digest","summary"],"filename_terms":["so_tay","digest","Digest","daily","bad!","x"],"protected_tokens":[]}"#,
+            query: q)
+        XCTAssertEqual(r?.terms, ["daily digest", "summary"])
+        // dedup is case-insensitive against both lists; "x" (len<2) and
+        // "bad!" (bad chars) are filtered.
+        XCTAssertEqual(r?.filenames, ["so_tay", "digest", "daily"])
+        // Missing filename_terms is legal (pre-v5 replies).
+        let r2 = Translation.parseReply(
+            #"{"english_terms":["daily digest"],"protected_tokens":[]}"#,
+            query: q)
+        XCTAssertEqual(r2?.filenames, [])
+        // Invalid english_terms still rejects the whole reply —
+        // filename guesses never survive a broken contract.
+        XCTAssertNil(Translation.parseReply(
+            #"{"english_terms":[],"filename_terms":["so_tay"]}"#,
+            query: q))
+    }
+
     /// `ollama run` redraws its spinner into piped stdout mid-JSON
     /// (observed live: `"protected_\x1B[11D\x1B[K\n" protected_tokens"`).
     /// unspin must reconstruct the terminal-intended text so the object
@@ -160,6 +184,21 @@ final class TranslationLegTests: SwctxTestCase {
                        Translation.cacheKey("đăng nhập"))
         XCTAssertNotEqual(Translation.cacheKey("đăng nhập"),
                           Translation.cacheKey("đăng xuất"))
+    }
+
+    /// filename_terms persist alongside terms and round-trip through a
+    /// fresh cache instance; entries written without them read back nil.
+    func testCacheFilenameTermsRoundTrip() throws {
+        let dir = try tempDir()
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let url = dir.appendingPathComponent("c.json")
+        let c = Translation.Cache(url: url, cap: 5)
+        c.put("a", terms: ["summary"], filenames: ["so_tay", "digest"])
+        c.put("b", terms: ["x"])
+        XCTAssertEqual(c.getFilenameTerms("a"), ["so_tay", "digest"])
+        XCTAssertNil(c.getFilenameTerms("b"))
+        let c2 = Translation.Cache(url: url, cap: 5)
+        XCTAssertEqual(c2.getFilenameTerms("a"), ["so_tay", "digest"])
     }
 
     // MARK: subprocess + deadline

@@ -12,7 +12,7 @@ import Foundation
 public enum Translation {
     /// Prompt contract version — part of the cache key, so a prompt change
     /// invalidates old entries without touching the file format.
-    static let promptVersion = "v3"
+    static let promptVersion = "v5"
 
     /// `SWCTX_TRANSLATE=0` disables the leg entirely (the probe's baseline
     /// arm; also the kill switch if a host has a broken Ollama).
@@ -84,14 +84,24 @@ public enum Translation {
         // protected_tokens (observed live). The example pins both the JSON
         // shape and the translation behavior.
         return """
-        Translate a Vietnamese code-search query into English search terms.
+        Translate a Vietnamese code-search query into English search terms \
+        and guess the filename vocabulary of the file it describes.
         Query: bộ não phân tích SEO đọc dữ liệu GSC GA4 rồi gọi DeepSeek sinh hành động
-        Reply: {"english_terms": ["SEO brain", "GSC GA4 data", "DeepSeek actions"], "protected_tokens": ["SEO", "GSC", "GA4", "DeepSeek"]}
+        Reply: {"english_terms": ["SEO brain", "GSC GA4 data", "DeepSeek actions"], "filename_terms": ["brain", "seo_brain", "bo_nao", "phan_tich", "analyze"], "protected_tokens": ["SEO", "GSC", "GA4", "DeepSeek"]}
         Rules: english_terms has 2-4 short terms (1-2 words each) an English \
-        code search can match. protected_tokens copies identifiers, file \
-        names, paths and acronyms from the query EXACTLY character-for-\
-        character (never translate them); [] if none. Reply with ONLY the \
-        JSON object, one line.
+        code search can match. filename_terms has 6-14 likely filename \
+        atoms — lowercase ASCII snake_case or single words — covering BOTH \
+        English and unaccented Vietnamese for each key concept, plus the \
+        parts of every compound ("link_health" -> "link", "health"). \
+        Filename jargon by task — emit cluster words as STANDALONE \
+        single tokens ("health", not just "health_check"): \
+        summary->digest,recap,brief,so_tay,tom_tat; \
+        check->health,audit,scan,kiem_tra; importer->ingest,nap; \
+        doc->sop,workflow,playbook,quy_trinh; controller->ctl,cmd. \
+        protected_tokens copies identifiers, file names, paths and \
+        acronyms from the query EXACTLY character-for-character (never \
+        translate them); [] if none. Reply with ONLY the JSON object, \
+        one line.
         Query: \(q)
         Reply:
         """
@@ -430,6 +440,7 @@ public enum Translation {
     final class Cache: @unchecked Sendable {
         private struct Entry: Codable {
             var t: [String]      // english_terms
+            var f: [String]?     // filename_terms (reformulation atoms)
             var u: TimeInterval  // last use
         }
         private struct File: Codable {
@@ -456,7 +467,19 @@ public enum Translation {
             return e.t
         }
 
-        func put(_ key: String, terms: [String]) {
+        /// filename_terms for the same cache key — nil when the entry
+        /// predates the reformulation prompt (v4+ writes both lists).
+        func getFilenameTerms(_ key: String) -> [String]? {
+            lock.lock(); defer { lock.unlock() }
+            loadLocked()
+            guard var e = entries?[key] else { return nil }
+            e.u = Date().timeIntervalSince1970
+            entries?[key] = e
+            return e.f
+        }
+
+        func put(_ key: String, terms: [String],
+                 filenames: [String] = []) {
             lock.lock(); defer { lock.unlock() }
             // Merge-on-write: this process's in-memory map can be older than
             // the file (another swctx process put() in between), while the
@@ -473,7 +496,8 @@ public enum Translation {
                     entries?[k] = v
                 }
             }
-            entries?[key] = Entry(t: terms, u: Date().timeIntervalSince1970)
+            entries?[key] = Entry(t: terms, f: filenames.isEmpty ? nil : filenames,
+                                  u: Date().timeIntervalSince1970)
             while (entries?.count ?? 0) > cap,
                   let oldest = entries?.min(by: { $0.value.u < $1.value.u })?.key {
                 entries?.removeValue(forKey: oldest)
@@ -604,17 +628,25 @@ public enum Translation {
         // costs the attempt. Attempts run on the background leg — the
         // result deadline is enforced by the caller's wait, not here.
         var merged: [String] = []
+        var mergedFilenames: [String] = []
         var seen: Set<String> = []
+        var seenFile: Set<String> = []
         for _ in 0...1 {
             switch spawn(bin, argv: ["run", model, prompt(for: query)],
                          timeoutMs: spawnCapMs) {
             case .ok(let raw):
-                guard let terms = parseTerms(raw, query: query) else {
+                guard let reply = parseReply(raw, query: query) else {
                     dbg("invalid output: \(raw.prefix(160))")
                     continue
                 }
-                for t in terms where seen.insert(t.lowercased()).inserted {
+                for t in reply.terms where seen.insert(t.lowercased()).inserted {
                     merged.append(t)
+                }
+                // Reformulation guesses ride the same roll — two
+                // generations union the same way terms do.
+                for t in reply.filenames
+                where seenFile.insert(t.lowercased()).inserted {
+                    mergedFilenames.append(t)
                 }
             case .timedOut:
                 dbg("timeout \(spawnCapMs)ms")
@@ -622,19 +654,34 @@ public enum Translation {
             case .failed:
                 dbg("spawn/run failed")
                 tripCooldown(failCooldownSeconds)
-                return merged.isEmpty ? nil : finalize(merged, key: key)
+                return merged.isEmpty ? nil
+                    : finalize(merged, filenames: mergedFilenames, key: key)
             }
             if inCooldown() { break }
         }
-        return merged.isEmpty ? nil : finalize(merged, key: key)
+        return merged.isEmpty ? nil
+            : finalize(merged, filenames: mergedFilenames, key: key)
     }
 
-    private static func finalize(_ terms: [String], key: String) -> [String] {
+    /// Reformulation atoms guessed by the model — READS the cache only.
+    /// The filename vocabulary rides the `englishTerms` generation (one
+    /// prompt, two lists), so callers check this AFTER the translation
+    /// leg has run; a nil means no roll landed in time and the query
+    /// proceeds on baseline terms.
+    static func filenameTerms(for query: String) -> [String]? {
+        guard needsTranslation(query) else { return nil }
+        return activeCache.getFilenameTerms(cacheKey(query))
+    }
+
+    private static func finalize(_ terms: [String], filenames: [String],
+                                 key: String) -> [String] {
         let capped = Array(terms.prefix(6))
-        activeCache.put(key, terms: capped)
+        activeCache.put(key, terms: capped,
+                        filenames: Array(filenames.prefix(16)))
         if ProcessInfo.processInfo.environment["SWCTX_TRANSLATE_DEBUG"] == "1" {
             FileHandle.standardError.write(
-                "swctx-translate: terms=\(capped)\n".data(using: .utf8)!)
+                "swctx-translate: terms=\(capped) files=\(filenames.prefix(16))\n"
+                    .data(using: .utf8)!)
         }
         return capped
     }
@@ -717,6 +764,17 @@ public enum Translation {
     /// verbatim — an altered identifier means the model rewrote the query,
     /// so the whole translation is discarded.
     static func parseTerms(_ raw: String, query: String) -> [String]? {
+        parseReply(raw, query: query)?.terms
+    }
+
+    /// Full parse: english_terms (content-leg vocabulary) plus
+    /// filename_terms (guessed filename atoms for the path probe —
+    /// the reformulation leg). english_terms still validates the
+    /// whole reply: a model that breaks the translation contract gets
+    /// its filename guesses discarded with it.
+    static func parseReply(_ raw: String,
+                           query: String) -> (terms: [String],
+                                              filenames: [String])? {
         guard !raw.isEmpty, raw.utf8.count <= 8192 else { return nil }
         let text = unspin(raw)
         guard let l = text.firstIndex(of: "{") else { return nil }
@@ -775,7 +833,23 @@ public enum Translation {
                   seen.insert(s.lowercased()).inserted else { continue }
             terms.append(s)
         }
-        return terms.isEmpty ? nil : terms
+        guard !terms.isEmpty else { return nil }
+        // filename_terms: same token shape, optional — older cached
+        // prompt versions emitted none and degrade to [].
+        var filenames: [String] = []
+        if let farr = norm["filename_terms"] as? [Any] {
+            for item in farr {
+                guard filenames.count < 16 else { break }
+                guard let s = (item as? String)?
+                        .trimmingCharacters(in: .whitespacesAndNewlines),
+                      s.count >= 2, s.count <= 40,
+                      s.range(of: #"^[A-Za-z0-9][A-Za-z0-9 _\-]*$"#,
+                              options: .regularExpression) != nil,
+                      seen.insert(s.lowercased()).inserted else { continue }
+                filenames.append(s)
+            }
+        }
+        return (terms, filenames)
     }
 
     /// `ollama run <model> <prompt>` under a hard deadline. Same spawn

@@ -292,11 +292,16 @@ public enum Search {
     /// - derivational stems ("compare" → "compar"): probe + claim only
     ///   — no surgical and no champion; a stem match is supporting
     ///   evidence, not a name.
+    /// - model-guessed filename terms ("sổ tay" → "so_tay","digest"):
+    ///   the reformulation leg. Same privilege as acronyms — a guessed
+    ///   token that names a file IS name evidence (champion-eligible)
+    ///   but never surgical: a model hallucination must not crown.
     /// Stems precede acronyms in emission order: stems are ~1 per real
     /// atom while acronym windows grow ~2× tokens — acronym-first order
     /// pushed every stem past the 24-cap on dense queries.
     static func plannerProbeAtomSets(query: String,
-                                     extraTerms: [String] = [])
+                                     extraTerms: [String] = [],
+                                     guessedTerms: [String] = [])
         -> (atoms: [String], weak: Set<String>, championless: Set<String>) {
         var out: [String] = []
         var weak: Set<String> = []
@@ -308,10 +313,18 @@ public enum Search {
         where a.count >= 3 && seen.insert(a).inserted {
             out.append(a)
         }
+        // Base atoms close here — stems derive from real query terms
+        // only, not model guesses (stemming a guess compounds noise).
+        let baseAtoms = Array(out)
+        for a in ftsTranslatedAtoms(guessedTerms)
+        where a.count >= 3 && seen.insert(a).inserted {
+            out.append(a)
+            weak.insert(a)
+        }
         let qToks = foldText(query)
             .components(separatedBy: CharacterSet.alphanumerics.inverted)
             .filter { $0.count >= 2 && !vnStopwords.contains($0) }
-        for a in Array(out) {
+        for a in baseAtoms {
             if let s = stemAtom(a), s.count >= 3, seen.insert(s).inserted {
                 out.append(s)
                 weak.insert(s)
@@ -450,14 +463,24 @@ public enum Search {
             // content actually speaks.
             let others = atoms.filter { $0 != a }
                 .sorted { (contentDF[$0] ?? 0) < (contentDF[$1] ?? 0) }
-            // High-DF anchors flood either way — the 20-row fetch cap
-            // is the only bound, so maximize recall inside it with a
-            // wide OR over every other atom: `link* AND folded:(404|…)`
-            // surfaces p8_link_health.py where the narrow rare+common
-            // blend let 20 LinkedIn docs fill the window first.
-            let disc = (pathDF[a] ?? 0) > midMaxFiles
-                ? others
-                : Array(others.prefix(3)) + Array(others.suffix(5))
+            // Anchors past the rare band need RARE-ONLY
+            // discriminators — common atoms in the OR (file, data)
+            // match every path a DF-42 anchor names, so the 20-row
+            // cap fills on bm25 before sitectl.py:
+            // `site* AND (mesh|collection|pool)` keeps only paths
+            // whose content speaks the question's rarest words.
+            // Zero-DF guesses are filtered — they'd AND the target
+            // away. Truly rare anchors keep the blend: the anchor
+            // alone already narrows to a handful, and its rare
+            // companions can be absent from the target entirely,
+            // so common words carry the fold there.
+            var disc = Array(others.prefix(3)) + Array(others.suffix(5))
+            var tight = false
+            if (pathDF[a] ?? 0) > rareMaxFiles / 4 {
+                let rare = others.filter { (contentDF[$0] ?? 0) > 0 }
+                    .prefix(4).map { $0 }
+                if !rare.isEmpty { disc = rare; tight = true }
+            }
             var hits: [SearchHit] = []
             do {
                 if !disc.isEmpty {
@@ -467,10 +490,26 @@ public enum Search {
                     hits = try ftsFileProbe(store: store, match: and,
                                             limit: 20, pathFilter: pathFilter)
                 }
+                // The target may speak only common vocabulary — retry
+                // with the full blend when the tight fold found
+                // nothing.
+                if tight && hits.isEmpty {
+                    let blend = Array(others.prefix(3))
+                        + Array(others.suffix(5))
+                    if !blend.isEmpty {
+                        let and = "path_tokens : \"\(a)\"* AND folded : ("
+                            + blend.map { "\"\($0)\"*" }
+                                .joined(separator: " OR ") + ")"
+                        hits = try ftsFileProbe(store: store, match: and,
+                                                limit: 20,
+                                                pathFilter: pathFilter)
+                    }
+                }
                 // Bare fallback only for atoms rare enough to trust it —
-                // a mid-DF atom without content agreement is skipped, not
-                // flooded in.
-                if hits.isEmpty, pathDF[a]! <= rareMaxFiles {
+                // a bare `site*` (DF 42) refloods the window the tight
+                // fold just emptied, so name-only evidence is only
+                // believable for single-digit-DF atoms.
+                if hits.isEmpty, pathDF[a]! <= rareMaxFiles / 4 {
                     hits = try ftsFileProbe(store: store,
                                             match: "path_tokens : \"\(a)\"*",
                                             limit: 20, pathFilter: pathFilter)
@@ -615,8 +654,14 @@ public enum Search {
             // Additive scoring prices both: brain = 1+0.5+1 = 2.5 beats
             // analysis-dir ec2+sd0.12 = 2.12; canonical = 3+0.67 = 3.67
             // beats minh-bach 2+0.25 = 2.25.
+            // Whole-name claim: the file's stem IS one atom
+            // (WORKFLOW.md ← "workflow") — the canonical doc for the
+            // concept, not a multi-token neighbour. Beats partial-token
+            // coverage (ec2/sd0.4) but stays below true multi-atom names.
+            let wholeName = stemTokens.count == 1 && stemCover == 1
             let rank = Double(effectiveCover) + stemDensity
                 + (soleCarrier ? 1.0 : 0.0)
+                + (wholeName ? 0.75 : 0.0)
             // Surgical: the file's STEM carries a sole-carrier atom —
             // p8_brain is the only path naming "brain", so it is the
             // concept, not a plausible neighbour. Dir-only sole atoms

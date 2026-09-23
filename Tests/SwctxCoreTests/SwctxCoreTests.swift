@@ -655,6 +655,31 @@ final class SwctxCoreTests: SwctxTestCase {
         XCTAssertFalse(atoms2.contains("do"))
     }
 
+    /// Reformulation guesses land as weak, champion-ELIGIBLE atoms —
+    /// a guessed token that names a file is name evidence (the model
+    /// pointed at that word), but it never earns surgical: a
+    /// hallucination must not crown. Guesses emit ahead of stems so
+    /// dense queries spend the 24-cap on real vocabulary first.
+    func testProbeGuessedAtomsWeakChampionEligible() {
+        let (atoms, weak, championless) = Search.plannerProbeAtomSets(
+            query: "tóm tắt hoạt động hôm qua",
+            guessedTerms: ["so_tay", "daily digest", "deadline"])
+        XCTAssertTrue(atoms.contains("tay"))
+        XCTAssertTrue(atoms.contains("digest"))
+        XCTAssertTrue(atoms.contains("deadline"))
+        // "so" is under the 3-char atom floor — compounds still land
+        // via their longer part.
+        XCTAssertFalse(atoms.contains("so"))
+        for a in ["tay", "digest", "deadline", "daily"] {
+            XCTAssertTrue(weak.contains(a), "\(a) must be weak")
+            XCTAssertFalse(championless.contains(a),
+                           "\(a) stays champion-eligible")
+        }
+        // Stems still derive from query atoms, not from guesses:
+        // stemAtom("deadline") must NOT appear as a weak stem.
+        XCTAssertFalse(atoms.contains("deadlin"))
+    }
+
     /// A file fetched ONLY by a stem atom and scoring below the rank
     /// bar must not be champion-emitted; the same file fetched by an
     /// acronym atom IS champion-eligible (the filename IS the phrase's
