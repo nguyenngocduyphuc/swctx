@@ -265,6 +265,21 @@ public enum Translation {
         return out
     }
 
+    /// Tool-suffix conventions for command-shaped queries. This corpus
+    /// names its CLIs `*_ctl`/`p8ctl`/`sitectl` — a suffix the path
+    /// tokenizer can't expose to prefix probes and a 3B emits only on
+    /// a lucky roll. Deterministic atoms cost one LIKE scan each.
+    static func commandSuffixAtoms(for query: String) -> [String] {
+        let folded = " " + Search.foldText(query)
+            .components(separatedBy: CharacterSet.alphanumerics.inverted)
+            .filter { !$0.isEmpty }
+            .joined(separator: " ") + " "
+        let triggers = [" lenh ", " command ", " cli ", " tool ",
+                        " tien ich ", " cong cu "]
+        return triggers.contains(where: { folded.contains($0) })
+            ? ["ctl", "cli", "cmd"] : []
+    }
+
     // MARK: - EN→VN lexicon (the missing direction)
 
     /// English phrase/word → folded-VN filename atoms. The mirror of
@@ -533,6 +548,7 @@ public enum Translation {
         let lock = NSLock()
         var cooldownUntil = Date.distantPast
         var cacheOverride: Cache?
+        var round2CacheOverride: Cache?
     }
     static let state = StateBox()
     /// Test seam — when set, lookups consult this cache instead of the
@@ -542,6 +558,12 @@ public enum Translation {
         set { state.lock.lock(); state.cacheOverride = newValue; state.lock.unlock() }
     }
     static var activeCache: Cache { cacheOverride ?? sharedCache }
+    /// Same seam for the round-2 cache.
+    static var round2CacheOverride: Cache? {
+        get { state.lock.lock(); defer { state.lock.unlock() }; return state.round2CacheOverride }
+        set { state.lock.lock(); state.round2CacheOverride = newValue; state.lock.unlock() }
+    }
+    static var activeRound2Cache: Cache { round2CacheOverride ?? round2Cache }
 
     static func defaultCacheURL() -> URL {
         if let p = ProcessInfo.processInfo.environment["SWCTX_TRANSLATE_CACHE"],
@@ -584,6 +606,7 @@ public enum Translation {
         state.lock.lock()
         state.cooldownUntil = .distantPast
         state.cacheOverride = nil
+        state.round2CacheOverride = nil
         state.lock.unlock()
     }
 
@@ -957,5 +980,274 @@ public enum Translation {
         let st = wstatus.raw
         guard st & 0x7f == 0, (st >> 8) & 0xff == 0 else { return .failed }
         return .ok(String(decoding: outData as Data, as: UTF8.self))
+    }
+
+    // MARK: - Round-2 reformulation
+
+    /// Second local model pass for queries whose round-1 filename probe
+    /// found nothing confident: the model sees the query and the paths
+    /// round-1 actually returned, then either PICKS the answering file
+    /// by number or names the vocabulary of the file that should exist
+    /// (`missing_terms`). Same discipline as the translation leg — one
+    /// cached generation, a result deadline that never gates the first
+    /// answer, and silent degradation on every failure. The pick only
+    /// reorders paths we already returned; the missing atoms feed a
+    /// second `plannerPathProbe` as champion-eligible weak atoms (never
+    /// surgical — a model guess must not crown).
+    static let round2PromptVersion = "r2v6"
+
+    /// `SWCTX_ROUND2=0` disables the pass; `SWCTX_TRANSLATE=0` also kills
+    /// it (same model-call kill switch).
+    static var round2Enabled: Bool {
+        enabled
+            && ProcessInfo.processInfo.environment["SWCTX_ROUND2"] != "0"
+    }
+    /// How long a result may wait for the generation. The model is
+    /// typically warm from the round-1 translation, so one roll lands
+    /// in ~300-700ms; cold loads miss the window but still finish (the
+    /// spawn cap) and cache for the next query.
+    static var round2DeadlineMs: Int {
+        Search.envInt("SWCTX_ROUND2_MS", 1500)
+    }
+
+    /// Separate cache file — keyed on the QUERY only. Keying on the
+    /// shown paths proliferated entries: fused-order jitter (embedder
+    /// timing, partial rolls) rekeys the same question and each new key
+    /// re-rolls the model — the bench observed one query generating
+    /// three different atom sets. A stale entry under a changed index
+    /// is harmless: guessed atoms are only probed, never trusted.
+    static let round2Cache = Cache(url: defaultRound2CacheURL())
+
+    static func defaultRound2CacheURL() -> URL {
+        if let p = ProcessInfo.processInfo.environment["SWCTX_ROUND2_CACHE"],
+           !p.isEmpty {
+            return URL(fileURLWithPath: p)
+        }
+        return Store.baseDir().appendingPathComponent("round2_cache.json")
+    }
+
+    static func round2Key(_ query: String) -> String {
+        let norm = query.lowercased()
+            .components(separatedBy: .whitespacesAndNewlines)
+            .filter { !$0.isEmpty }
+            .joined(separator: " ")
+        let material = "\(round2PromptVersion)\u{0}\(model)\u{0}\(norm)"
+        let d = SHA256.hash(data: Data(material.utf8))
+        return d.prefix(16).map { String(format: "%02x", $0) }.joined()
+    }
+
+    static func round2Prompt(for query: String,
+                             seenPaths: [String]) -> String {
+        let q = String(query
+            .components(separatedBy: .whitespacesAndNewlines)
+            .filter { !$0.isEmpty }
+            .joined(separator: " ")
+            .prefix(400))
+        // Kind tags per path — a 3B asked for a "script" will otherwise
+        // pick a .json manifest whose name merely mentions the thing
+        // (observed live: all_article_links.json chosen over the tool).
+        let list = seenPaths.enumerated()
+            .map { "\($0.offset + 1). \($0.element) [\(kindTag($0.element))]" }
+            .joined(separator: "\n")
+        // The pick is a NUMBER, not a path echo — a 3B model cannot
+        // reproduce long paths verbatim reliably, and a digit is the
+        // strictest possible contract.
+        return """
+        A code search returned these files for the query below. Which file \
+        answers it? If none fits, what filename SHOULD the answering file have?
+        Query: \(q)
+        Files:
+        \(list)
+        Reply: {"pick": <file number 1-\(seenPaths.count), or 0 if none answers the query>, "missing_terms": ["<filename atom>", ...]}
+        Rules: pick the file whose NAME does the job the query asks — when \
+        the query wants a tool/command/script that produces something, a \
+        listed data/output file of that something is NOT the answer: pick \
+        0 and name the producer in missing_terms (e.g. the mesh builder is \
+        "sitectl" or "site_ctl", not "entity.json"). missing_terms has 0-6 \
+        lowercase ASCII filename atoms — snake_case or single words — the \
+        filename vocabulary of the file that SHOULD exist. They must be NEW \
+        names, not atoms already present in the listed filenames — echoing \
+        a shown name wastes the turn (the search already found that file). \
+        Filename jargon: \
+        command/tool->ctl,cmd,cli; workflow/process->workflow,sop,quy_trinh; \
+        apply/inject->apply,inject,insert; sync/unify->sync,unify,merge,dong_bo; \
+        summary->digest,so_tay,tom_tat,nhat_ky; check->health,audit,kiem_tra. \
+        [] when a pick was made. Reply with ONLY the JSON object, one line.
+        Reply:
+        """
+    }
+
+    /// Coarse file-kind tag for the round-2 pick list: code / doc /
+    /// data / config / other, from the extension only.
+    static func kindTag(_ path: String) -> String {
+        switch (path as NSString).pathExtension.lowercased() {
+        case "py", "ts", "tsx", "js", "jsx", "swift", "go", "rs", "sh",
+             "rb", "java", "kt", "c", "cc", "cpp", "m", "mm", "mjs":
+            return "code"
+        case "md", "txt", "rst", "adoc", "html":
+            return "doc"
+        case "json", "jsonl", "csv", "tsv", "yaml", "yml", "xml", "sql":
+            return "data"
+        case "toml", "ini", "conf", "cfg", "env":
+            return "config"
+        default: return "other"
+        }
+    }
+
+    /// Names-only variant for later rolls: NO result list — a 3B shown
+    /// ten paths anchors on them and echoes a shown filename as its
+    /// "missing" guess (observed live: the seo-10 roll emitted
+    /// "internal-link-check", a listed file's own name). Asking only for
+    /// the missing filename keeps the roll's entropy on vocabulary.
+    static func round2NamesPrompt(for query: String) -> String {
+        let q = String(query
+            .components(separatedBy: .whitespacesAndNewlines)
+            .filter { !$0.isEmpty }
+            .joined(separator: " ")
+            .prefix(400))
+        return """
+        A code search for this query found only loosely related files — the \
+        file that truly answers it was missed. Guess that file's NAME.
+        Query: \(q)
+        Reply: {"missing_terms": ["<filename atom>", ...]}
+        Rules: 3-8 lowercase ASCII filename atoms — snake_case or single \
+        words — the naming vocabulary of the file that SHOULD exist. \
+        Filename jargon: command/tool->ctl,cmd,cli; \
+        workflow/process->workflow,sop,quy_trinh; \
+        apply/inject->apply,inject,insert; \
+        sync/unify->sync,unify,merge,dong_bo; \
+        summary->digest,so_tay,tom_tat,nhat_ky; \
+        check->health,audit,kiem_tra. Cover both the action verb and the object \
+        ("apply internal links" -> apply,inject,link,internal_link). \
+        Reply with ONLY the JSON object, one line.
+        Reply:
+        """
+    }
+
+    /// Parse + validate a round-2 reply. pick must be an Int inside
+    /// 1...seenPaths.count (0 = "none answered"); missing_terms follows
+    /// the filename_terms token rules. A reply breaking the contract is
+    /// discarded wholesale — same posture as `parseReply`.
+    static func parseRound2(_ raw: String,
+                            seenPaths: [String]) -> (atoms: [String],
+                                                   pick: String?)? {
+        guard !raw.isEmpty, raw.utf8.count <= 4096 else { return nil }
+        let text = unspin(raw)
+        guard let l = text.firstIndex(of: "{") else { return nil }
+        var obj: [String: Any]?
+        if let r = text.lastIndex(of: "}"), l < r {
+            obj = try? JSONSerialization.jsonObject(
+                with: Data(text[l...r].utf8)) as? [String: Any]
+        }
+        if obj == nil {
+            for suffix in ["}", "]}", "\"]}"] {
+                if let o = try? JSONSerialization.jsonObject(
+                    with: Data((text[l...] + suffix).utf8)) as? [String: Any] {
+                    obj = o
+                    break
+                }
+            }
+        }
+        guard let obj else { return nil }
+        var pick: String?
+        // JSONSerialization yields NSNumber; accept "3" too (models do).
+        let pickNum: Int? = (obj["pick"] as? NSNumber)?.intValue
+            ?? (obj["pick"] as? String).flatMap(Int.init)
+        if let n = pickNum, n >= 1, n <= seenPaths.count {
+            pick = seenPaths[n - 1]
+        }
+        var atoms: [String] = []
+        var seen: Set<String> = []
+        if let arr = obj["missing_terms"] as? [Any] {
+            for item in arr {
+                guard atoms.count < 8 else { break }
+                guard let s = (item as? String)?
+                        .trimmingCharacters(in: .whitespacesAndNewlines),
+                      s.count >= 2, s.count <= 40,
+                      s.range(of: #"^[A-Za-z0-9][A-Za-z0-9_\-]*$"#,
+                              options: .regularExpression) != nil,
+                      seen.insert(s.lowercased()).inserted else { continue }
+                atoms.append(s)
+            }
+        }
+        guard pick != nil || !atoms.isEmpty else { return nil }
+        return (atoms, pick)
+    }
+
+    /// Round-2 atoms + pick for (query, seenPaths), or nil. Blocking
+    /// caller path: cache hit returns immediately; a miss spawns ONE
+    /// generation on a background queue and waits `deadlineMs` — the
+    /// generation itself is allowed `spawnCapMs` so a late answer still
+    /// lands in cache for the next identical window.
+    static func round2(query: String, seenPaths: [String],
+                       deadlineMs: Int? = nil) -> (atoms: [String],
+                                                   pick: String?)? {
+        @Sendable func dbg(_ s: String) {
+            if ProcessInfo.processInfo.environment["SWCTX_TRANSLATE_DEBUG"] == "1" {
+                FileHandle.standardError.write(
+                    "swctx-round2: \(s)\n".data(using: .utf8)!)
+            }
+        }
+        guard round2Enabled, !seenPaths.isEmpty else { return nil }
+        let key = round2Key(query)
+        if let atoms = activeRound2Cache.get(key) {
+            return (atoms, activeRound2Cache.getFilenameTerms(key)?.first)
+        }
+        guard !inCooldown() else { dbg("cooldown"); return nil }
+        guard let bin = ollamaBin() else { dbg("no ollama bin"); return nil }
+        let deadline = deadlineMs ?? round2DeadlineMs
+        let sema = DispatchSemaphore(value: 0)
+        DispatchQueue.global(qos: .userInitiated).async {
+            defer { sema.signal() }
+            // Three rolls of two kinds: roll 1 judges the shown list
+            // (pick + missing atoms); rolls 2-3 run the names-only
+            // prompt — no list to anchor on, so their entropy stays on
+            // vocabulary instead of echoing shown names. Atoms union,
+            // first non-zero pick wins. Each roll's merge lands in the
+            // cache immediately — a deadline that cuts roll 3 still
+            // leaves earlier rolls usable for this query AND the next.
+            var mergedAtoms: [String] = []
+            var mergedPick: String?
+            var seenAtom: Set<String> = []
+            for roll in 0..<3 {
+                let prompt = roll == 0
+                    ? round2Prompt(for: query, seenPaths: seenPaths)
+                    : round2NamesPrompt(for: query)
+                switch spawn(bin, argv: ["run", model, prompt],
+                             timeoutMs: spawnCapMs) {
+                case .ok(let raw):
+                    guard let r = parseRound2(raw, seenPaths: seenPaths)
+                    else {
+                        dbg("invalid output: \(raw.prefix(160))")
+                        continue
+                    }
+                    for a in r.atoms
+                    where seenAtom.insert(a.lowercased()).inserted {
+                        mergedAtoms.append(a)
+                    }
+                    if mergedPick == nil { mergedPick = r.pick }
+                    if !mergedAtoms.isEmpty || mergedPick != nil {
+                        activeRound2Cache.put(
+                            key, terms: mergedAtoms,
+                            filenames: mergedPick.map { [$0] } ?? [])
+                    }
+                case .timedOut:
+                    dbg("timeout \(spawnCapMs)ms")
+                    tripCooldown(timeoutCooldownSeconds)
+                case .failed:
+                    dbg("spawn/run failed")
+                    tripCooldown(failCooldownSeconds)
+                }
+                if inCooldown() { break }
+            }
+        }
+        if deadline > 0 {
+            _ = sema.wait(timeout: .now() + .milliseconds(deadline))
+        }
+        // Read the cache again either way — a slow generation that beat
+        // neither deadline nor cap is nil now but cached for next time;
+        // a just-late one may have landed between wait and read.
+        guard let atoms = activeRound2Cache.get(key) else { return nil }
+        return (atoms, activeRound2Cache.getFilenameTerms(key)?.first)
     }
 }

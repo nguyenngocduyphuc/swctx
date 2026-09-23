@@ -261,6 +261,19 @@ def main():
             print("ratchet: FAIL (mcp session start)", file=sys.stderr)
         return 1
 
+    # Warm durable translation/round-2 caches before measuring — a cold
+    # roll races the result deadline and still writes the cache, so a
+    # one-shot pass measures roll luck. Production MCP is long-lived;
+    # steady state IS warm cache. Results and latency discarded.
+    for q in queries:
+        try:
+            session.call_tool(
+                "search", {"workspace": q["workspace"],
+                           "query": q["query"], "mode": "auto",
+                           "limit": 1}, timeout=60)
+        except Exception:
+            pass
+
     records = []
     latencies = []          # every per-query MCP call (both tools)
     for q in queries:

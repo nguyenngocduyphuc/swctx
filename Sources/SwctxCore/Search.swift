@@ -392,9 +392,15 @@ public enum Search {
     struct ProbeResult {
         var hits: [SearchHit]
         var belowBarCount: Int
+        /// Emitted hits with name evidence AND coverage confidence —
+        /// surgical (sole-carrier stem) at or above the rank bar. Zero
+        /// means the probe could only fetch coverage-flood hits or weak
+        /// name guesses: the round-2 reformulation trigger.
+        var confidentCount: Int
         var strongCount: Int { hits.count - belowBarCount }
         var champions: ArraySlice<SearchHit> { hits.dropFirst(strongCount) }
-        static let empty = ProbeResult(hits: [], belowBarCount: 0)
+        static let empty = ProbeResult(hits: [], belowBarCount: 0,
+                                       confidentCount: 0)
     }
 
     /// Merge probe hits into a fused result window. Strong probe hits
@@ -793,6 +799,7 @@ public enum Search {
         var seenBasenames: Set<String> = []
         var out: [SearchHit] = []
         var belowBar = 0
+        var confident = 0
         let rankBar = envDouble("SWCTX_PROBE_BAR", 2.0)
         for s in scored {
             // Champions emit even at sd 0: Next.js pages carry intent in
@@ -806,10 +813,12 @@ public enum Search {
             guard seenBasenames.insert(base).inserted else { continue }
             dirCount[dir] = (dirCount[dir] ?? 0) + 1
             if s.rank < rankBar { belowBar += 1 }
+            if s.surgical && s.rank >= rankBar { confident += 1 }
             out.append(s.hit)
             if out.count >= limit { break }
         }
-        return ProbeResult(hits: out, belowBarCount: belowBar)
+        return ProbeResult(hits: out, belowBarCount: belowBar,
+                           confidentCount: confident)
     }
 
     /// File-level FTS probe: one row per FILE (the chunk achieving the
@@ -859,6 +868,301 @@ public enum Search {
                     symbol: row["symbol"] as? String,
                     score: -((row["rank"] as? Double) ?? 0),
                     snippet: (row["snippet"] as? String) ?? "")
+            }
+        }
+    }
+
+    /// Substring path probe for MODEL-GUESSED atoms (round-2): FTS
+    /// path_tokens only prefix-matches forward, so a guessed atom that
+    /// lives as a filename SUFFIX is unreachable — "ctl" can't reach
+    /// "sitectl" though it names exactly that convention. A LIKE scan
+    /// over the files table is the honest semantics for a guessed atom;
+    /// the table is small enough that per-atom LIKEs cost ~ms. Hits are
+    /// fragment matches, not stem evidence — callers should treat them
+    /// as below-bar champions, never surgical.
+    static func pathSubstringProbe(store: Store, atoms: [String],
+                                   strictAtoms: [String] = [],
+                                   pathFilter: String? = nil,
+                                   contentTerms: [String] = [],
+                                   perAtom: Int = 5,
+                                   limit: Int = 5)
+        throws -> [(hit: SearchHit, atoms: Set<String>,
+                    exact: Bool, stemEx: Bool, strictOnly: Bool)] {
+        try store.pool.read { db in
+            // path → (hit, atomDF, exact, basenameHits, matchedAtoms). A
+            // file whose NAME contains several guessed atoms is the
+            // guess corroborated; a dir-component match is weaker.
+            var cands: [String: (hit: SearchHit, df: Int, exact: Bool,
+                                 stemEx: Bool, baseHits: Int,
+                                 matched: Set<String>,
+                                 strictOnly: Bool)] = [:]
+            // strictAtoms are short query syllables ("doi", "ngu"): a
+            // VN compound name splits into 3-char tokens no ≥4 rule can
+            // keep, so they demand the strictest evidence — the atom
+            // must be a FULL token of the basename itself.
+            let plan = atoms.prefix(envInt("SWCTX_SUBSTR_ATOMS", 20))
+                .map { ($0, false) }
+                + strictAtoms.prefix(6).map { ($0, true) }
+            for (atom, strict) in plan where atom.count >= 3 {
+                var whereSql = "f.path LIKE ?"
+                var args: [DatabaseValueConvertible] = ["%\(atom)%"]
+                if let p = pathFilter, !p.isEmpty {
+                    whereSql += " AND f.path LIKE ?"
+                    args.append(p.hasSuffix("/") ? p + "%" : p + "/%")
+                }
+                let total = (try Int.fetchOne(db, sql: """
+                    SELECT COUNT(*) FROM files f WHERE \(whereSql)
+                    """, arguments: StatementArguments(args))) ?? 0
+                guard total > 0 else { continue }
+                // Flood-atom guard: a "name guess" substring present in
+                // dozens of paths names nothing ("site" reaches
+                // sitectl but also half the corpus). Over-cap atoms
+                // degrade to the strictest evidence: the atom must be a
+                // FULL token of the basename — frequency doesn't matter
+                // for an exact name ("workflow" → WORKFLOW.md, "hoach"
+                // → ke-hoach.md both qualify).
+                let dfCap = envInt("SWCTX_SUBSTR_DF", 25)
+                let exactOnly = !strict && total > dfCap
+                var rows: [Row] = []
+                if exactOnly {
+                    var exactSql = """
+                        SELECT f.path, MIN(c.id) AS cid
+                        FROM files f
+                        JOIN chunks c ON c.file_id = f.id
+                        WHERE f.path LIKE ?
+                        """
+                    var exactArgs: [DatabaseValueConvertible] =
+                        ["%\(atom)%"]
+                    if let p = pathFilter, !p.isEmpty {
+                        exactSql += " AND f.path LIKE ?"
+                        exactArgs.append(
+                            p.hasSuffix("/") ? p + "%" : p + "/%")
+                    }
+                    exactSql += """
+                         GROUP BY f.id ORDER BY f.mtime DESC
+                        LIMIT ?
+                        """
+                    exactArgs.append(perAtom * 4)
+                    rows = try Row.fetchAll(db, sql: exactSql,
+                        arguments: StatementArguments(exactArgs))
+                } else {
+                    rows = try Row.fetchAll(db, sql: """
+                        SELECT f.path, MIN(c.id) AS cid
+                        FROM files f
+                        JOIN chunks c ON c.file_id = f.id
+                        WHERE \(whereSql)
+                        GROUP BY f.id ORDER BY f.mtime DESC
+                        LIMIT ?
+                        """, arguments: StatementArguments(
+                            args + [strict ? perAtom * 4 : perAtom]))
+                }
+                for row in rows {
+                    guard let path = row["path"] as? String else { continue }
+                    let base = path.split(separator: "/").last
+                        .map(String.init) ?? path
+                    // Basename tokens: raw alnum split UNION camelCase
+                    // subtokens — the index emits both ("localstore" and
+                    // "local","store" for LocalStore.swift), so a glued
+                    // guessed atom still matches its glued name while a
+                    // camel subtoken of the query ("audit" from
+                    // AuditRunIdentifier) reaches its camelCase host.
+                    var baseTokSet = Set(
+                        base.lowercased().split(
+                            omittingEmptySubsequences: true,
+                            whereSeparator: {
+                                !$0.isLetter && !$0.isNumber })
+                            .map(String.init))
+                    for rawTok in base.split(
+                        omittingEmptySubsequences: true,
+                        whereSeparator: { !$0.isLetter && !$0.isNumber }) {
+                        for sub in symbolTokens(String(rawTok)) {
+                            baseTokSet.insert(
+                                foldText(sub).lowercased())
+                        }
+                    }
+                    let baseToks = baseTokSet
+                    if strict || exactOnly {
+                        // Full-token basename match only — the atom
+                        // names a file, not a fragment of one ("doi" in
+                        // "doi-ngu.md", "hoach" in "ke-hoach.md", never
+                        // a dir component or glued tail).
+                        guard baseToks.contains(where: { $0 == atom })
+                        else { continue }
+                    } else {
+                        // Suffix-of-token only: exact and prefix matches
+                        // are the FTS probe's job (`atom*` on
+                        // path_tokens) — what it can never reach is a
+                        // guessed atom living as a token SUFFIX ("ctl"
+                        // in "sitectl"). Mid-token fragments are noise
+                        // ("merge" in "emergency").
+                        let toks = path.lowercased().split(
+                            omittingEmptySubsequences: true,
+                            whereSeparator: {
+                                !$0.isLetter && !$0.isNumber })
+                        guard toks.contains(where: { $0.hasSuffix(atom) })
+                        else { continue }
+                    }
+                    let isBase = strict
+                        || base.lowercased().contains(atom)
+                    // Token-exact name: the atom is a FULL basename
+                    // token ("hoach" in ke-hoach.md) — surgical-grade
+                    // name evidence in any scan mode.
+                    let exactTok = strict || exactOnly
+                        || baseToks.contains(where: { $0 == atom })
+                    // Stem-equality is the strongest name evidence:
+                    // the atom IS the file's whole name ("workflow"
+                    // → WORKFLOW.md), not one token of a compound
+                    // stem ("site" in site_build_playbook). Strip
+                    // non-alphanumerics — Swift extension files carry
+                    // "+" ("AuditSustainability+.swift") which must
+                    // not break equality.
+                    let stem = base.lowercased()
+                        .split(separator: ".").first.map(String.init) ?? ""
+                    let stemEx = stem.filter { $0.isLetter || $0.isNumber } == atom
+                    if var c = cands[path] {
+                        c.matched.insert(atom)
+                        c.baseHits += isBase ? 1 : 0
+                        c.df = min(c.df, total)
+                        c.exact = c.exact || exactTok
+                        c.stemEx = c.stemEx || stemEx
+                        c.strictOnly = c.strictOnly && strict
+                        cands[path] = c
+                    } else {
+                        cands[path] = (SearchHit(
+                            chunkID: (row["cid"] as? Int64) ?? -1,
+                            path: path,
+                            startLine: 0, endLine: 0,
+                            kind: nil, symbol: nil,
+                            score: 0.5,
+                            snippet: ""), total, exactTok, stemEx,
+                            isBase ? 1 : 0, [atom], strict)
+                    }
+                }
+            }
+            guard !cands.isEmpty else { return [] }
+            // Name fragments alone can't rank `sitectl` over `p8ctl` —
+            // the candidates' CONTENT against the translated terms is
+            // the discriminator the fused head already trusts. One FTS
+            // pass over the small candidate set, best rank per file.
+            var contentRank: [String: Double] = [:]
+            let terms = contentTerms.filter { $0.count >= 3 }.prefix(12)
+            if !terms.isEmpty {
+                let match = terms.map { "content : \"\($0)\"" }
+                    .joined(separator: " OR ")
+                let ph = cands.keys.map { _ in "?" }.joined(separator: ",")
+                let w = ftsColumnWeights
+                // bm25() throws inside GROUP BY — materialize per-chunk
+                // ranks in a LIMIT -1 subquery first (same workaround
+                // as ftsFileProbe), then pick each file's best.
+                let rows = try? Row.fetchAll(db, sql: """
+                    SELECT f.path, MIN(sub.rank) AS rank
+                    FROM (
+                        SELECT c.file_id,
+                               bm25(chunks_fts, \(w.content), \(w.path),
+                                    \(w.symbol), \(w.folded)) AS rank
+                        FROM chunks_fts
+                        JOIN chunks c ON c.id = chunks_fts.rowid
+                        WHERE chunks_fts MATCH ?
+                        LIMIT -1
+                    ) sub
+                    JOIN files f ON f.id = sub.file_id
+                    WHERE f.path IN (\(ph))
+                    GROUP BY f.path
+                    """, arguments: StatementArguments(
+                        [match] + cands.keys.map { $0 }))
+                for row in rows ?? [] {
+                    if let p = row["path"] as? String,
+                       let r = row["rank"] as? Double {
+                        contentRank[p] = r
+                    }
+                }
+            }
+            // Order: live files before archive/test copies (a guessed
+            // name means the live file, not its stale twin), then
+            // content-corroborated (bm25 asc), most guessed atoms in
+            // the basename, rarest atom.
+            func stale(_ p: String) -> Bool {
+                let lp = p.lowercased()
+                if isTestLikePath(lp) { return true }
+                // Segment-tokenized like the fused demotion —
+                // "_archive-genspark" counts; "archive.py" is a name.
+                // vendors/ demotes too: third-party plugin docs are
+                // reference material, never the rescue target.
+                return lp.split(separator: "/").dropLast().contains {
+                    $0.components(separatedBy: CharacterSet.alphanumerics.inverted)
+                        .contains {
+                            archiveDirTokens.contains($0)
+                                || $0 == "vendors" || $0 == "vendor"
+                        }
+                }
+            }
+            // Stem coverage: which fraction of the file's stem tokens
+            // the matched atoms name. The champion discriminator —
+            // "nap"+"serp" cover nap_serp.py's whole stem while a
+            // REVIEW_NAP_* doc matches one incidental token; equal-DF
+            // near-ties on content bm25 resolve by who owns the name.
+            func stemCoverage(
+                _ c: (hit: SearchHit, df: Int, exact: Bool,
+                      stemEx: Bool, baseHits: Int,
+                      matched: Set<String>, strictOnly: Bool)
+            ) -> Double {
+                let base = c.hit.path.split(separator: "/").last
+                    .map(String.init) ?? c.hit.path
+                let stem = base.split(separator: ".").first ?? ""
+                let toks = Set(stem.lowercased().split(
+                    omittingEmptySubsequences: true,
+                    whereSeparator: {
+                        !$0.isLetter && !$0.isNumber
+                    }).map(String.init))
+                guard !toks.isEmpty else { return 0 }
+                return Double(toks.intersection(c.matched).count)
+                    / Double(toks.count)
+            }
+            var stemCov: [String: Double] = [:]
+            for (p, c) in cands { stemCov[p] = stemCoverage(c) }
+            let ordered = cands.values.sorted { a, b in
+                let sa = stale(a.hit.path), sb = stale(b.hit.path)
+                if sa != sb { return !sa }
+                // Corroboration tier: real name evidence (non-strict
+                // exact) or content support. A bare 3-char strict-token
+                // match ("doi" in bay-cua-noi-doi) is a common VN
+                // syllable — without content speaking the query it is
+                // noise, so it sinks below every corroborated cand.
+                let ra = contentRank[a.hit.path]
+                let rb = contentRank[b.hit.path]
+                let ca = (a.exact && !a.strictOnly) || ra != nil
+                let cb = (b.exact && !b.strictOnly) || rb != nil
+                if ca != cb { return ca }
+                let va = stemCov[a.hit.path] ?? 0
+                let vb = stemCov[b.hit.path] ?? 0
+                if va != vb { return va > vb }
+                if a.stemEx != b.stemEx { return a.stemEx }
+                switch (ra, rb) {
+                case let (x?, y?): if x != y { return x < y }
+                case (_?, nil): return true
+                case (nil, _?): return false
+                default: break
+                }
+                if a.baseHits != b.baseHits { return a.baseHits > b.baseHits }
+                if a.matched.count != b.matched.count {
+                    return a.matched.count > b.matched.count
+                }
+                return a.df < b.df
+            }
+            // Strict-only candidates with zero content corroboration
+            // are pure syllable noise — drop them from emission (they
+            // would still occupy the head slot whenever no better cand
+            // exists).
+            let kept = ordered.filter {
+                !$0.strictOnly || contentRank[$0.hit.path] != nil
+            }
+            if ProcessInfo.processInfo.environment["SWCTX_PROBE_DEBUG"] == "1" {
+                FileHandle.standardError.write(
+                    "substr atoms=\(atoms)+\(strictAtoms) cands=\(kept.prefix(limit).map { "\($0.hit.path)|cr=\(contentRank[$0.hit.path] ?? 0)|cov=\(stemCov[$0.hit.path] ?? 0)|df=\($0.df)|st=\(stale($0.hit.path))|m=\($0.matched.sorted())" })\n"
+                        .data(using: .utf8)!)
+            }
+            return kept.prefix(limit).map {
+                ($0.hit, $0.matched, $0.exact, $0.stemEx, $0.strictOnly)
             }
         }
     }

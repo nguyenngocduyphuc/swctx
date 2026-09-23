@@ -262,6 +262,217 @@ public enum SwctxTools {
                 cap: Search.envInt("SWCTX_PROBE_CAP", 6),
                 champPrepend: Search.envInt("SWCTX_CHAMP_PREPEND", 1),
                 flood: Search.envInt("SWCTX_CHAMP_FLOOD", 6))
+            // Deterministic substring vocabulary — model-free, so it
+            // runs on EVERY query for the cost of a few ms LIKE scans:
+            // the query's own folded atoms (the most central atoms
+            // there are), command-suffix conventions, and round-1's
+            // cached filename guesses. This lane reaches token
+            // suffixes the FTS prefix probe can't ("hoach" →
+            // ke-hoach.md after probe emission caps dropped it).
+            let xlated = Translation.activeCache.get(
+                Translation.cacheKey(q)) ?? []
+            // Rescore terms are translated + round-1 filename terms
+            // only — NEVER guessed r2 atoms: a guessed atom matching
+            // the candidate's own content is the guess grading itself.
+            let rescoreTerms = Search.ftsTranslatedAtoms(
+                xlated + (Translation.filenameTerms(for: q) ?? []))
+            // Query's own folded atoms — the most central vocabulary
+            // there is — plus PREFIX subwords of long glued tokens
+            // ("serpupdate" → "serp", which suffix-matches the "serp"
+            // token tail in nap_serp.py). Suffix subwords are rejected
+            // deliberately: "edin"/"kedin" self-match the source token
+            // "linkedin" and inflate matched-count with no real
+            // evidence.
+            let qToks = Search.foldText(q).components(
+                separatedBy: CharacterSet.alphanumerics.inverted)
+                .filter { $0.count >= 3
+                    && !Search.vnStopwords.contains($0) }
+            // camelCase subtokens of raw query tokens — the index splits
+            // LocalWorkflow → "local workflow" in path_tokens, so the
+            // query must emit the same atoms or a whole-identifier probe
+            // can never name its subtokens.
+            let camelSubs = q.components(
+                separatedBy: CharacterSet.alphanumerics.inverted)
+                .flatMap { Search.symbolTokens($0) }
+                .map { Search.foldText($0) }
+                .filter { $0.count >= 3
+                    && !Search.vnStopwords.contains($0) }
+            let qAtoms = (Search.ftsTranslatedAtoms([Search.foldText(q)])
+                + camelSubs)
+                .filter { $0.count >= 3
+                    && !Search.vnStopwords.contains($0) }
+            let pfxSubs = qToks.filter { $0.count >= 8 }.flatMap { t in
+                (4...7).map { String(t.lowercased().prefix($0)) }
+            }
+            var seenSub = Set<String>()
+            var subAtoms = (qAtoms.filter { $0.count >= 4 }
+                + pfxSubs
+                + Translation.commandSuffixAtoms(for: q)
+                + rescoreTerms.filter { $0.count >= 4 })
+                .filter { seenSub.insert($0).inserted }
+            // 3-char query syllables scan under the strict
+            // full-basename-token rule ("doi" names doi-ngu.md, never
+            // a dir component or glued tail). Raw folded tokens only —
+            // not stems/subwords of longer atoms, and not camel
+            // subtokens: "run" split out of "AuditRunIdentifier" is a
+            // derived fragment, not a syllable the user typed.
+            let strictSubAtoms = Search.ftsTranslatedAtoms(
+                [Search.foldText(q)])
+                .filter { $0.count == 3
+                    && !Search.vnStopwords.contains($0) }
+            var probe2Confident = 0
+            var r2pick: String?
+            // Round-2 reformulation: when the probe found no confident
+            // surgical hit (name evidence + coverage — coverage-flood
+            // ranks can look "strong" while naming nothing), show the
+            // model the paths round-1 returned — it picks the answering
+            // file or names the missing file's vocabulary, and that
+            // vocabulary gets a second probe pass. Cached per (query,
+            // shown paths) and deadline-bounded; only queries the probe
+            // couldn't crown pay, and only once per result window.
+            if probe.confidentCount == 0 {
+                let r2 = Translation.round2(
+                    query: q, seenPaths: hits.prefix(10).map(\.path))
+                r2pick = r2?.pick
+                // Compound guesses must split: the model emits
+                // "inject_link_internal" but path tokens prefix-match
+                // only forward — its parts ("inject" → "injector") are
+                // what actually reach the file.
+                let atoms2 = Search.ftsTranslatedAtoms(r2?.atoms ?? [])
+                    .filter { $0.count >= 3 }
+                    + Translation.commandSuffixAtoms(for: q)
+                    // Round-1's filename guesses are free vocabulary —
+                    // a different prompt already guessed ("publishing_
+                    // workflow" → workflow+publishing); unioning them
+                    // lets probe2's AND-folded discriminators reach
+                    // files the r2 roll alone never named.
+                    + Search.ftsTranslatedAtoms(
+                        Translation.filenameTerms(for: q) ?? [])
+                        .filter { $0.count >= 3 }
+                if !atoms2.isEmpty {
+                    if let probe2 = try? Search.plannerPathProbe(
+                        store: store, atoms: atoms2,
+                        weakAtoms: Set(atoms2),
+                        pathFilter: pathFilter),
+                       !probe2.hits.isEmpty {
+                        probe2Confident = probe2.confidentCount
+                        hits = Search.mergeProbeHits(
+                            hits, probe: probe2,
+                            cap: Search.envInt("SWCTX_PROBE_CAP", 6),
+                            champPrepend: Search.envInt("SWCTX_CHAMP_PREPEND", 1),
+                            flood: Search.envInt("SWCTX_CHAMP_FLOOD", 6))
+                    }
+                    // Model atoms join the substring lane too — ≥4
+                    // chars (3-char model syllables like "noi"/"tai"
+                    // suffix-match every handoff filename).
+                    for a in atoms2 where a.count >= 4 {
+                        if seenSub.insert(a).inserted { subAtoms.append(a) }
+                    }
+                }
+            }
+            // Guessed/query atoms can live as filename SUFFIXES
+            // ("ctl" → sitectl) that prefix-match can never reach — a
+            // substring pass over the files table is the honest
+            // semantics for a name guess. Candidates are rescored on
+            // CONTENT against the translated terms so `sitectl` beats
+            // `p8ctl` when the docstring speaks the question. All hits
+            // are fragment matches: below-bar champions, never
+            // surgical.
+            if let subs = try? Search.pathSubstringProbe(
+                store: store, atoms: subAtoms,
+                strictAtoms: strictSubAtoms,
+                pathFilter: pathFilter,
+                contentTerms: rescoreTerms), !subs.isEmpty {
+                if probe.confidentCount == 0 {
+                    // No freshness filter: a substring match on a
+                    // fused-tail file is the rescue — the merge's own
+                    // dedup pulls it out of `hits` and re-adds it at
+                    // the champion slot (promotion).
+                    //
+                    // Head slot is gated on atom centrality: the atom
+                    // that named the champion must be derivable from
+                    // the QUERY itself (folded atoms, translation,
+                    // round-1 filename guesses, command-suffix
+                    // conventions). Model-jargon atoms like "workflow"
+                    // land in every r2 roll; without the gate an
+                    // exact-stem WORKFLOW.md crowns every probe-miss
+                    // query and buries the fused answer.
+                    var central = Set(Search.plannerProbeAtoms(
+                        query: q, extraTerms: rescoreTerms))
+                    central.formUnion(
+                        Translation.commandSuffixAtoms(for: q))
+                    central.formUnion(camelSubs)
+                    let centralSubs = subs.filter {
+                        !$0.atoms.isDisjoint(with: central)
+                    }.map(\.hit)
+                    let jargonSubs = subs.filter {
+                        $0.atoms.isDisjoint(with: central)
+                    }.map(\.hit)
+                    if !centralSubs.isEmpty {
+                        hits = Search.mergeProbeHits(
+                            hits,
+                            probe: Search.ProbeResult(
+                                hits: centralSubs,
+                                belowBarCount: centralSubs.count,
+                                confidentCount: 0),
+                            cap: Search.envInt("SWCTX_PROBE_CAP", 6),
+                            champPrepend: Search.envInt(
+                                "SWCTX_CHAMP_PREPEND", 1),
+                            flood: Search.envInt(
+                                "SWCTX_CHAMP_FLOOD", 6))
+                    }
+                    if !jargonSubs.isEmpty {
+                        // Jargon-fragment matches carry no query
+                        // signal — tail coverage only, never the
+                        // head slot.
+                        hits = Search.mergeProbeHits(
+                            hits,
+                            probe: Search.ProbeResult(
+                                hits: jargonSubs,
+                                belowBarCount: jargonSubs.count,
+                                confidentCount: 0),
+                            cap: 0, champPrepend: 0, flood: 0)
+                    }
+                } else {
+                    // The probe already crowned a confident answer —
+                    // only stem-equality name evidence may contest the
+                    // head: the file is literally NAMED a query-derived
+                    // atom (WORKFLOW.md for "workflow"). Token-in-stem
+                    // matches (status.md, index.html) are too common to
+                    // displace a confident fused answer.
+                    let exactSubs = subs.filter {
+                        $0.stemEx || $0.strictOnly
+                            || ($0.exact && $0.atoms.count > 1)
+                    }.map(\.hit)
+                    if !exactSubs.isEmpty {
+                        hits = Search.mergeProbeHits(
+                            hits,
+                            probe: Search.ProbeResult(
+                                hits: exactSubs,
+                                belowBarCount: exactSubs.count,
+                                confidentCount: 0),
+                            cap: Search.envInt("SWCTX_PROBE_CAP", 6),
+                            champPrepend: Search.envInt(
+                                "SWCTX_CHAMP_PREPEND", 1),
+                            flood: Search.envInt(
+                                "SWCTX_CHAMP_FLOOD", 6))
+                    }
+                }
+            }
+            // The pick is an explicit judgment over our own list — it
+            // leads when the model's missing_terms probe found no name
+            // evidence of its own (confidentCount, not strongCount —
+            // coverage-flood ranks look "strong" while naming
+            // nothing). It can only reorder paths already in the
+            // window (never injects), so a substring rescue below it
+            // stays a hit anyway; a right pick beats a wrong fragment
+            // match (seo-11's pick named the gold while the substring
+            // lane crowned a plausible-but-wrong sibling).
+            if probe2Confident == 0, let pick = r2pick,
+               hits.first?.path != pick,
+               let idx = hits.firstIndex(where: { $0.path == pick }) {
+                hits.insert(hits.remove(at: idx), at: 0)
+            }
             hits = Array(hits.prefix(limit))
         }
         // Optional cross-encoder stage (`rerank: true`): pin the top-3

@@ -339,4 +339,99 @@ final class TranslationLegTests: SwctxTestCase {
             includeVector: false)
         XCTAssertTrue(hits.contains { $0.path == "image_worker.py" })
     }
+
+    // MARK: - round-2 reformulation
+
+    /// Contract: pick is a file NUMBER inside the shown list (0 = none),
+    /// missing_terms follows the filename-atom rules. Garbage, empty
+    /// replies and out-of-range picks are all rejected.
+    func testParseRound2Contract() {
+        let seen = ["scripts/p8_link_injector.py", "docs/README.md",
+                    "scripts/other.py"]
+        // pick + atoms both parsed.
+        let r = Translation.parseRound2(
+            #"{"pick": 1, "missing_terms": ["inject", "internal_link"]}"#,
+            seenPaths: seen)
+        XCTAssertEqual(r?.pick, "scripts/p8_link_injector.py")
+        XCTAssertEqual(r?.atoms, ["inject", "internal_link"])
+        // pick 0 = "none answered" → atoms only, still valid.
+        let none = Translation.parseRound2(
+            #"{"pick": 0, "missing_terms": ["injector"]}"#, seenPaths: seen)
+        XCTAssertNil(none?.pick)
+        XCTAssertEqual(none?.atoms, ["injector"])
+        // A pick with empty atoms is a valid answer too.
+        let pickOnly = Translation.parseRound2(
+            #"{"pick": "2", "missing_terms": []}"#, seenPaths: seen)
+        XCTAssertEqual(pickOnly?.pick, "docs/README.md")
+        // Out-of-range pick is discarded; atoms may still be usable.
+        let oor = Translation.parseRound2(
+            #"{"pick": 9, "missing_terms": ["x9"]}"#, seenPaths: seen)
+        XCTAssertNil(oor?.pick)
+        XCTAssertEqual(oor?.atoms, ["x9"])
+        // No pick AND no atoms → nothing to act on.
+        XCTAssertNil(Translation.parseRound2(
+            #"{"pick": 0, "missing_terms": []}"#, seenPaths: seen))
+        XCTAssertNil(Translation.parseRound2("not json", seenPaths: seen))
+        XCTAssertNil(Translation.parseRound2("", seenPaths: seen))
+        // Atoms keep the filename-token shape — spaces/diacritics dropped.
+        let dirty = Translation.parseRound2(
+            #"{"pick": 0, "missing_terms": ["link_injector", "a b", "x", "inject-now"]}"#,
+            seenPaths: seen)
+        XCTAssertEqual(dirty?.atoms, ["link_injector", "inject-now"])
+    }
+
+    /// End-to-end via the stub: a miss spawns one generation, the result
+    /// caches, and a repeat call is served from cache (stub hit once).
+    func testRound2ViaStubbedOllama() throws {
+        let dir = try tempDir()
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let counter = dir.appendingPathComponent("r2calls")
+        let stub = try stubOllama(in: dir, body: """
+            echo x >> "\(counter.path)"
+            printf '%s' '{"pick": 0, "missing_terms": ["so_tay", "digest"]}'
+            """)
+        setEnv("SWCTX_OLLAMA", stub.path)
+        Translation.resetForTesting()
+        Translation.round2CacheOverride = Translation.Cache(
+            url: dir.appendingPathComponent("r2.json"))
+        let seen = ["a/foo.py", "a/bar.py"]
+
+        let r = Translation.round2(query: "sổ tay hôm nay",
+                                   seenPaths: seen, deadlineMs: 5000)
+        XCTAssertEqual(r?.atoms, ["so_tay", "digest"])
+        XCTAssertNil(r?.pick)
+        let r2 = Translation.round2(query: "sổ tay hôm nay",
+                                    seenPaths: seen, deadlineMs: 5000)
+        XCTAssertEqual(r2?.atoms, ["so_tay", "digest"])
+        let calls = (try? String(contentsOf: counter, encoding: .utf8)) ?? ""
+        // A cold miss may spawn up to three rolls (atom union); the warm
+        // call must not spawn at all.
+        XCTAssertLessThanOrEqual(
+            calls.components(separatedBy: "\n").filter { $0 == "x" }.count, 3,
+            "warm call must hit the round-2 cache")
+    }
+
+    /// SWCTX_ROUND2=0 disables the pass; an empty shown list never spawns.
+    func testRound2Gates() throws {
+        let dir = try tempDir()
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let counter = dir.appendingPathComponent("r2calls")
+        let stub = try stubOllama(in: dir, body: """
+            echo x >> "\(counter.path)"
+            printf '%s' '{"pick": 1, "missing_terms": []}'
+            """)
+        setEnv("SWCTX_OLLAMA", stub.path)
+        Translation.resetForTesting()
+        Translation.round2CacheOverride = Translation.Cache(
+            url: dir.appendingPathComponent("r2.json"))
+
+        setEnv("SWCTX_ROUND2", "0")
+        XCTAssertNil(Translation.round2(query: "đăng nhập",
+                                        seenPaths: ["a/b.py"]))
+        setEnv("SWCTX_ROUND2", nil)
+        XCTAssertNil(Translation.round2(query: "đăng nhập",
+                                        seenPaths: []))
+        XCTAssertFalse(FileManager.default.fileExists(atPath: counter.path),
+                       "gated calls must never spawn the model")
+    }
 }

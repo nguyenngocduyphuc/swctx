@@ -730,13 +730,15 @@ final class SwctxCoreTests: SwctxTestCase {
             .map { hit($0) }
         // Flood: 6 below-bar champions, no strong hit → none leads.
         let floodProbe = Search.ProbeResult(
-            hits: (1...6).map { hit("champ\($0).py") }, belowBarCount: 6)
+            hits: (1...6).map { hit("champ\($0).py") }, belowBarCount: 6,
+            confidentCount: 0)
         let merged = Search.mergeProbeHits(fused, probe: floodProbe)
         XCTAssertEqual(merged.prefix(5).map(\.path),
                        ["a.md", "b.md", "c.md", "d.md", "so_tay.py"])
         // Lone champion (crm-10): leads the window, fused keeps slots.
         let loneProbe = Search.ProbeResult(
-            hits: [hit("vaid_issues.py")], belowBarCount: 1)
+            hits: [hit("vaid_issues.py")], belowBarCount: 1,
+            confidentCount: 0)
         let mergedLone = Search.mergeProbeHits(fused, probe: loneProbe)
         XCTAssertEqual(mergedLone.first?.path, "vaid_issues.py")
         XCTAssertEqual(mergedLone.prefix(5).map(\.path),
@@ -744,7 +746,7 @@ final class SwctxCoreTests: SwctxTestCase {
         // Champions beyond the prepend slot tail-append after fused.
         let midProbe = Search.ProbeResult(
             hits: [hit("champA.py"), hit("champB.py"), hit("champC.py")],
-            belowBarCount: 3)
+            belowBarCount: 3, confidentCount: 0)
         let mergedMid = Search.mergeProbeHits(fused, probe: midProbe)
         XCTAssertEqual(mergedMid.first?.path, "champA.py")
         XCTAssertEqual(mergedMid.suffix(2).map(\.path),
@@ -753,7 +755,7 @@ final class SwctxCoreTests: SwctxTestCase {
         let mixProbe = Search.ProbeResult(
             hits: [hit("strong1.py"), hit("strong2.py"),
                    hit("champ.py")],
-            belowBarCount: 1)
+            belowBarCount: 1, confidentCount: 2)
         let mergedMix = Search.mergeProbeHits(fused, probe: mixProbe)
         XCTAssertEqual(mergedMix.prefix(3).map(\.path),
                        ["strong1.py", "strong2.py", "champ.py"])
