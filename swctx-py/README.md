@@ -30,6 +30,7 @@ swctx-py search /path/to/repo "query" # CLI sanity check
 swctx-py status /path/to/repo
 swctx-py watch /path/to/repo          # polling watcher (mtime, ~2s)
 swctx-py mcp                          # stdio MCP server
+swctx-py answer /path "câu hỏi"         # cited answer over an evidence pack (fleet CLI → ollama)
 swctx-py simulate /path --diff f.patch  # pre-flight a diff: broken callers/implementers/tests
 swctx-py coverage /path --symbol foo    # which tests call foo
 swctx-py coverage /path --file tests/test_x.py  # what this test covers
@@ -43,10 +44,12 @@ MCP client config:
 { "mcpServers": { "swctx-py": { "command": "swctx-py", "args": ["mcp"] } } }
 ```
 
-## MCP tools (22)
+## MCP tools (24)
 
 `prime` (orientation card — call first) · `get_status` · `list_workspaces` ·
-`index_workspace` · `search` · `fetch_chunks` · `find_definitions` ·
+`index_workspace` · `search` · `answer` (strict-JSON synthesis over a cited
+evidence pack — backend `auto`: fleet CLIs agy→codex→claude, else local
+Ollama; pack-only fallback, durable `kind=ask` record) · `fetch_chunks` · `find_definitions` ·
 `find_usages` · `inspect_path` (browse chunks under a relative path;
 `query` hybrid-reranks the subtree) · `graph_neighbors` · `graph_expand`
 · `graph_paths` (`strategy=shortest` batched BFS | `all_simple` DFS) ·

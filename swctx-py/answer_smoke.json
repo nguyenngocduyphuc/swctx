@@ -1,0 +1,31 @@
+{
+ "workspace": "/Users/phuongnam/02.AI/NP_AI_macos/18.CRM-Nam-Pham",
+ "query": "đoạn code tóm tắt hôm qua làm gì và việc nào sắp tới hạn chấm cho CEO",
+ "backend": "cli:agy",
+ "model": "cli:agy",
+ "wall_ms": 12777,
+ "compose_latency_ms": 12586,
+ "attempts": 1,
+ "citation_valid": true,
+ "citations": [
+  {
+   "evidence_id": "E03",
+   "chunk_id": 233,
+   "path": "crm-nam-pham/09-build/so_tay.py",
+   "start_line": 1,
+   "end_line": 60
+  }
+ ],
+ "invalid_citations": null,
+ "evidence_ids": [
+  "E01:crm-nam-pham/artifacts/team/kiem-lai-viec-28-07/notes.md",
+  "E02:crm-nam-pham/04-app-frontend/viec-da-quyet.html",
+  "E03:crm-nam-pham/09-build/so_tay.py",
+  "E04:crm-nam-pham/07-docs/HUONG_DAN_VAN_HANH.md",
+  "E05:crm-nam-pham/07-docs/RESEARCH_CEO_ADMIN_UI_20260820.md",
+  "E06:crm-nam-pham/07-docs/PLAN_UI_QUANTRI_CEO_20260820.html"
+ ],
+ "limitations": "evidence pack trimmed to token budget | Bằng chứng chỉ cung cấp phần docstring và các định nghĩa ban đầu của tệp so_tay.py, chưa hiển thị nội dung chi tiết bên trong hàm tom_tat().",
+ "answer": "Đoạn code nằm trong tệp crm-nam-pham/09-build/so_tay.py với hàm công khai duy nhất là tom_tat(). Tệp này đọc bảng quyet_dinh và ket_qua trong crm.db để trả lời các câu hỏi cho CEO, bao gồm 'hôm qua làm gì' và 'việc nào tới hạn chấm' (xác định theo luật L6: cửa sổ chấm là thời điểm cộng 21 ngày, tới hạn khi ngay_cham <= hôm nay).",
+ "record_id": 92
+}

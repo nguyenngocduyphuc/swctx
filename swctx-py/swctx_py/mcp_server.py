@@ -73,6 +73,25 @@ def tool_defs() -> list[dict]:
              "workspace": ws, "query": {"type": "string"},
              "limit": {"type": "integer", "default": 10}},
              "required": ["query"]}},
+        {"name": "answer",
+         "description": "Local synthesis over verified evidence: packs cited chunks [E01]…, then asks the resolved backend for STRICT JSON {answer, citations, limitations}. Default backend auto: first usable fleet CLI (agy→codex→claude — subscription compose), else local Ollama. Server-side citation validation rejects ids outside the pack. No backend available → deterministic evidence pack + limitation, never an error. Writes a durable kind=ask record; response `backend` reports which one ran.",
+         "inputSchema": {"type": "object", "properties": {
+             "workspace": ws,
+             "query": {"type": "string",
+                       "description": "Natural-language question about the codebase"},
+             "model": {"type": "string",
+                       "description": "Ollama model override (default qwen2.5:3b; env SWCTX_ANSWER_MODEL)"},
+             "backend": {"type": "string", "default": "auto",
+                         "description": "auto (default) — probe fleet CLIs agy→codex→claude (PATH + <cli> --version, first usable wins), else local 'ollama'. Explicit 'ollama' | 'cli:<name>' (cli:agy, cli:codex…) pins one. Env: SWCTX_ANSWER_BACKEND / SWCTX_ANSWER_CLI."},
+             "timeout": {"type": "integer", "default": 60,
+                         "description": "Per-attempt compose seconds (one format-retry allowed)"},
+             "path": {"type": "string",
+                      "description": "Optional relative path prefix filter for retrieval"},
+             "expected_path": {"type": "string",
+                               "description": "Eval-harness oracle path — recorded for scoring only, never shown to the model"},
+             "max_tokens": {"type": "integer",
+                            "description": "Optional response budget (~4 chars/token); arrays trim tail-first, meta.omitted reports drops. Hard cap ~64KB always applies"}},
+             "required": ["query"]}},
         {"name": "fetch_chunks", "description": "Fetch full chunk bodies by id. mode=signature returns declaration lines only (~10% tokens).",
          "inputSchema": {"type": "object", "properties": {
              "workspace": ws,
@@ -259,6 +278,20 @@ def call(name: str, args: dict) -> str:
     if name == "search":
         return _j(Searcher(s).search(args["query"],
                                      int(args.get("limit", 10))))
+    if name == "answer":
+        from . import answer as _ans
+        q = args.get("query")
+        if not isinstance(q, str) or not q.strip():
+            raise ValueError("missing required argument: query")
+        mt = args.get("max_tokens")
+        return _j(_ans.run(
+            s, q, model=args.get("model") or None,
+            timeout=int(args.get("timeout") or _ans.DEFAULT_TIMEOUT),
+            expected_path=args.get("expected_path") or None,
+            path_filter=args.get("path") or None,
+            backend_spec=args.get("backend") or None,
+            max_tokens=(int(mt) if isinstance(mt, (int, float))
+                        and not isinstance(mt, bool) else None)))
     if name == "fetch_chunks":
         ids = [int(i) for i in args["chunk_ids"]]
         marks = ",".join("?" * len(ids))

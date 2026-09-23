@@ -28,6 +28,17 @@ def main() -> None:
     ps.add_argument("query")
     ps.add_argument("--limit", type=int, default=10)
 
+    pa = sub.add_parser("answer")
+    pa.add_argument("path")
+    pa.add_argument("query")
+    pa.add_argument("--backend", default=None,
+                    help="auto (default) | ollama | cli:<name> — env "
+                         "SWCTX_ANSWER_BACKEND / SWCTX_ANSWER_CLI")
+    pa.add_argument("--model", default=None,
+                    help="ollama model override (default qwen2.5:3b)")
+    pa.add_argument("--timeout", type=int, default=60,
+                    help="per-attempt compose seconds (one retry allowed)")
+
     pst = sub.add_parser("status")
     pst.add_argument("path")
 
@@ -92,6 +103,13 @@ def main() -> None:
                 args.query, args.limit):
             print(f"{h['score']:.4f} {h['path']}:{h['lines'][0]}-{h['lines'][1]}"
                   f" {h.get('symbol') or ''}")
+    elif args.cmd == "answer":
+        from . import answer as _ans
+        s = Store(args.path, create=False)
+        print(json.dumps(_ans.run(
+            s, args.query, model=args.model, timeout=args.timeout,
+            source="cli", backend_spec=args.backend),
+            ensure_ascii=False, indent=1))
     elif args.cmd == "status":
         s = Store(args.path, create=False)
         print(json.dumps({
