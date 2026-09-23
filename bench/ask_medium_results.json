@@ -1,0 +1,168 @@
+{
+ "timestamp": "2026-09-23T07:03:32+0700",
+ "effort": "medium",
+ "summary": {
+  "effort": "medium",
+  "n": 6,
+  "live_hits": 0,
+  "record_hits": 4
+ },
+ "misses": [
+  {
+   "id": "seo-02",
+   "workspace": "/Users/phuongnam/02.AI/NP_AI_macos/8.P8_SEO_Clean",
+   "query": "gate phát hiện link nội bộ bị gãy 404 trong bài trước khi publish",
+   "expected": "scripts/p8_link_health.py",
+   "live": {
+    "rank": 0,
+    "paths": [
+     "docs/operations/P8_PIPELINE_INVENTORY.md",
+     "scripts/p8ctl.py"
+    ],
+    "latency_ms": 52135.6,
+    "status": "ok"
+   },
+   "record": {
+    "id": 57,
+    "status": "completed",
+    "get_err": null,
+    "paths": [
+     "scripts/p8_link_health.py",
+     "scripts/p8_publish_gate.py",
+     "artifacts/team/process-company-inventory/notes.md",
+     "docs/operations/P8_PIPELINE_INVENTORY.md",
+     "docs/00_governance/DRIFT_LOG.md"
+    ],
+    "rank": 1
+   }
+  },
+  {
+   "id": "seo-05",
+   "workspace": "/Users/phuongnam/02.AI/NP_AI_macos/8.P8_SEO_Clean",
+   "query": "lệnh đồng bộ thông tin của từng site thành một file entity mesh chung",
+   "expected": "factory/sitectl.py",
+   "live": {
+    "rank": 0,
+    "paths": [
+     "docs/FLEET_GOVERNANCE_ROADMAP.md",
+     "docs/fleet/MESH.md"
+    ],
+    "latency_ms": 33692.2,
+    "status": "ok"
+   },
+   "record": {
+    "id": 58,
+    "status": "completed",
+    "get_err": null,
+    "paths": [
+     "factory/sitectl.py",
+     "docs/FLEET_GOVERNANCE_ROADMAP.md",
+     "docs/decisions/DECISIONS.md",
+     "docs/fleet/MESH.md"
+    ],
+    "rank": 1
+   }
+  },
+  {
+   "id": "seo-07",
+   "workspace": "/Users/phuongnam/02.AI/NP_AI_macos/8.P8_SEO_Clean",
+   "query": "tài liệu quy trình chuẩn để push nội dung bài viết lên site",
+   "expected": "WORKFLOW.md",
+   "live": {
+    "rank": 0,
+    "paths": [
+     "docs/archive/HANDOFF_SEO_2026-06-20.md",
+     "scripts/p8_publisher.py",
+     "scripts/p8ctl.py"
+    ],
+    "latency_ms": 66758.5,
+    "status": "ok"
+   },
+   "record": {
+    "id": 59,
+    "status": "completed",
+    "get_err": null,
+    "paths": [
+     "docs/fleet/SITE_BUILD_PLAYBOOK.md",
+     "docs/references/technical/WORDPRESS_BEST_PRACTICE.md",
+     "scripts/p8ctl.py",
+     "scripts/p8_publisher.py",
+     "docs/operations/P8_AUTOPUBLISH_WORKFLOW_V3.1.md"
+    ],
+    "rank": 0
+   }
+  },
+  {
+   "id": "crm-02",
+   "workspace": "/Users/phuongnam/02.AI/NP_AI_macos/18.CRM-Nam-Pham",
+   "query": "đoạn code tóm tắt hôm qua làm gì và việc nào sắp tới hạn chấm cho CEO",
+   "expected": "crm-nam-pham/09-build/so_tay.py",
+   "live": {
+    "rank": 0,
+    "paths": [
+     "crm-nam-pham/09-build/build.py"
+    ],
+    "latency_ms": 40729.3,
+    "status": "ok"
+   },
+   "record": {
+    "id": 10,
+    "status": "completed",
+    "get_err": null,
+    "paths": [
+     "crm-nam-pham/09-build/so_tay.py",
+     "crm-nam-pham/09-build/build.py",
+     "crm-nam-pham/09-build/dong_vong.py",
+     "crm-nam-pham/07-docs/PLAN_UI_QUANTRI_CEO_20260820.md"
+    ],
+    "rank": 1
+   }
+  },
+  {
+   "id": "crm-07",
+   "workspace": "/Users/phuongnam/02.AI/NP_AI_macos/18.CRM-Nam-Pham",
+   "query": "script nạp file csv export từ serpupdate vào lịch sử từ khóa",
+   "expected": "crm-nam-pham/09-build/nap_serp.py",
+   "live": {
+    "rank": 0,
+    "paths": [],
+    "latency_ms": 22110.0,
+    "status": "ok"
+   },
+   "record": {
+    "id": 11,
+    "status": "completed",
+    "get_err": null,
+    "paths": [
+     "crm-nam-pham/09-build/nap_serp.py"
+    ],
+    "rank": 1
+   }
+  },
+  {
+   "id": "seo-10",
+   "workspace": "/Users/phuongnam/02.AI/NP_AI_macos/8.P8_SEO_Clean",
+   "query": "script áp dụng các gợi ý link nội bộ vào bài viết trên site",
+   "expected": "scripts/ghost_link_builder_apply.py",
+   "live": {
+    "rank": 0,
+    "paths": [],
+    "latency_ms": 54580.8,
+    "status": "ok"
+   },
+   "record": {
+    "id": 60,
+    "status": "completed",
+    "get_err": null,
+    "paths": [
+     "scripts/p8_link_injector.py",
+     "scripts/_legacy/internal_link_builder.py",
+     "docs/archive/phamducphuongnam-seo/phase-2/T9-internal-link/stage_a5_t9_regenerate.py",
+     "scripts/_legacy/2026-05-08/p8_link_injector.py",
+     "scripts/p8_bot_listener.py"
+    ],
+    "rank": 0
+   }
+  }
+ ]
+}

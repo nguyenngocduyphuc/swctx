@@ -318,6 +318,25 @@ public enum Search {
                 championless.insert(s)
             }
         }
+        // Subword candidates for long glued tokens: "serpupdate" never
+        // matches path token "serp" (prefix match is one-directional),
+        // so a compound query word can hide a file literally named by
+        // its head ("nap_serp.py"). Emit len 4-7 prefixes/suffixes of
+        // tokens len>=8 — the path-DF oracle self-filters candidates
+        // that name nothing. Same tier as stems: fetch + claim only.
+        // Emitted before acronyms: a subword that survives path-DF names
+        // a real file, while acronym initials are coincidence-prone and
+        // their ~2×token window count would consume the 24-cap first.
+        for t in qToks where t.count >= 8 {
+            for len in 4...min(7, t.count - 1) {
+                for cand in [String(t.prefix(len)), String(t.suffix(len))]
+                where seen.insert(cand).inserted {
+                    out.append(cand)
+                    weak.insert(cand)
+                    championless.insert(cand)
+                }
+            }
+        }
         for ac in acronymAtoms(qToks)
         where ac.count >= 3 && seen.insert(ac).inserted {
             out.append(ac)
@@ -403,9 +422,11 @@ public enum Search {
         // the AND-folded probe ONLY — a bare "apply" probe returns 84
         // files, but `apply* AND folded:(suggest|internal|link)` isolates
         // ghost_link_builder_apply.py because the content must still
-        // speak the question's language.
-        let probed = atoms.filter { (pathDF[$0] ?? 0) > 0
-            && pathDF[$0]! <= midMaxFiles }
+        // speak the question's language. HIGH-DF atoms (>midMax, e.g.
+        // "link" at 218) still probe AND-folded — the content fold IS
+        // the flood control; `link* AND folded:(404|broken)` reaches
+        // p8_link_health.py where the bare gate dropped the atom.
+        let probed = atoms.filter { (pathDF[$0] ?? 0) > 0 }
         guard !probed.isEmpty else { return [] }
         // Content-DF orders the folded-AND discriminators — an atom rare
         // in paths but common in prose ("dang", "trang") narrows nothing.
@@ -429,8 +450,14 @@ public enum Search {
             // content actually speaks.
             let others = atoms.filter { $0 != a }
                 .sorted { (contentDF[$0] ?? 0) < (contentDF[$1] ?? 0) }
-            let disc = Array(others.prefix(3))
-                + Array(others.suffix(5))
+            // High-DF anchors flood either way — the 20-row fetch cap
+            // is the only bound, so maximize recall inside it with a
+            // wide OR over every other atom: `link* AND folded:(404|…)`
+            // surfaces p8_link_health.py where the narrow rare+common
+            // blend let 20 LinkedIn docs fill the window first.
+            let disc = (pathDF[a] ?? 0) > midMaxFiles
+                ? others
+                : Array(others.prefix(3)) + Array(others.suffix(5))
             var hits: [SearchHit] = []
             do {
                 if !disc.isEmpty {
@@ -611,9 +638,14 @@ public enum Search {
                     seg.components(separatedBy: CharacterSet.alphanumerics.inverted)
                         .contains { Search.archiveDirTokens.contains($0) }
                 }.count
+            // Surgical's sole-carrier atom must contain a letter: a
+            // pure-numeric token ("404") uniquely naming a file marks a
+            // recovery batch or report artifact (T1_2_media_404_recovery
+            // .json crowned over p8_link_health.py), never a concept.
             let surgical = !testLike && rarityMatters
                 && stemAtoms.contains {
                     (pathDF[$0] ?? 0) == 1 && !weakAtoms.contains($0)
+                        && $0.rangeOfCharacter(from: .letters) != nil
                 }
             scored.append((h, surgical, effectiveCover, stemDensity,
                            rank - (testLike ? 0.5 : 0)

@@ -1,5 +1,5 @@
 {
- "timestamp": "2026-09-19T05:50:51+00:00",
+ "timestamp": "2026-09-22T23:33:24+00:00",
  "probe": "vn_queries.json",
  "limit": 5,
  "ask_sample": [
@@ -12,7 +12,7 @@
  "ctxe_index": {
   "/Users/phuongnam/02.AI/NP_AI_macos/8.P8_SEO_Clean": {
    "indexed": true,
-   "files": 3098
+   "files": 3117
   },
   "/Users/phuongnam/02.AI/NP_AI_macos/18.CRM-Nam-Pham": {
    "indexed": true,
@@ -21,33 +21,33 @@
  },
  "latency_ms": {
   "ctxe:ask_context(min,nocompose)": {
-   "p50": 20335.9,
-   "p95": 60229.3,
+   "p50": 47858.9,
+   "p95": 60462.6,
    "n_calls": 4
   },
   "ctxe:find_definitions": {
-   "p50": 6.7,
-   "p95": 7.3,
+   "p50": 8.0,
+   "p95": 8.4,
    "n_calls": 4
   },
   "ctxe:workspace_tree(raw)": {
-   "p50": 41.2,
-   "p95": 208.7,
+   "p50": 48.2,
+   "p95": 228.5,
    "n_calls": 11
   },
   "ctxe:workspace_tree(token-sweep)": {
-   "p50": 424.2,
-   "p95": 1717.1,
+   "p50": 799.6,
+   "p95": 2465.1,
    "n_calls": 11
   },
   "swctx:find_definitions": {
-   "p50": 12.2,
-   "p95": 14.8,
+   "p50": 9.8,
+   "p95": 14.4,
    "n_calls": 4
   },
   "swctx:search": {
-   "p50": 101.4,
-   "p95": 621.4,
+   "p50": 286.2,
+   "p95": 1997.9,
    "n_calls": 22
   }
  },
@@ -58,7 +58,9 @@
   "crm-05",
   "seo-10"
  ],
- "ctxe_index_missing_expected": [],
+ "ctxe_index_missing_expected": [
+  "seo-10"
+ ],
  "aggregate": {
   "ctxe:ask_context(min,nocompose)": {
    "ALL": {
@@ -225,18 +227,18 @@
   "swctx:search": {
    "ALL": {
     "n": 22,
-    "hits": 13,
-    "recall_at_5": 0.5909
+    "hits": 16,
+    "recall_at_5": 0.7273
    },
    "concept_flow": {
     "n": 18,
-    "hits": 11,
-    "recall_at_5": 0.6111
+    "hits": 13,
+    "recall_at_5": 0.7222
    },
    "symbol_lookup": {
     "n": 4,
-    "hits": 2,
-    "recall_at_5": 0.5
+    "hits": 3,
+    "recall_at_5": 0.75
    },
    "in_path": {
     "n": 11,
@@ -245,8 +247,8 @@
    },
    "in_body_only": {
     "n": 11,
-    "hits": 4,
-    "recall_at_5": 0.3636
+    "hits": 7,
+    "recall_at_5": 0.6364
    }
   }
  },
@@ -265,20 +267,20 @@
    "results": {
     "swctx:search": {
      "paths": [
-      "docs/references/seo/google-seo-starter-guide.md",
       "scripts/p8_canonical_check.py",
-      "docs/plans/PLAN_SEO_AUTOMATION_GOOGLE_FIRST_2026-09-15.md",
-      "docs/plans/PLAN_SEO_AUTOMATION_GOOGLE_FIRST_2026-09-15.md",
-      "docs/plans/PLAN_SEO_AUTOMATION_GOOGLE_FIRST_2026-09-15.md"
+      "plans/003-validate-wp-url-host.md",
+      "docs/stories/epics/E03-fleet-ops/US-001-fleet-kpi-aggregation/validation.md",
+      "docs-fleet/public/console/duyet/hoso/chong-lap/index.html",
+      "scripts/_legacy/p8_article_checker.py"
      ],
-     "rank": 2,
-     "latency_ms": 379.9,
+     "rank": 1,
+     "latency_ms": 838.0,
      "status": "ok"
     },
     "ctxe:workspace_tree(raw)": {
      "paths": [],
      "rank": 0,
-     "latency_ms": 77.5,
+     "latency_ms": 95.5,
      "status": "ok",
      "n_files": 0
     },
@@ -291,17 +293,14 @@
       "scripts/_legacy/2026-05-08/extract_prompts_b4.py"
      ],
      "rank": 0,
-     "latency_ms": 980.1,
+     "latency_ms": 1015.9,
      "status": "ok",
-     "n_candidates": 367
+     "n_candidates": 375
     },
     "ctxe:ask_context(min,nocompose)": {
-     "paths": [
-      "artifacts/team/ket-audit/url_inspection_caller.py",
-      "docs/references/seo/meta-tags-schema.md"
-     ],
+     "paths": [],
      "rank": 0,
-     "latency_ms": 23892.1,
+     "latency_ms": 59459.9,
      "status": "ok",
      "payload_keys": [
       "answer",
@@ -313,26 +312,15 @@
       "schema_version"
      ],
      "record_evidence": {
-      "id": 16,
+      "id": 54,
       "status": "completed",
+      "get_err": null,
       "paths": [
        "scripts/p8_canonical_check.py",
-       "artifacts/team/ket-audit/url_inspection_caller.py",
-       "scripts/p8_daily_report.py",
        "scripts/p8_publish_gate.py",
        "docs/plans/REVIEW_INDEX_BRAND_GROWTH_2026-07-18.md"
       ],
-      "rank": 1,
-      "direct_paths": [
-       "scripts/p8_canonical_check.py",
-       "artifacts/team/ket-audit/url_inspection_caller.py",
-       "scripts/p8_daily_report.py"
-      ],
-      "direct_rank": 1,
-      "n_direct": 10,
-      "n_related": 5,
-      "duration_ms": 23879,
-      "failure_code": null
+      "rank": 1
      }
     }
    },
@@ -352,20 +340,20 @@
    "results": {
     "swctx:search": {
      "paths": [
-      "scripts/p8_link_health.py",
-      "docs/handoffs/HANDOFF_20260819_ca8-ci-gate-repair-telegram-audit.md",
-      "docs/handoffs/HANDOFF_20260807_bay-cua-noi-doi.md",
-      "docs/NEXT_ACTIONS.md",
-      "docs/00_governance/DRIFT_LOG.md"
+      "content/images/manifest/reports/20260511_recovery_v12_exec2/T1_2_media_404_recovery.json",
+      "scripts/p8_publish_gate.py",
+      "config/publish_gate_policy.json",
+      "config/internal_link_matrix.json",
+      "scripts/p8_content_publish_gate_check.py"
      ],
-     "rank": 1,
-     "latency_ms": 282.3,
+     "rank": 0,
+     "latency_ms": 1997.9,
      "status": "ok"
     },
     "ctxe:workspace_tree(raw)": {
      "paths": [],
      "rank": 0,
-     "latency_ms": 187.6,
+     "latency_ms": 194.5,
      "status": "ok",
      "n_files": 0
     },
@@ -378,9 +366,9 @@
       "scripts/p8_content_publish_gate_check.py"
      ],
      "rank": 0,
-     "latency_ms": 1717.1,
+     "latency_ms": 2465.1,
      "status": "ok",
-     "n_candidates": 201
+     "n_candidates": 202
     }
    },
    "ctxe_index_has_expected": true
@@ -399,20 +387,20 @@
    "results": {
     "swctx:search": {
      "paths": [
-      "scripts/p8_link_injector.py",
       "scripts/p8_utm_builder.py",
-      "docs/00_governance/LEGACY_SCRIPT_INDEX.md",
-      "docs/00_governance/SCRIPT_REGISTRY_P8.md",
-      "docs/seo/campaigns/1MKT_VAN_PHONG_VA_HANG_CHO.md"
+      "scripts/_legacy/2026-05-08/_gen_excel.py",
+      "scripts/_legacy/2026-05-23/MOVED_FILES.txt",
+      "docs/seo/campaigns/linkedin/linkedin_reviewer.html",
+      "content/images/manifest/reports/20260511_wave2/all_article_links.json"
      ],
-     "rank": 2,
-     "latency_ms": 621.4,
+     "rank": 1,
+     "latency_ms": 768.0,
      "status": "ok"
     },
     "ctxe:workspace_tree(raw)": {
      "paths": [],
      "rank": 0,
-     "latency_ms": 41.2,
+     "latency_ms": 48.2,
      "status": "ok",
      "n_files": 0
     },
@@ -422,12 +410,12 @@
       "docs/archive/phamducphuongnam-seo/phase-2/T7-anchor/script.py",
       "docs/archive/phamducphuongnam-seo/phase-2/T9-internal-link/script.py",
       "scripts/_legacy/fix_xem_them_anchors.py",
-      "scripts/_legacy/2026-05-08/_gen_excel.py"
+      "scripts/_legacy/ghost_link_builder_apply.py"
      ],
      "rank": 0,
-     "latency_ms": 1716.6,
+     "latency_ms": 2453.1,
      "status": "ok",
-     "n_candidates": 352
+     "n_candidates": 349
     }
    },
    "ctxe_index_has_expected": true
@@ -446,20 +434,20 @@
    "results": {
     "swctx:search": {
      "paths": [
-      "docs/handoffs/HANDOFF_20260729_PHIEN_DEM_pipeline-anh-giam-sat.md",
-      "docs/references/visual-identity-guidelines.md",
-      "docs/00_governance/PENDING_ACTIONS_REGISTRY.md",
-      "docs/handoffs/HANDOFF_20260731_nampham-std-ops-e2e.md",
-      "content/images/C2.8/huong_dan_chen_anh.md"
+      "docs/plans/AUDIT_5_MUC_WORDPRESS_AUTOMATION_2026-09-15.md",
+      "scripts/p8_image_worker.py",
+      "docs/operations/P8_AUTOPUBLISH_WORKFLOW_V3.1.md",
+      "content/images/C1.4/huong_dan_chen_anh.md",
+      "content/images/manifest/reports/20260511_wave2/01_manifest_wave2_generation_report.json"
      ],
-     "rank": 0,
-     "latency_ms": 210.9,
+     "rank": 2,
+     "latency_ms": 2027.1,
      "status": "ok"
     },
     "ctxe:workspace_tree(raw)": {
      "paths": [],
      "rank": 0,
-     "latency_ms": 208.7,
+     "latency_ms": 228.5,
      "status": "ok",
      "n_files": 0
     },
@@ -472,9 +460,9 @@
       "scripts/_legacy/2026-05-28_worker_sprawl/fix_p1_content_issues.py"
      ],
      "rank": 0,
-     "latency_ms": 1377.2,
+     "latency_ms": 1737.9,
      "status": "ok",
-     "n_candidates": 312
+     "n_candidates": 313
     }
    },
    "ctxe_index_has_expected": true
@@ -493,14 +481,14 @@
    "results": {
     "swctx:search": {
      "paths": [
-      "docs/handoffs/HANDOFF_20260814_site-title-cache-va-cua-gac.md",
-      "docs/handoffs/HANDOFF_20260729_SANG_crm-dong-bo-va-goc-benh.md",
-      "docs/handoffs/HANDOFF_20260813_cf_access_credential_audit.md",
-      "docs/handoffs/HANDOFF_20260813_cau-noi-cmux-1dev.md",
-      "docs/handoffs/HANDOFF_20260819_ca8-ci-gate-repair-telegram-audit.md"
+      "config/fleet/entity_mesh.json",
+      "factory/sites/phamducphuongnam/entity.json",
+      "archive/knowhows/knowhows/4.cluster_architurcture/2.GMP/03.Audit_He_Thong_Tu_Dong/Post_03_Audit_He_Thong_Tu_Dong.md",
+      "content/images/manifest/reports/20260511_task8_145646/09_sync_report.json",
+      "docs/references/technical/ENTERPRISE_WORDPRESS_AND_INFORMATION_GAIN_2026.md"
      ],
      "rank": 0,
-     "latency_ms": 124.8,
+     "latency_ms": 428.3,
      "status": "ok"
     },
     "ctxe:none": {
@@ -527,14 +515,14 @@
    "results": {
     "swctx:search": {
      "paths": [
-      "scripts/_legacy/2026-05-28_worker_sprawl/pdpn_docs_governance_refresh.py",
+      "docs-fleet/doi-ngu.md",
+      "logs/worktree_status_snapshot_20260527-184840.json",
       "docs-fleet/ship-log/reports/worker-integration-formula.md",
-      "docs-fleet/onboarding.md",
-      "docs/fleet/ROLES.md",
-      "docs/handoffs/HANDOFF_20260820_asana-opc-tach-cong-ty.md"
+      "docs-fleet/ship-log/reports/worker-sklite-blueprint.md",
+      "WORKFLOW.md"
      ],
-     "rank": 0,
-     "latency_ms": 149.1,
+     "rank": 1,
+     "latency_ms": 485.6,
      "status": "ok"
     },
     "ctxe:none": {
@@ -561,14 +549,14 @@
    "results": {
     "swctx:search": {
      "paths": [
-      "docs/handoffs/HANDOFF_20260727_chuan-hoa-quy-trinh.md",
-      "docs/handoffs/HANDOFF_20260727_dinh-dang-noi-dung.md",
-      "scripts/_legacy/pdpn_phase4_sentence_manual5.py",
-      "scripts/_legacy/pdpn_phase4_yoast_intro_remediate_from_backup.py",
-      "WORKFLOW.md"
+      "docs/decisions/0008-wordpress-publishing-standard.md",
+      "archive/knowhows/knowhows/20_workflows/WORKFLOW_VIET_BAI_SEO.md",
+      "content/images/manifest/reports/20260511_recovery_v12_exec1/after/post_2169_tai-sao-du-an-pharma-4-0-that-bai-phan-tich-he-thong_after_20260511_214228.txt",
+      "content/images/manifest/reports/20260511_recovery_v12_exec1/rollback/post_2169_tai-sao-du-an-pharma-4-0-that-bai-phan-tich-he-thong_before_20260511_214228.txt",
+      "content/images/manifest/reports/20260511_recovery_v12_exec2/after/post_2169_tai-sao-du-an-pharma-4-0-that-bai-phan-tich-he-thong_after_20260511_214523.txt"
      ],
-     "rank": 5,
-     "latency_ms": 108.6,
+     "rank": 0,
+     "latency_ms": 607.1,
      "status": "ok"
     },
     "ctxe:none": {
@@ -595,20 +583,20 @@
    "results": {
     "swctx:search": {
      "paths": [
-      "scripts/p8_format_remediation.py",
-      "scripts/_legacy/p8_format_remediation.py",
+      "docs/operations/P8_OPERATIONAL_WORKFLOW_ONE_PAGE.html",
       "scripts/p8_fix_featured_images.py",
-      "scripts/_legacy/c1_schema_generate.py",
-      "scripts/_legacy/2026-06-18-reconcile/c1_pipeline_common.py"
+      "content/images/C3.7/huong_dan_chen_anh.md",
+      "content/images/manifest/reports/20260511_wave2/01_manifest_wave2_generation_report.json",
+      "content/images/manifest/reports/20260511_wave2/next_batch_proposal_and_readiness.json"
      ],
-     "rank": 3,
-     "latency_ms": 129.5,
+     "rank": 2,
+     "latency_ms": 684.0,
      "status": "ok"
     },
     "ctxe:workspace_tree(raw)": {
      "paths": [],
      "rank": 0,
-     "latency_ms": 204.0,
+     "latency_ms": 221.8,
      "status": "ok",
      "n_files": 0
     },
@@ -621,9 +609,9 @@
       "content/images/manifest/reports/20260511_genspark_handoff.md"
      ],
      "rank": 0,
-     "latency_ms": 1364.6,
+     "latency_ms": 1807.6,
      "status": "ok",
-     "n_candidates": 538
+     "n_candidates": 539
     }
    },
    "ctxe_index_has_expected": true
@@ -642,20 +630,20 @@
    "results": {
     "swctx:search": {
      "paths": [
-      "crm-nam-pham/04-app-frontend/nhat-ky.html",
+      "crm-nam-pham/cham-cong.json",
       "crm-nam-pham/09-build/cham_cong.py",
-      "crm-nam-pham/07-docs/AUDIT_TONG_KIEM_20260806_grok.md",
-      "crm-nam-pham/07-docs/AUDIT_FULL_20260811_cowork.html",
-      "crm-nam-pham/04-app-frontend/van-hanh.html"
+      "crm-nam-pham/04-app-frontend/cham-cong.html",
+      "crm-nam-pham/09-build/log_activity_live.py",
+      "crm-nam-pham/04-app-frontend/nhat-ky.html"
      ],
      "rank": 2,
-     "latency_ms": 94.3,
+     "latency_ms": 144.2,
      "status": "ok"
     },
     "ctxe:workspace_tree(raw)": {
      "paths": [],
      "rank": 0,
-     "latency_ms": 8.0,
+     "latency_ms": 9.7,
      "status": "ok",
      "n_files": 0
     },
@@ -668,7 +656,7 @@
       "crm-nam-pham/_archive-genspark/06-import-scripts/import_csv_pdpn.py"
      ],
      "rank": 1,
-     "latency_ms": 76.0,
+     "latency_ms": 85.5,
      "status": "ok",
      "n_candidates": 5
     }
@@ -689,14 +677,14 @@
    "results": {
     "swctx:search": {
      "paths": [
-      "HANDOFF-CRM-20260724.md",
-      "0-MASTER-PLAN-AUDIT.md",
-      "crm-nam-pham/09-build/so_tay.py",
-      "crm-nam-pham/07-docs/COWORK_AUDIT.md",
-      "crm-nam-pham/04-app-frontend/van-hanh.html"
+      "crm-nam-pham/09-build/cham_cong.py",
+      "crm-nam-pham/04-app-frontend/ceo-cockpit.html",
+      "crm-nam-pham/04-app-frontend/viec-da-quyet.html",
+      "crm-nam-pham/07-docs/SECURITY_THREAT_MODEL_codex-security_20260729.md",
+      "HANDOFF-CRM-20260724.md"
      ],
-     "rank": 3,
-     "latency_ms": 51.9,
+     "rank": 0,
+     "latency_ms": 51.5,
      "status": "ok"
     },
     "swctx:find_definitions": {
@@ -704,7 +692,7 @@
       "crm-nam-pham/09-build/so_tay.py"
      ],
      "rank": 1,
-     "latency_ms": 9.8,
+     "latency_ms": 14.4,
      "status": "ok",
      "symbols": [
       "tom_tat"
@@ -715,7 +703,7 @@
       "crm-nam-pham/09-build/so_tay.py"
      ],
      "rank": 1,
-     "latency_ms": 6.6,
+     "latency_ms": 8.1,
      "status": "ok",
      "symbols": [
       "tom_tat"
@@ -738,14 +726,12 @@
    "results": {
     "swctx:search": {
      "paths": [
-      "crm-nam-pham/09-build/so_tay.py",
       "crm-nam-pham/09-build/tin_lead.py",
-      "crm-nam-pham/09-build/tin_lead.py",
-      "crm-nam-pham/09-build/tin_lead.py",
-      "crm-nam-pham/07-docs/WORK_ORDER_20260812.md"
+      "crm-nam-pham/09-build/push_d1.py",
+      "crm-nam-pham/09-build/so_tay.py"
      ],
-     "rank": 2,
-     "latency_ms": 45.0,
+     "rank": 1,
+     "latency_ms": 56.3,
      "status": "ok"
     },
     "swctx:find_definitions": {
@@ -753,7 +739,7 @@
       "crm-nam-pham/09-build/tin_lead.py"
      ],
      "rank": 1,
-     "latency_ms": 14.6,
+     "latency_ms": 9.0,
      "status": "ok",
      "symbols": [
       "format_fragment"
@@ -764,7 +750,7 @@
       "crm-nam-pham/09-build/tin_lead.py"
      ],
      "rank": 1,
-     "latency_ms": 6.7,
+     "latency_ms": 8.4,
      "status": "ok",
      "symbols": [
       "format_fragment"
@@ -787,20 +773,20 @@
    "results": {
     "swctx:search": {
      "paths": [
+      "crm-nam-pham/09-build/dong_vong.py",
       "crm-nam-pham/04-app-frontend/bang-quyet-dinh.html",
-      "crm-nam-pham/07-docs/RESEARCH_CEO_ADMIN_UI_20260820.md",
-      "crm-nam-pham/07-docs/RESEARCH_CEO_ADMIN_UI_20260820.md",
-      "crm-nam-pham/07-docs/RESEARCH_CEO_ADMIN_UI_20260820.md",
-      "crm-nam-pham/07-docs/PLAN_UI_QUANTRI_CEO_20260820.md"
+      "crm-nam-pham/04-app-frontend/viec-da-quyet.html",
+      "crm-nam-pham/08-scripts/test-backend-local.MOCK.py",
+      "PLAN-ceo-nampham-net.md"
      ],
-     "rank": 0,
-     "latency_ms": 54.4,
+     "rank": 1,
+     "latency_ms": 48.8,
      "status": "ok"
     },
     "ctxe:workspace_tree(raw)": {
      "paths": [],
      "rank": 0,
-     "latency_ms": 7.7,
+     "latency_ms": 8.8,
      "status": "ok",
      "n_files": 0
     },
@@ -813,14 +799,14 @@
       "PLAN-ceo-nampham-net.md"
      ],
      "rank": 0,
-     "latency_ms": 84.9,
+     "latency_ms": 100.3,
      "status": "ok",
      "n_candidates": 10
     },
     "ctxe:ask_context(min,nocompose)": {
      "paths": [],
      "rank": 0,
-     "latency_ms": 12574.1,
+     "latency_ms": 36257.9,
      "status": "ok",
      "payload_keys": [
       "answer",
@@ -832,23 +818,15 @@
       "schema_version"
      ],
      "record_evidence": {
-      "id": 1,
+      "id": 8,
       "status": "completed",
+      "get_err": null,
       "paths": [
        "crm-nam-pham/09-build/dong_vong.py",
        "crm-nam-pham/07-docs/PLAN_TASK_UI_SITE_20260820.md",
-       "HANDOFF-CRM-20260724.md",
        "crm-nam-pham/07-docs/WORK_ORDER_20260812.md"
       ],
-      "rank": 1,
-      "direct_paths": [
-       "crm-nam-pham/09-build/dong_vong.py"
-      ],
-      "direct_rank": 1,
-      "n_direct": 6,
-      "n_related": 3,
-      "duration_ms": 12565,
-      "failure_code": null
+      "rank": 1
      }
     }
    },
@@ -869,13 +847,13 @@
     "swctx:search": {
      "paths": [
       "crm-nam-pham/functions/_middleware.js",
-      "crm-nam-pham/functions/_middleware.js",
       "crm-nam-pham/07-docs/DANG_NHAP.md",
-      "crm-nam-pham/07-docs/DANG_NHAP.md",
-      "crm-nam-pham/07-docs/DANG_NHAP.md"
+      "crm-nam-pham/09-build/so_tay.py",
+      "crm-nam-pham/04-app-frontend/bang-quyet-dinh.html",
+      "crm-nam-pham/artifacts/team/kiem-ke-theo-site.md"
      ],
      "rank": 1,
-     "latency_ms": 76.4,
+     "latency_ms": 78.5,
      "status": "ok"
     },
     "ctxe:none": {
@@ -903,19 +881,19 @@
     "swctx:search": {
      "paths": [
       "crm-nam-pham/07-docs/DANG_NHAP.md",
-      "crm-nam-pham/07-docs/DANG_NHAP.md",
-      "PLAN-ceo-nampham-net.md",
-      "PLAN-ceo-nampham-net.md",
-      "crm-nam-pham/07-docs/AUDIT_3_SURFACE_CEO_20260820_agy.md"
+      "crm-nam-pham/04-app-frontend/ceo-cockpit.html",
+      "crm-nam-pham/04-app-frontend/bang-quyet-dinh.html",
+      "crm-nam-pham/09-build/test_tra_lai_khong_mat_du_lieu.py",
+      "PLAN-ceo-nampham-net.md"
      ],
      "rank": 1,
-     "latency_ms": 42.9,
+     "latency_ms": 37.0,
      "status": "ok"
     },
     "ctxe:workspace_tree(raw)": {
      "paths": [],
      "rank": 0,
-     "latency_ms": 8.2,
+     "latency_ms": 9.7,
      "status": "ok",
      "n_files": 0
     },
@@ -928,7 +906,7 @@
       "PLAN-ceo-nampham-net.md"
      ],
      "rank": 0,
-     "latency_ms": 93.9,
+     "latency_ms": 103.1,
      "status": "ok",
      "n_candidates": 10
     }
@@ -949,20 +927,20 @@
    "results": {
     "swctx:search": {
      "paths": [
-      "crm-nam-pham/09-build/nap_serp.py",
-      "crm-nam-pham/04-app-frontend/lich-su-hang.html",
-      "crm-nam-pham/09-build/init_db.py",
-      "0-MASTER-PLAN-AUDIT.md",
-      "0-MASTER-PLAN-AUDIT.md"
+      "crm-nam-pham/_archive-genspark/06-import-scripts/import_csv_pdpn.py",
+      "crm-nam-pham/_archive-genspark/06-import-scripts/import_csv_nampham_landing.py",
+      "crm-nam-pham/02-seed-data/data-csv-keywords_202630.README.txt",
+      "crm-nam-pham/09-build/tin_lead.py",
+      "crm-nam-pham/09-build/export_tables.py"
      ],
-     "rank": 1,
-     "latency_ms": 61.9,
+     "rank": 0,
+     "latency_ms": 47.2,
      "status": "ok"
     },
     "ctxe:workspace_tree(raw)": {
      "paths": [],
      "rank": 0,
-     "latency_ms": 7.7,
+     "latency_ms": 8.3,
      "status": "ok",
      "n_files": 0
     },
@@ -975,7 +953,7 @@
       "crm-nam-pham/07-docs/PIPELINE_BUOC_DDL_snapshot.md"
      ],
      "rank": 0,
-     "latency_ms": 68.0,
+     "latency_ms": 73.2,
      "status": "ok",
      "n_candidates": 9
     }
@@ -996,14 +974,14 @@
    "results": {
     "swctx:search": {
      "paths": [
+      "crm-nam-pham/09-build/ghi_so.py",
       "crm-nam-pham/09-build/daily.sh",
-      "crm-nam-pham/09-build/push_d1.py",
       "crm-nam-pham/09-build/push_d1.py",
       "crm-nam-pham/07-docs/SECURITY_THREAT_MODEL_codex-security_20260729.md",
       "crm-nam-pham/09-build/daily.sh"
      ],
-     "rank": 0,
-     "latency_ms": 54.3,
+     "rank": 1,
+     "latency_ms": 39.1,
      "status": "ok"
     },
     "swctx:find_definitions": {
@@ -1011,7 +989,7 @@
       "crm-nam-pham/09-build/ghi_so.py"
      ],
      "rank": 1,
-     "latency_ms": 6.3,
+     "latency_ms": 9.6,
      "status": "ok",
      "symbols": [
       "ghi_quyet_dinh"
@@ -1022,7 +1000,7 @@
       "crm-nam-pham/09-build/ghi_so.py"
      ],
      "rank": 1,
-     "latency_ms": 6.7,
+     "latency_ms": 7.9,
      "status": "ok",
      "symbols": [
       "ghi_quyet_dinh"
@@ -1045,49 +1023,26 @@
    "results": {
     "swctx:search": {
      "paths": [
+      "scripts/p8_brain.py",
+      "docs/plans/asana_payloads/2026-06-24-gsc-ga4-phase1/D01-link-ga4-gsc.md",
       "docs/references/seo/gsc-ga4-mcp-operating-playbook.md",
-      "docs/references/seo/gsc-ga4-mcp-operating-playbook.md",
-      "docs/archive/phamducphuongnam-seo/prod-fix-heading-level-report-kien-truc-du-lieu-ems-nang-cao-isa95-historian-iec62443-20260521-180948.json",
-      "docs/handoffs/awgs_mcp_ga4_gsc_foreman_2026-07-21.md",
+      "docs/plans/PLAN_memory_doc_lap_database_20260820.md",
       "docs/handoffs/awgs_mcp_ga4_gsc_foreman_2026-07-21.md"
      ],
-     "rank": 0,
-     "latency_ms": 245.8,
+     "rank": 1,
+     "latency_ms": 1805.6,
      "status": "ok"
     },
     "ctxe:ask_context(min,nocompose)": {
      "rank": 0,
      "paths": [],
-     "latency_ms": 60229.3,
-     "status": "timeout-recovered",
+     "latency_ms": 60462.6,
+     "status": "timeout",
      "record_recovery": {
-      "id": 17,
-      "status": "running",
       "list_err": null,
+      "id": 55,
+      "status": "running",
       "get_err": null
-     },
-     "record_evidence": {
-      "id": 17,
-      "status": "completed",
-      "paths": [
-       "scripts/p8_analytics_pull.py",
-       "scripts/p8_brain.py",
-       "scripts/p8_daily.py",
-       "scripts/p8_auto_optimizer.py",
-       "artifacts/team/sda-brain/constitution_draft.md"
-      ],
-      "rank": 2,
-      "direct_paths": [
-       "scripts/p8_analytics_pull.py",
-       "scripts/p8_brain.py",
-       "scripts/p8_daily.py",
-       "scripts/p8_auto_optimizer.py"
-      ],
-      "direct_rank": 2,
-      "n_direct": 19,
-      "n_related": 0,
-      "duration_ms": 64574,
-      "failure_code": null
      }
     }
    },
@@ -1107,14 +1062,14 @@
    "results": {
     "swctx:search": {
      "paths": [
-      "scripts/internal_link_builder.py",
-      "docs/00_governance/CHUAN_BO_CUC_TRANG_BAI_VIET.md",
-      "docs/handoffs/HANDOFF_20260729_ui-bo-cuc-trang-bai-viet.md",
-      "scripts/p8_link_injector.py",
-      "scripts/p8_content_depth_worker.py"
+      "docs/archive/session-reports/data_2026-05-24/keyword_suggest_summary.json",
+      "docs/archive/phamducphuongnam-seo/phase-4/verify/pic-s-data-integrity-checklist-viet-nam/internal-link-check.json",
+      "scripts/_legacy/internal_link_builder.py",
+      "scripts/_legacy/ghost_link_builder_apply.py",
+      "scripts/audit_articles.py"
      ],
      "rank": 0,
-     "latency_ms": 1262.1,
+     "latency_ms": 984.2,
      "status": "ok"
     },
     "ctxe:none": {
@@ -1125,7 +1080,7 @@
      "note": "no free workspace-wide NL retrieval; inspect_path needs a dir scope, ask_context costs credits"
     }
    },
-   "ctxe_index_has_expected": true
+   "ctxe_index_has_expected": false
   },
   {
    "id": "seo-11",
@@ -1141,20 +1096,20 @@
    "results": {
     "swctx:search": {
      "paths": [
-      "docs-fleet/ke-hoach.md",
-      "docs-fleet/ke-hoach.md",
-      "docs-fleet/ke-hoach.md",
+      "docs/plans/MASTER_PLAN_aivault_team_20260820.html",
+      "docs/plans/PLAN_memory_doc_lap_database_20260820.md",
       "docs/handoffs/HANDOFF_20260820_ke-hoach-9-viec-va-luat-dong-main.md",
-      "docs-fleet/index.md"
+      "docs-fleet/ke-hoach.md",
+      "docs/operations/TEAM_ORCHESTRATION.md"
      ],
-     "rank": 1,
-     "latency_ms": 166.5,
+     "rank": 4,
+     "latency_ms": 438.5,
      "status": "ok"
     },
     "ctxe:workspace_tree(raw)": {
      "paths": [],
      "rank": 0,
-     "latency_ms": 43.3,
+     "latency_ms": 79.8,
      "status": "ok",
      "n_files": 0
     },
@@ -1167,9 +1122,9 @@
       "docs/archive/session-reports/P8_BLUEMOUNTAIN_FORMAT_MAPPING_2026-05-27.md"
      ],
      "rank": 1,
-     "latency_ms": 424.2,
+     "latency_ms": 799.6,
      "status": "ok",
-     "n_candidates": 278
+     "n_candidates": 279
     }
    },
    "ctxe_index_has_expected": true
@@ -1189,19 +1144,19 @@
     "swctx:search": {
      "paths": [
       "crm-nam-pham/09-build/kiem_he_thiet_ke.py",
-      "crm-nam-pham/04-app-frontend/he-thiet-ke.css",
-      "crm-nam-pham/04-app-frontend/he-thiet-ke.css",
-      "crm-nam-pham/07-docs/THAMCHIEU_1MKT_UI_20260820.md",
-      "crm-nam-pham/07-docs/THAMCHIEU_1MKT_20260820.html"
+      "crm-nam-pham/04-app-frontend/trang.html",
+      "crm-nam-pham/07-docs/MAU_GIAODIEN_CEO_20260820.html",
+      "crm-nam-pham/07-docs/REVIEW_FRONTEND_NEN_20260820.md",
+      "crm-nam-pham/09-build/test_tra_lai_khong_mat_du_lieu.py"
      ],
      "rank": 1,
-     "latency_ms": 86.2,
+     "latency_ms": 79.8,
      "status": "ok"
     },
     "ctxe:workspace_tree(raw)": {
      "paths": [],
      "rank": 0,
-     "latency_ms": 9.5,
+     "latency_ms": 12.9,
      "status": "ok",
      "n_files": 0
     },
@@ -1214,7 +1169,7 @@
       "crm-nam-pham/_archive-genspark/06-import-scripts/import_csv_nampham_landing.py"
      ],
      "rank": 1,
-     "latency_ms": 87.3,
+     "latency_ms": 139.2,
      "status": "ok",
      "n_candidates": 11
     }
@@ -1235,20 +1190,20 @@
    "results": {
     "swctx:search": {
      "paths": [
+      "crm-nam-pham/09-build/vaid_issues.py",
+      "crm-nam-pham/08-scripts/test-backend-local.MOCK.py",
       "crm-nam-pham/09-build/push_d1.py",
       "crm-nam-pham/09-build/pull_d1.py",
-      "crm-nam-pham/09-build/push_d1.py",
-      "crm-nam-pham/09-build/push_d1.py",
-      "crm-nam-pham/09-build/push_d1.py"
+      "crm-nam-pham/09-build/pull_d1.py"
      ],
-     "rank": 0,
-     "latency_ms": 83.2,
+     "rank": 1,
+     "latency_ms": 36.0,
      "status": "ok"
     },
     "swctx:find_definitions": {
      "paths": [],
      "rank": 0,
-     "latency_ms": 14.8,
+     "latency_ms": 10.1,
      "status": "ok",
      "symbols": [
       "realign",
@@ -1259,7 +1214,7 @@
     "ctxe:find_definitions": {
      "paths": [],
      "rank": 0,
-     "latency_ms": 7.3,
+     "latency_ms": 6.9,
      "status": "ok",
      "symbols": [
       "realign",
@@ -1289,20 +1244,20 @@
    "results": {
     "swctx:search": {
      "paths": [
+      "crm-nam-pham/09-build/log_activity_live.py",
+      "crm-nam-pham/09-build/dong_vong.py",
       "crm-nam-pham/04-app-frontend/nhat-ky.html",
-      "crm-nam-pham/07-docs/THAMCHIEU_1MKT_DULIEU_20260820.md",
-      "crm-nam-pham/08-scripts/test-backend-local.MOCK.py",
-      "HANDOFF-CRM-20260724.md",
-      "PLAN-ceo-nampham-net.md"
+      "crm-nam-pham/08-scripts/pull-crm-weekly.MOCK.py",
+      "crm-nam-pham/08-scripts/test-backend-local.MOCK.py"
      ],
-     "rank": 0,
-     "latency_ms": 41.7,
+     "rank": 1,
+     "latency_ms": 39.5,
      "status": "ok"
     },
     "ctxe:ask_context(min,nocompose)": {
      "paths": [],
      "rank": 0,
-     "latency_ms": 16779.8,
+     "latency_ms": 25491.3,
      "status": "ok",
      "payload_keys": [
       "answer",
@@ -1314,22 +1269,16 @@
       "schema_version"
      ],
      "record_evidence": {
-      "id": 2,
+      "id": 9,
       "status": "completed",
+      "get_err": null,
       "paths": [
        "crm-nam-pham/09-build/log_activity_live.py",
        "crm-nam-pham/09-build/build_activity.py",
+       "crm-nam-pham/09-build/init_db.py",
        "crm-nam-pham/09-build/cham_cong.py"
       ],
-      "rank": 1,
-      "direct_paths": [
-       "crm-nam-pham/09-build/log_activity_live.py"
-      ],
-      "direct_rank": 1,
-      "n_direct": 4,
-      "n_related": 5,
-      "duration_ms": 16770,
-      "failure_code": null
+      "rank": 1
      }
     }
    },

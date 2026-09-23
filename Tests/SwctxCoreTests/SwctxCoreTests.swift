@@ -638,6 +638,23 @@ final class SwctxCoreTests: SwctxTestCase {
         XCTAssertFalse(championless2.contains("gas"))
     }
 
+    /// Long glued query tokens emit weak+championless subword
+    /// candidates — "serpupdate" must probe "serp" (the head that
+    /// actually names nap_serp.py); short tokens emit none, and
+    /// subwords never crown surgical or champion a file.
+    func testProbeSubwordAtoms() {
+        let (atoms, weak, championless) = Search.plannerProbeAtomSets(
+            query: "script nạp file csv export từ serpupdate")
+        XCTAssertTrue(atoms.contains("serp"))
+        XCTAssertTrue(atoms.contains("serpupdate"))
+        XCTAssertTrue(weak.contains("serp"))
+        XCTAssertTrue(championless.contains("serp"))
+        // Short tokens emit no subword candidates.
+        let (atoms2, _, _) = Search.plannerProbeAtomSets(query: "cat dog")
+        XCTAssertFalse(atoms2.contains("ca"))
+        XCTAssertFalse(atoms2.contains("do"))
+    }
+
     /// A file fetched ONLY by a stem atom and scoring below the rank
     /// bar must not be champion-emitted; the same file fetched by an
     /// acronym atom IS champion-eligible (the filename IS the phrase's
