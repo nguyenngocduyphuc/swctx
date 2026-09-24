@@ -708,6 +708,127 @@ public enum Search {
         return out
     }
 
+    /// Within-window reorder for rank-1 quality. A hit whose basename
+    /// stem covers ≥2 query name atoms — or ≥1 atom plus an explicit
+    /// kind/extension intent — IS the file the question names and
+    /// should lead content-only hits (a prose doc matching "hệ thiết
+    /// kế" vocabulary is not the answer to "file css … hệ thiết kế").
+    /// Pure permutation of the window: membership (recall@5) is
+    /// untouched, only order changes. `pinned` paths (surgical probe
+    /// hits) keep their leading slots — that evidence is stronger.
+    static func headLift(_ hits: [SearchHit],
+                         queryNameAtoms: Set<String>,
+                         query: String,
+                         pinned: Set<String> = [],
+                         queryAtoms: Set<String> = []) -> [SearchHit] {
+        guard hits.count > 1 else { return hits }
+        // Kind/extension intent, folded to the query's language.
+        let fq = foldText(query)
+        let qtoks = Set(fq.components(
+            separatedBy: CharacterSet.alphanumerics.inverted)
+            .filter { !$0.isEmpty })
+        // Digit-bearing short tokens ("d1", "p8") are real identifiers
+        // — the ≥3-char atom filter drops them, but pull_d1.py is
+        // literally named by the query's "d1". Coverage atoms here
+        // ONLY: they never corroborate tail occupants (a d1-named
+        // neighbour would otherwise look justified and block rescue).
+        var covAtoms = queryNameAtoms
+        covAtoms.formUnion(qtoks.filter {
+            $0.count >= 2 && $0.contains(where: { $0.isNumber }) })
+        let codeExts: Set<String> = ["py", "sh", "js", "mjs", "ts",
+                                     "tsx", "swift", "rb", "go"]
+        var kindExts = Set<String>()
+        // Explicit "file css"/"tệp json" — the extension token only
+        // counts when the query is asking for a FILE ("parse a csv
+        // export" describes data, not a target extension).
+        if !qtoks.isDisjoint(with: ["file", "tep"]) {
+            kindExts.formUnion(qtoks.intersection(
+                ["css", "html", "json", "jsonl", "md", "py", "sh",
+                 "js", "ts", "sql", "txt", "csv", "yml", "yaml"]))
+        }
+        // Code-kind words: script/hàm/function/module/server…
+        if !qtoks.isDisjoint(with: [
+            "script", "ham", "function", "code", "cli", "tool",
+            "worker", "server", "service", "module", "pipeline",
+            "cron", "job", "api", "endpoint", "crawler", "bot",
+            "hook", "plugin", "lambda"]) {
+            kindExts.formUnion(codeExts)
+        }
+        // Doc-kind phrases ("hướng dẫn", "sổ tay", "quy trình"…) —
+        // multi-word so token sets can't see them.
+        if !qtoks.isDisjoint(with: ["doc", "docs", "playbook",
+                "checklist", "plan", "spec", "note", "guide"])
+            || fq.contains("huong dan") || fq.contains("so tay")
+            || fq.contains("quy trinh") || fq.contains("tai lieu")
+            || fq.contains("ke hoach") || fq.contains("checklist")
+            || fq.contains("bien ban") || fq.contains("bao cao")
+            || fq.contains("suco") || fq.contains("su co") {
+            kindExts.formUnion(["md", "txt", "rst", "adoc"])
+        }
+        func stemToks(_ path: String) -> Set<String> {
+            let base = (path as NSString).lastPathComponent
+            let stem = (base as NSString).deletingPathExtension
+            var t = Set(stem.split(omittingEmptySubsequences: true,
+                whereSeparator: { !$0.isLetter && !$0.isNumber })
+                .map { $0.lowercased() })
+            for raw in stem.split(omittingEmptySubsequences: true,
+                whereSeparator: { !$0.isLetter && !$0.isNumber }) {
+                t.formUnion(symbolTokens(String(raw))
+                    .map { foldText($0) })
+            }
+            return t
+        }
+        // Leading surgical hits keep their slots — UNLESS the query
+        // carries a kind/extension intent they contradict: a surgical
+        // .html is not protected when the question asked for "file
+        // css" (trang.html vs he-thiet-ke.css).
+        var head = 0
+        while head < hits.count && pinned.contains(hits[head].path) {
+            let ext = (hits[head].path as NSString)
+                .pathExtension.lowercased()
+            if !kindExts.isEmpty && !ext.isEmpty
+                && !kindExts.contains(ext) { break }
+            // A surgical reached through a DERIVED atom (lexicon
+            // "kéo"→pull, model guesses) is reach, not the user's own
+            // vocabulary — only query-atom surgicals hold the pin.
+            if !queryAtoms.isEmpty && stemToks(hits[head].path)
+                .isDisjoint(with: queryAtoms) { break }
+            head += 1
+        }
+        var promoted: [(Int, SearchHit, Int, Bool, Bool)] = []
+        var rest: [SearchHit] = []
+        for i in head..<hits.count {
+            let h = hits[i]
+            let base = (h.path as NSString).lastPathComponent
+            let stem = (base as NSString).deletingPathExtension
+            let toks = stemToks(h.path)
+            let cov = toks.intersection(covAtoms).count
+            let ext = ((h.path as NSString).pathExtension.lowercased())
+            let extOk = !ext.isEmpty && kindExts.contains(ext)
+            // Phrase coverage: the stem read as words is literally in
+            // the question ("dang_nhap" ← "đăng nhập") — stronger than
+            // scattered single-atom hits, and immune to stopword
+            // filtering that keeps "dang" out of the atom set.
+            let stemPhrase = stem.split(omittingEmptySubsequences: true,
+                whereSeparator: { !$0.isLetter && !$0.isNumber })
+                .map { foldText(String($0)) }.joined(separator: " ")
+            let phrase = stemPhrase.count >= 4 && fq.contains(stemPhrase)
+            if cov >= 2 || phrase || (cov >= 1 && extOk) {
+                promoted.append((i, h, cov, extOk, phrase))
+            } else {
+                rest.append(h)
+            }
+        }
+        guard !promoted.isEmpty else { return hits }
+        promoted.sort { a, b in
+            if a.4 != b.4 { return a.4 }
+            if a.3 != b.3 { return a.3 }
+            if a.2 != b.2 { return a.2 > b.2 }
+            return a.0 < b.0
+        }
+        return Array(hits.prefix(head)) + promoted.map(\.1) + rest
+    }
+
     static func plannerPathProbe(store: Store, atoms: [String],
                                  weakAtoms: Set<String> = [],
                                  championlessAtoms: Set<String> = [],

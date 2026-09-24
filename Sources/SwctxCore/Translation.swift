@@ -153,6 +153,7 @@ public enum Translation {
         ("giam sat", ["monitor"]),
         ("kiem tra", ["check"]),
         ("danh gia", ["review"]),
+        ("keo", ["pull", "fetch"]),
         ("dong bo", ["sync"]),
         ("sao luu", ["backup"]),
         ("khoi phuc", ["restore", "recovery"]),

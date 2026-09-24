@@ -1,6 +1,20 @@
 # swctx — Handoff & Status
 
-Date: 2026-09-24 · Status: **working — vn-tuning 20/22, holdout 12/20, ratchet PASS 36/36 @ p95 149ms, 262 tests green**
+Date: 2026-09-24 · Status: **working — vn-tuning 20/22 @ r@1 0.50, holdout 12/20 @ r@1 0.30, ratchet PASS 36/36 @ p95 148ms, 262 tests green**
+
+## 2026-09-24 (đêm) — headLift: rank-1 name-coverage reorder (r@1 0.20→0.30 holdout, 0.32→0.50 tuning)
+
+**Goal**: gold reached top-5 but not rank-1 — prose docs (`index.html`, `bang-quyet-dinh.html`, `trang.html`) outranked the file literally named by the question.
+
+**Design** (`Search.headLift`, wired after `tailRescue`): a pure **permutation within the fused window** — membership is fixed, so recall@5 cannot regress; only ordering (r@1) moves. A hit promotes when its stem covers ≥2 query name atoms, or ≥1 plus a kind/extension intent:
+
+- Kind intent from the folded query: explicit `"file X"` extension; code words (`script`, `hàm`, `server`, `tool`, …) → code exts; doc phrases (`tài liệu`, `hướng dẫn`, `kế hoạch`, `biên bản`, `sự cố`, …) → doc exts.
+- Phrase coverage: stem-as-words literally contained in the folded query (`dang_nhap` ← "đăng nhập") — strongest name evidence, immune to stopword filtering.
+- Digit-bearing short tokens (`d1`, `p8`) count for coverage INSIDE headLift only — they are real identifiers but must never corroborate tail occupants (regression found: push_d1/pull_d1 blocked crm-10's rescue slot).
+- Surgical pins keep their slots only when reached through the query's OWN atoms (not lexicon/model-derived — `pull.py` via "kéo"→pull loses the pin to `pull_d1.py`) AND when their extension doesn't contradict a stated kind intent (`trang.html` depinned under "file css").
+- Promoted order: phrase > ext-intent > coverage > fused index.
+
+**Result**: r@1 tuning 0.32→**0.50**, holdout 0.20→**0.30**; same miss lists (seo-05/seo-10; 8 holdout). Rescued to rank 1: `he-thiet-ke.css`, `cham_cong.py`, `p8_canonical_check.py`, `pull_d1.py` (keo→pull lexicon + d1 digit-atom), `DANG_NHAP.md`, `ke-hoach.md`, `SUCO_XOA_SO_CRM_*.md`. `p8_mcp_server.py` stays r2 behind `p8ctl.py` — the query literally names p8ctl; acceptable ambiguity.
 
 ## 2026-09-24 (tối) — Corroboration parity + shared file snapshot (p95 181.7 → 149ms)
 

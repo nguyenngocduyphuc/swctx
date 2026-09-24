@@ -496,8 +496,12 @@ public enum SwctxTools {
             // guessed filenames "linkedinhistorystore"), so a basename
             // sharing one was name-justified; checking only raw-query
             // atoms marks that gold uncorroborated and evicts it.
-            var detNameAtoms = Set(qAtoms + camelSubs + strictSubAtoms
+            // The query's OWN atoms (no lexicon/model additions) —
+            // headLift keeps a surgical pin only for names matching
+            // what the user actually typed.
+            let detQueryAtoms = Set(qAtoms + camelSubs + strictSubAtoms
                 + Translation.commandSuffixAtoms(for: q))
+            var detNameAtoms = detQueryAtoms
             detNameAtoms.formUnion(probe.probeAtoms)
             var window = Search.tailRescue(
                 Array(hits.prefix(limit)), candidates: rescuePool,
@@ -510,7 +514,16 @@ public enum SwctxTools {
                idx > protect {
                 window.insert(window.remove(at: idx), at: protect)
             }
-            hits = window
+            // Rank-1 lift: reorder WITHIN the window only — a hit
+            // whose stem covers ≥2 query name atoms (or ≥1 plus a
+            // kind/extension intent like "file css"/"script") is the
+            // file the question names; it should lead content-only
+            // hits. Membership is untouched, so recall@5 cannot move.
+            hits = Search.headLift(
+                window, queryNameAtoms: detNameAtoms, query: q,
+                pinned: Set(probe.hits.prefix(probe.strongCount)
+                    .map(\.path)),
+                queryAtoms: detQueryAtoms)
             msRescue = Date().timeIntervalSince(ts) * 1000 - msSubstr
         }
         if timingOn {
