@@ -50,3 +50,12 @@ timestamp,engine,workspace,kind,recall_at_5,n_queries,notes
 2026-09-22T23:28:18+00:00,swctx:search-mcp,22.site-M,search,1.0,6,mcp `tools/call search` mode=auto (persistent stdio session); nodemote
 2026-09-22T23:28:18+00:00,swctx:search-mcp,25.event-qr-checkin,definition,1.0,6,mcp `tools/call search` mode=auto (persistent stdio session); nodemote
 2026-09-22T23:28:18+00:00,swctx:search-mcp,25.event-qr-checkin,search,1.0,6,mcp `tools/call search` mode=auto (persistent stdio session); nodemote
+2026-09-24T13:42:14+00:00,swctx:find-defs-mcp,21.linkeldn,definition,1.0,6,mcp `tools/call find_definitions` (persistent stdio session)
+2026-09-24T13:42:14+00:00,swctx:find-defs-mcp,22.site-M,definition,1.0,6,mcp `tools/call find_definitions` (persistent stdio session)
+2026-09-24T13:42:14+00:00,swctx:find-defs-mcp,25.event-qr-checkin,definition,1.0,6,mcp `tools/call find_definitions` (persistent stdio session)
+2026-09-24T13:42:14+00:00,swctx:search-mcp,21.linkeldn,definition,1.0,6,mcp `tools/call search` mode=auto (persistent stdio session)
+2026-09-24T13:42:14+00:00,swctx:search-mcp,21.linkeldn,search,1.0,6,mcp `tools/call search` mode=auto (persistent stdio session)
+2026-09-24T13:42:14+00:00,swctx:search-mcp,22.site-M,definition,1.0,6,mcp `tools/call search` mode=auto (persistent stdio session)
+2026-09-24T13:42:14+00:00,swctx:search-mcp,22.site-M,search,1.0,6,mcp `tools/call search` mode=auto (persistent stdio session)
+2026-09-24T13:42:14+00:00,swctx:search-mcp,25.event-qr-checkin,definition,1.0,6,mcp `tools/call search` mode=auto (persistent stdio session)
+2026-09-24T13:42:14+00:00,swctx:search-mcp,25.event-qr-checkin,search,1.0,6,mcp `tools/call search` mode=auto (persistent stdio session)

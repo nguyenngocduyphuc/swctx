@@ -230,6 +230,8 @@ public enum SwctxTools {
         let mode = requested == "auto"
             ? (Search.identifierLike(q) ? "identifier" : "hybrid")
             : requested
+        let timingOn = ProcessInfo.processInfo.environment["SWCTX_TIMING"] == "1"
+        let t0 = Date()
         var hits: [SearchHit]
         switch mode {
         case "fts": hits = try Search.fts(store: store, query: q, limit: limit, pathFilter: pathFilter)
@@ -247,6 +249,8 @@ public enum SwctxTools {
             hits = h
         default: hits = try Search.hybrid(store: store, embedder: store.embedder, query: q, limit: limit, pathFilter: pathFilter)
         }
+        var msHybrid = Date().timeIntervalSince(t0) * 1000
+        var msProbe = 0.0, msR2 = 0.0, msSubstr = 0.0, msRescue = 0.0
         // Filename-intent probe FIRST on fused modes — the same rare-atom
         // machinery that lifted the answer leg (strict R@5 15/22 vs search
         // 11/22 on the 22q VN set). A surgical filename match must not be
@@ -254,9 +258,11 @@ public enum SwctxTools {
         // the majority of the window. Pure fts/semantic legs untouched —
         // callers choosing a single leg asked for exactly that leg.
         if mode == "hybrid" || mode == "identifier" {
+            let tp = Date()
             let probe = (try? Answer.pathProbe(store: store, query: q,
                                                pathFilter: pathFilter))
                 ?? .empty
+            msProbe = Date().timeIntervalSince(tp) * 1000
             // Strong probe hits (surgical or rank ≥ bar, content-AND
             // verified) still lead — that evidence predates the rescue
             // layers and held the Sep-19 baseline. Champions no longer
@@ -348,6 +354,7 @@ public enum SwctxTools {
             // a second probe pass. Model-vocab hits are rescue
             // candidates only — never head inserts.
             if probe.detConfident == 0 {
+                let tr = Date()
                 let r2 = Translation.round2(
                     query: q, seenPaths: hits.prefix(10).map(\.path))
                 r2pick = r2?.pick
@@ -392,6 +399,7 @@ public enum SwctxTools {
                         if seenSub.insert(a).inserted { subAtoms.append(a) }
                     }
                 }
+                msR2 = Date().timeIntervalSince(tr) * 1000
             }
             // Guessed/query atoms can live as filename SUFFIXES
             // ("ctl" → sitectl) that prefix-match can never reach — a
@@ -400,11 +408,14 @@ public enum SwctxTools {
             // CONTENT against the translated terms so `sitectl` beats
             // `p8ctl` when the docstring speaks the question. All hits
             // are fragment matches: rescue candidates, never surgical.
-            if let subs = try? Search.pathSubstringProbe(
+            let ts = Date()
+            let subsRes = try? Search.pathSubstringProbe(
                 store: store, atoms: subAtoms,
                 strictAtoms: strictSubAtoms,
                 pathFilter: pathFilter,
-                contentTerms: rescoreTerms), !subs.isEmpty {
+                contentTerms: rescoreTerms)
+            msSubstr = Date().timeIntervalSince(ts) * 1000
+            if let subs = subsRes, !subs.isEmpty {
                 // Deterministic-vocab candidates lead the rescue pool;
                 // jargon-atom matches (model words like "workflow" that
                 // land in every r2 roll) trail — they enter the window
@@ -479,11 +490,15 @@ public enum SwctxTools {
             }
             // Name corroboration for the tail-occupant test: every atom
             // derivable from the query text itself — folded atoms,
-            // camel subtokens, strict syllables, command suffixes. A
-            // fused occupant sharing none of these was never
-            // name-justified, so it's the slot a rescue may take.
-            let detNameAtoms = Set(qAtoms + camelSubs + strictSubAtoms
+            // camel subtokens, strict syllables, command suffixes —
+            // PLUS every atom the probe ran with. Fusion surfaced
+            // occupants THROUGH those atoms (lexicon/VN "nap"/"1mkt",
+            // guessed filenames "linkedinhistorystore"), so a basename
+            // sharing one was name-justified; checking only raw-query
+            // atoms marks that gold uncorroborated and evicts it.
+            var detNameAtoms = Set(qAtoms + camelSubs + strictSubAtoms
                 + Translation.commandSuffixAtoms(for: q))
+            detNameAtoms.formUnion(probe.probeAtoms)
             var window = Search.tailRescue(
                 Array(hits.prefix(limit)), candidates: rescuePool,
                 verifiedPaths: verifiedPaths, stemExPaths: stemExPaths,
@@ -496,6 +511,14 @@ public enum SwctxTools {
                 window.insert(window.remove(at: idx), at: protect)
             }
             hits = window
+            msRescue = Date().timeIntervalSince(ts) * 1000 - msSubstr
+        }
+        if timingOn {
+            FileHandle.standardError.write(
+                String(format: "timing: total=%.0f hybrid=%.0f probe=%.0f r2=%.0f substr=%.0f rescue=%.0f\n",
+                       Date().timeIntervalSince(t0) * 1000, msHybrid,
+                       msProbe, msR2, msSubstr, msRescue)
+                    .data(using: .utf8)!)
         }
         // Optional cross-encoder stage (`rerank: true`): pin the top-3
         // fused hits, rescore the rest of a 30-candidate pool with the

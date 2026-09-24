@@ -1,6 +1,30 @@
 # swctx — Handoff & Status
 
-Date: 2026-09-24 · Status: **working — vn-tuning 20/22, holdout 11/20, ratchet PASS 36/36 @ p95 146.7ms, 262 tests green**
+Date: 2026-09-24 · Status: **working — vn-tuning 20/22, holdout 12/20, ratchet PASS 36/36 @ p95 149ms, 262 tests green**
+
+## 2026-09-24 (tối) — Corroboration parity + shared file snapshot (p95 181.7 → 149ms)
+
+**Goal 1 — eviction correctness**: fused occupants fetched via probe vocabulary were judged "uncorroborated" by a raw-query-only atom set and evicted.
+
+- `ProbeResult.probeAtoms` now carries the full atom set the probe ran with (query + lexicon/VN + stems + cached translations + model guesses); `detNameAtoms` unions it — an occupant surfaced THROUGH a probe atom is name-justified, whatever lane the atom came from. Fixed `hcrm-01` (`nap_1mkt.py` reached via `nap`/`1mkt`) and `canonicalShareLink` (`LinkedInHistoryStore.swift` reached via prefix `link*`→`linkedin` — corroboration now speaks the probe's prefix semantics, min len 4).
+- `tailRescue.uncorroborated` takes the full `SearchHit`, not just the path: symbol tokens and ≥2-distinct-atom snippet evidence count as corroboration — `in_body_only` gold (`van_tay` symbol where `van` is a stopword) is no longer evictable for lacking name overlap.
+
+**Goal 2 — latency**: `FileSnapshot` (indexed paths + lowercased paths + `pathTokenString` tokens + min-chunk-id, validity key = `COUNT(*)`+`MAX(mtime)`) now serves path-DF counting, sibling mining, and the substring lane in memory.
+
+- Bug found by `SWCTX_TIMING=1` phase probes: the snap cache keyed on `ObjectIdentifier(store)` but every search call opens a **fresh Store** — `snapMISS` on every call, rebuilding 720 rows per query. Re-keyed on `store.workspaceKey` → `snapHIT` every call, probeDF 57→2-7ms.
+- Content-DF memoized inside the snapshot (same validity key — dies with it): ~20 `COUNT(DISTINCT)` on `chunks_fts` was the probe tail.
+- `pathSubstringProbe` per-atom matching parallelized (`concurrentPerform` + serial plan-order merge — identical accumulation to the old loop). Moving LIKE scans in-memory had accidentally serialized them (+30ms regression vs the 146.7ms run).
+
+**Verification** (release binary):
+
+| Check | Result |
+|---|---|
+| nightly ratchet | **PASS** — 36/36 recall, **p95 149.0ms** ≤ 150 (p50 45, p90 137, max 156), schema 26/26 |
+| holdout 20q | **12/20** — hcrm-01 stable at rank 3 (was flipping), `canonicalShareLink` recovered |
+| vn-tuning 22q | **20/22** — unchanged; seo-05/seo-10 remain same-tier losses |
+| tests | **262, 0 fail** |
+
+Phase profile of a warm tail call (`compare two saved audit runs…`, debug): hybrid ~100ms, probe ~32ms, r2 ~15ms, substr ~19ms. First call per workspace pays one snapshot build (~50-60ms, inside warmup); per-call cost is a `COUNT+MAX` validity probe (~1ms).
 
 ## 2026-09-24 — Co-occurrence expansion (reach ≠ evidence) + rescue coverage ordering
 

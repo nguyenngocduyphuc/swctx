@@ -411,6 +411,110 @@ public enum Search {
             .flatMap(Double.init) ?? def
     }
 
+    /// Materialized file list + index-tokenized path tokens, cached per
+    /// Store and re-validated each call with one cheap
+    /// `COUNT(*)/MAX(mtime)` probe. The planner probe's per-atom
+    /// path-DF COUNTs, sibling mining scans and the substring lane all
+    /// read this snapshot instead of re-scanning `chunks_fts`/`files`
+    /// per atom — ~50 round-trips collapse to ≤2 queries per call.
+    final class FileSnapshot: @unchecked Sendable {
+        struct Row {
+            let path: String
+            let lower: String
+            let mtime: Double
+            let cid: Int64
+            /// `pathTokenString` output split — the same tokens the
+            /// FTS `path_tokens` column indexes, so in-memory prefix
+            /// matching reproduces `path_tokens:"atom"*` exactly.
+            let toks: [String]
+        }
+        let rows: [Row]
+        let count: Int
+        let maxMtime: Double
+        init(rows: [Row], count: Int, maxMtime: Double) {
+            self.rows = rows; self.count = count; self.maxMtime = maxMtime
+        }
+        func filtered(_ pathFilter: String?) -> [Row] {
+            guard let p = pathFilter, !p.isEmpty else { return rows }
+            // LIKE is ASCII case-insensitive; match on the lowered path.
+            let prefix = (p.hasSuffix("/") ? p : p + "/").lowercased()
+            return rows.filter { $0.lower.hasPrefix(prefix) }
+        }
+        /// Content-DF memo: folded-column file counts change only when
+        /// the file set or mtimes do — the same validity key as the
+        /// snapshot itself, so entries die with their snapshot. ~20
+        /// COUNT(DISTINCT) scans on chunks_fts was the probe tail.
+        private let dfLock = NSLock()
+        private var _contentDF: [String: Int] = [:]
+        func contentDF(_ atom: String) -> Int? {
+            dfLock.lock(); defer { dfLock.unlock() }
+            return _contentDF[atom]
+        }
+        func setContentDF(_ atom: String, _ v: Int) {
+            dfLock.lock(); defer { dfLock.unlock() }
+            _contentDF[atom] = v
+        }
+    }
+
+    final class FileSnapCache: @unchecked Sendable {
+        // Keyed by workspaceKey, NOT object identity — each search call
+        // opens a fresh Store, so ObjectIdentifier would never hit.
+        private var map: [String: FileSnapshot] = [:]
+        private let lock = NSLock()
+        func get(_ store: Store, count: Int, maxMtime: Double)
+            -> FileSnapshot? {
+            lock.lock(); defer { lock.unlock() }
+            guard let s = map[store.workspaceKey],
+                  s.count == count, s.maxMtime == maxMtime
+            else { return nil }
+            return s
+        }
+        func put(_ store: Store, _ s: FileSnapshot) {
+            lock.lock(); defer { lock.unlock() }
+            map[store.workspaceKey] = s
+        }
+    }
+    private static let fileSnapCache = FileSnapCache()
+
+    static func fileSnapshot(store: Store) throws -> FileSnapshot {
+        let (count, maxM) = try store.pool.read { db in
+            ((try Int.fetchOne(db,
+                sql: "SELECT COUNT(*) FROM files") ?? 0),
+             (try Double.fetchOne(db,
+                sql: "SELECT MAX(mtime) FROM files") ?? 0))
+        }
+        if let s = fileSnapCache.get(store, count: count,
+                                     maxMtime: maxM) {
+            if ProcessInfo.processInfo.environment["SWCTX_TIMING"] == "1" {
+                FileHandle.standardError.write(
+                    "  snapHIT n=\(count)\n".data(using: .utf8)!)
+            }
+            return s
+        }
+        if ProcessInfo.processInfo.environment["SWCTX_TIMING"] == "1" {
+            FileHandle.standardError.write(
+                "  snapMISS n=\(count) m=\(maxM)\n".data(using: .utf8)!)
+        }
+        let rows: [FileSnapshot.Row] = try store.pool.read { db in
+            try Row.fetchAll(db, sql: """
+                SELECT f.path, f.mtime, MIN(c.id) AS cid
+                FROM files f LEFT JOIN chunks c ON c.file_id = f.id
+                GROUP BY f.id
+                """).map {
+                    let p = ($0["path"] as? String) ?? ""
+                    return FileSnapshot.Row(
+                        path: p, lower: p.lowercased(),
+                        mtime: ($0["mtime"] as? Double) ?? 0,
+                        cid: ($0["cid"] as? Int64) ?? -1,
+                        toks: pathTokenString(p)
+                            .split(separator: " ").map(String.init))
+                }
+        }
+        let s = FileSnapshot(rows: rows, count: count, maxMtime: maxM)
+        fileSnapCache.put(store, s)
+        return s
+    }
+
     /// Result of `plannerPathProbe`: emitted hits plus the count of
     /// trailing below-bar champions. Emit order is strong-first —
     /// `scored` sorts surgical then rank-descending, so every emitted
@@ -437,6 +541,13 @@ public enum Search {
         /// Rescue vocabulary only — feeding them through the probe's
         /// fetch lane lets archive floods reach the strong head.
         var expansionAtoms: [String] = []
+        /// Every atom this probe ran with — det, guessed, stems,
+        /// acronyms. Tail rescue uses it for occupant name
+        /// corroboration: a hit fusion surfaced THROUGH a probe atom is
+        /// name-justified by that atom, whatever tier fed it. A guessed
+        /// atom that correctly names a real file ("linkedinhistorystore")
+        /// is still the evidence that file rode in on.
+        var probeAtoms: Set<String> = []
         var strongCount: Int { hits.count - belowBarCount }
         var champions: ArraySlice<SearchHit> { hits.dropFirst(strongCount) }
         static let empty = ProbeResult(hits: [], belowBarCount: 0,
@@ -510,8 +621,8 @@ public enum Search {
                     + "occ=\(out.map { ($0.path as NSString).lastPathComponent })\n")
                     .data(using: .utf8)!)
         }
-        func uncorroborated(_ path: String) -> Bool {
-            let base = (path as NSString).lastPathComponent
+        func uncorroborated(_ hit: SearchHit) -> Bool {
+            let base = (hit.path as NSString).lastPathComponent
             // Fusion name-justified this hit via the INDEX's tokens,
             // which camel-split (RankStore → rank, store). Speak the
             // same language — split on case FIRST, then fold — or every
@@ -526,7 +637,30 @@ public enum Search {
                 whereSeparator: { !$0.isLetter && !$0.isNumber }) {
                 toks.formUnion(symbolTokens(String(t)))
             }
-            return toks.isDisjoint(with: queryNameAtoms)
+            if !toks.isDisjoint(with: queryNameAtoms) { return false }
+            // Prefix match — the probe fetches path_tokens as `atom*`,
+            // so "link" name-justifies "linkedin" here the same way it
+            // did there. ≥4 chars on the shorter side: 3-char prefixes
+            // are coincidence-prone.
+            for a in queryNameAtoms where a.count >= 4 {
+                if toks.contains(where: {
+                    $0.count >= 4 && ($0.hasPrefix(a) || a.hasPrefix($0))
+                }) { return false }
+            }
+            // Symbol corroboration: a function_definition hit whose
+            // symbol literally names a query atom (van_tay ← "tay") was
+            // fetched for what it IS — the strongest content evidence
+            // an in_body_only gold can carry.
+            if let sym = hit.symbol, !Set(
+                symbolTokens(sym).map { foldText($0) })
+                .isDisjoint(with: queryNameAtoms) { return false }
+            // Snippet corroboration: body-only golds have no name
+            // overlap but their fused snippet still speaks the query's
+            // atoms. ≥2 distinct atoms — one common token is a fluke.
+            let snip = Set(foldText(hit.snippet).components(
+                separatedBy: CharacterSet.alphanumerics.inverted)
+                .filter { $0.count >= 3 })
+            return snip.intersection(queryNameAtoms).count < 2
         }
         // Pass 1: the best candidate may take the weakest slot whose
         // occupant fusion never name-justified. Verified evidence wins
@@ -542,7 +676,7 @@ public enum Search {
             return a.path < b.path
         }
         for i in stride(from: limit - 1, through: protect, by: -1)
-        where uncorroborated(out[i].path) {
+        where uncorroborated(out[i]) {
             let r = candidates.filter({
                 eligible($0) && verifiedPaths.contains($0.path)
             }).sorted(by: byEvidence).first
@@ -585,7 +719,7 @@ public enum Search {
         let rareMaxFiles = envInt("SWCTX_PROBE_RARE", rareMaxFiles)
         let midMaxFiles = envInt("SWCTX_PROBE_MID", midMaxFiles)
         guard !atoms.isEmpty else { return .empty }
-        func fileCount(_ match: String) -> Int {
+        @Sendable func fileCount(_ match: String) -> Int {
             (try? store.pool.read { db in
                 try Int.fetchOne(db, sql: """
                     SELECT COUNT(DISTINCT c.file_id) FROM chunks_fts
@@ -594,17 +728,27 @@ public enum Search {
                     """, arguments: [match])
             }) ?? 0
         }
-        // DF counting is 2×|atoms| independent read-only round-trips —
-        // the probe's dominant cost on dense queries (~48 sequential
-        // COUNTs ≈ 100ms+ tail). DatabasePool readers run concurrently
-        // under WAL, so path-DF and content-DF fan out together.
+        // Path-DF counts are token-prefix counts over the file list —
+        // the snapshot's per-path tokens are exactly what the FTS
+        // `path_tokens` column indexes, so in-memory counting replaces
+        // |atoms| COUNT(DISTINCT) round-trips on chunks_fts. Content-DF
+        // still needs the folded column — those stay parallel FTS COUNTs.
+        let tDF = Date()
+        let snap = try? fileSnapshot(store: store)
+        let snapRows = snap?.filtered(pathFilter) ?? []
         var pathDFMutable: [String: Int] = [:]
         var contentDFMutable: [String: Int] = [:]
         let dfLock = NSLock()
         DispatchQueue.concurrentPerform(iterations: atoms.count) { i in
             let a = atoms[i]
-            let p = fileCount("path_tokens : \"\(a)\"*")
-            let c = fileCount("folded : \"\(a)\"*")
+            let p = snap.map { _ in snapRows.reduce(0) {
+                $0 + ($1.toks.contains { $0.hasPrefix(a) } ? 1 : 0) } }
+                ?? fileCount("path_tokens : \"\(a)\"*")
+            let c = snap?.contentDF(a) ?? {
+                let v = fileCount("folded : \"\(a)\"*")
+                snap?.setContentDF(a, v)
+                return v
+            }()
             dfLock.lock()
             pathDFMutable[a] = p
             contentDFMutable[a] = c
@@ -612,6 +756,14 @@ public enum Search {
         }
         let pathDF = pathDFMutable
         let contentDF = contentDFMutable
+        let tFetch = Date()
+        defer {
+            if ProcessInfo.processInfo.environment["SWCTX_TIMING"] == "1" {
+                FileHandle.standardError.write(
+                    "  probeDF=\((tFetch.timeIntervalSince(tDF)*1000).rounded()) probeFetch=\((Date().timeIntervalSince(tFetch)*1000).rounded())\n"
+                        .data(using: .utf8)!)
+            }
+        }
         // Sole-carrier rarity is only meaningful against a corpus where
         // uniqueness surprises. On a ~120-file index nearly every path
         // token is DF=1, so "surgical" would crown random names — gate
@@ -619,7 +771,7 @@ public enum Search {
         // py): 150 separates CRM (~120 files, surgical=junk) from
         // linkeldn (186 files, surgical=p8-style DF1 names) — 57/70 vs
         // 56/70 at 500, zero per-query regressions.
-        let corpusFiles = (try? store.pool.read { db in
+        let corpusFiles = snap?.count ?? (try? store.pool.read { db in
             try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM files") ?? 0
         }) ?? 0
         let rarityMatters = corpusFiles >= envInt("SWCTX_PROBE_CORPUS", 150)
@@ -994,18 +1146,15 @@ public enum Search {
         // weak-evidence condition that triggers round-2 — so easy
         // queries never pay the mining cost.
         var expansionAtoms: [String] = []
-        if detConfident == 0 {
+        if detConfident == 0, !snapRows.isEmpty {
             let coocCap = envInt("SWCTX_COOC_CAP", 30)
             var expanded = 0
-            var sibDFCache: [String: Int] = [:]
             let expandBudget = envInt("SWCTX_COOC_MAX", 8)
-            // Phase 1 (parallel): fetch each expandable atom's co-name
-            // vocabulary. A LIKE scan over `files` (a few thousand
-            // rows) beats an FTS prefix scan per atom here; sibling
-            // mining only needs the matching paths, which carry the
-            // same tokens the index's path_tokens column was built
-            // from. Rarest atoms first — they are the identifying
-            // vocabulary whose siblings matter.
+            // Both phases read the file snapshot in memory — the
+            // per-atom LIKE scans and sibling fileCounts were DB
+            // round-trips that only needed the same tokens the index's
+            // path_tokens column was built from. Rarest atoms first —
+            // they are the identifying vocabulary whose siblings matter.
             let expandable = atoms.filter {
                 detAtoms.contains($0)
                     && (pathDF[$0] ?? 0) >= 1
@@ -1017,44 +1166,28 @@ public enum Search {
             }
             var sibDFs = [String: [String: Int]](
                 minimumCapacity: expandable.count)
-            let sibLock = NSLock()
-            DispatchQueue.concurrentPerform(
-                iterations: expandable.count) { i in
-                let a = expandable[i]
-                let paths = (try? store.pool.read { db in
-                    try String.fetchAll(db, sql: """
-                        SELECT path FROM files WHERE path LIKE ?
-                        LIMIT 60
-                        """, arguments: ["%\(a)%"])
-                }) ?? []
+            for a in expandable {
                 var siblingDF: [String: Int] = [:]
-                for tl in paths {
+                for r in snapRows where r.lower.contains(a) {
                     var perFile = Set<String>()
-                    for t in tl.components(
-                        separatedBy: .alphanumerics.inverted)
-                    where t.count >= 3 {
-                        let f = foldText(t)
-                        if f != a, !atoms.contains(f),
-                           !vnStopwords.contains(f),
-                           !enStopwords.contains(f) {
-                            perFile.insert(f)
-                        }
+                    for f in r.toks
+                    where f.count >= 3 && f != a && !atoms.contains(f)
+                        && !vnStopwords.contains(f)
+                        && !enStopwords.contains(f) {
+                        perFile.insert(f)
                     }
                     for t in perFile { siblingDF[t, default: 0] += 1 }
                 }
-                sibLock.lock()
                 sibDFs[a] = siblingDF
-                sibLock.unlock()
             }
-            // Phase 2 (serial): most-conventional siblings first
-            // (co-name frequency across the atom's files); each
-            // candidate costs one fileCount, so check only the local
-            // top-6 and memoize — the same sibling recurs across atoms
-            // ("store", "service"). Counts fan out once in parallel
-            // over the unique top-6 union.
+            // Most-conventional siblings first (co-name frequency
+            // across the atom's files); check only the local top-6 —
+            // the same sibling recurs across atoms ("store",
+            // "service"). Global DF is the same in-memory token-prefix
+            // count the probe's pathDF used.
             var orderedSibs: [[String]] = []
-            var allSibs: [String] = []
             var seenSib: Set<String> = []
+            var sibGlobalDF: [String: Int] = [:]
             for a in expandable {
                 let top = (sibDFs[a] ?? [:]).sorted(by: {
                     $0.value != $1.value
@@ -1062,19 +1195,14 @@ public enum Search {
                 }).map(\.key).prefix(6).map { $0 }
                 orderedSibs.append(top)
                 for s in top where seenSib.insert(s).inserted {
-                    allSibs.append(s)
+                    sibGlobalDF[s] = snapRows.reduce(0) {
+                        $0 + ($1.toks.contains { $0.hasPrefix(s) }
+                              ? 1 : 0) }
                 }
-            }
-            DispatchQueue.concurrentPerform(
-                iterations: allSibs.count) { i in
-                let g = fileCount("path_tokens : \"\(allSibs[i])\"*")
-                sibLock.lock()
-                sibDFCache[allSibs[i]] = g
-                sibLock.unlock()
             }
             for top in orderedSibs where expanded < expandBudget {
                 for sib in top where expanded < expandBudget {
-                    let g = sibDFCache[sib] ?? 0
+                    let g = sibGlobalDF[sib] ?? 0
                     if g >= 1, g <= rareMaxFiles {
                         expansionAtoms.append(sib)
                         expanded += 1
@@ -1086,6 +1214,7 @@ public enum Search {
                              confidentCount: confident)
         pr.detConfident = detConfident
         pr.expansionAtoms = expansionAtoms
+        pr.probeAtoms = Set(atoms)
         return pr
     }
 
@@ -1172,90 +1301,42 @@ public enum Search {
             .map { ($0, false) }
             + strictAtoms.prefix(6).map { ($0, true) }
         let dfCap = envInt("SWCTX_SUBSTR_DF", 25)
-        // Per-atom COUNT+SELECT are independent LIKE scans over the
-        // small files table — ~26 of them serial were the substr lane's
-        // whole cost, so fan out on separate readers like the probe's
-        // DF fan-out.
-        var fetched: [(atom: String, strict: Bool,
-                       total: Int, rows: [Row])?] =
-            Array(repeating: nil, count: plan.count)
-        var firstFetchError: Error?
-        let fetchLock = NSLock()
+        // The shared file snapshot replaces ~26 per-atom LIKE
+        // COUNT+SELECT round-trips — `f.path LIKE %atom%` is ASCII
+        // case-insensitive, so matching the lowercased path in memory
+        // is the same predicate. One cheap validity probe per call.
+        let fileRows = (try? fileSnapshot(store: store))?
+            .filtered(pathFilter) ?? []
+        // Per-atom scans are independent — fan out like the probe's
+        // DF/fetch passes. ~20 serial sweeps of the full file list was
+        // the substr tail; merge afterwards in plan order keeps the
+        // result identical to the serial loop.
+        typealias Cand = (hit: SearchHit, df: Int, exact: Bool,
+                          stemEx: Bool, baseHits: Int,
+                          matched: Set<String>, strictOnly: Bool)
+        var atomCands: [[String: Cand]] = Array(
+            repeating: [:], count: plan.count)
         DispatchQueue.concurrentPerform(iterations: plan.count) { i in
             let (atom, strict) = plan[i]
             guard atom.count >= 3 else { return }
-            do {
-                let res = try store.pool.read {
-                    db -> (Int, [Row]) in
-                    var whereSql = "f.path LIKE ?"
-                    var args: [DatabaseValueConvertible] = ["%\(atom)%"]
-                    if let p = pathFilter, !p.isEmpty {
-                        whereSql += " AND f.path LIKE ?"
-                        args.append(
-                            p.hasSuffix("/") ? p + "%" : p + "/%")
-                    }
-                    let total = (try Int.fetchOne(db, sql: """
-                        SELECT COUNT(*) FROM files f WHERE \(whereSql)
-                        """,
-                        arguments: StatementArguments(args))) ?? 0
-                    guard total > 0 else { return (0, []) }
-                    // Flood-atom guard: a "name guess" substring present
-                    // in dozens of paths names nothing ("site" reaches
-                    // sitectl but also half the corpus). Over-cap atoms
-                    // degrade to the strictest evidence: the atom must
-                    // be a FULL token of the basename — frequency
-                    // doesn't matter for an exact name ("workflow" →
-                    // WORKFLOW.md, "hoach" → ke-hoach.md both qualify).
-                    let exactOnly = !strict && total > dfCap
-                    var rows: [Row] = []
-                    if exactOnly {
-                        var exactSql = """
-                            SELECT f.path, MIN(c.id) AS cid
-                            FROM files f
-                            JOIN chunks c ON c.file_id = f.id
-                            WHERE f.path LIKE ?
-                            """
-                        var exactArgs: [DatabaseValueConvertible] =
-                            ["%\(atom)%"]
-                        if let p = pathFilter, !p.isEmpty {
-                            exactSql += " AND f.path LIKE ?"
-                            exactArgs.append(
-                                p.hasSuffix("/") ? p + "%" : p + "/%")
-                        }
-                        exactSql += """
-                             GROUP BY f.id ORDER BY f.mtime DESC
-                            LIMIT ?
-                            """
-                        exactArgs.append(perAtom * 4)
-                        rows = try Row.fetchAll(db, sql: exactSql,
-                            arguments: StatementArguments(exactArgs))
-                    } else {
-                        rows = try Row.fetchAll(db, sql: """
-                            SELECT f.path, MIN(c.id) AS cid
-                            FROM files f
-                            JOIN chunks c ON c.file_id = f.id
-                            WHERE \(whereSql)
-                            GROUP BY f.id ORDER BY f.mtime DESC
-                            LIMIT ?
-                            """, arguments: StatementArguments(
-                                args + [strict ? perAtom * 4 : perAtom]))
-                    }
-                    return (total, rows)
-                }
-                fetched[i] = (atom, strict, res.0, res.1)
-            } catch {
-                fetchLock.lock()
-                if firstFetchError == nil { firstFetchError = error }
-                fetchLock.unlock()
-            }
-        }
-        return try store.pool.read { db in
-            for item in fetched {
-                guard let (atom, strict, total, rows) = item,
-                      total > 0 else { continue }
-                let exactOnly = !strict && total > dfCap
-                for row in rows {
-                    guard let path = row["path"] as? String else { continue }
+            let matched = fileRows.filter { $0.lower.contains(atom) }
+            let total = matched.count
+            guard total > 0 else { return }
+            // Flood-atom guard: a "name guess" substring present in
+            // dozens of paths names nothing ("site" reaches sitectl
+            // but also half the corpus). Over-cap atoms degrade to the
+            // strictest evidence: the atom must be a FULL token of the
+            // basename — frequency doesn't matter for an exact name
+            // ("workflow" → WORKFLOW.md, "hoach" → ke-hoach.md both
+            // qualify).
+            let exactOnly = !strict && total > dfCap
+            let lim = (strict || exactOnly) ? perAtom * 4 : perAtom
+            var local: [String: Cand] = [:]
+            for fr in matched.sorted(by: {
+                $0.mtime != $1.mtime ? $0.mtime > $1.mtime
+                    : $0.path < $1.path }).prefix(lim) {
+                let path = fr.path
+                do {
                     let base = path.split(separator: "/").last
                         .map(String.init) ?? path
                     // Basename tokens: raw alnum split UNION camelCase
@@ -1317,17 +1398,17 @@ public enum Search {
                     let stem = base.lowercased()
                         .split(separator: ".").first.map(String.init) ?? ""
                     let stemEx = stem.filter { $0.isLetter || $0.isNumber } == atom
-                    if var c = cands[path] {
+                    if var c = local[path] {
                         c.matched.insert(atom)
                         c.baseHits += isBase ? 1 : 0
                         c.df = min(c.df, total)
                         c.exact = c.exact || exactTok
                         c.stemEx = c.stemEx || stemEx
                         c.strictOnly = c.strictOnly && strict
-                        cands[path] = c
+                        local[path] = c
                     } else {
-                        cands[path] = (SearchHit(
-                            chunkID: (row["cid"] as? Int64) ?? -1,
+                        local[path] = (SearchHit(
+                            chunkID: fr.cid,
                             path: path,
                             startLine: 0, endLine: 0,
                             kind: nil, symbol: nil,
@@ -1337,7 +1418,27 @@ public enum Search {
                     }
                 }
             }
-            guard !cands.isEmpty else { return [] }
+            atomCands[i] = local
+        }
+        // Serial merge in plan order — identical accumulation to the
+        // old serial loop.
+        for local in atomCands {
+            for (path, c) in local {
+                if var e = cands[path] {
+                    e.matched.formUnion(c.matched)
+                    e.baseHits += c.baseHits
+                    e.df = min(e.df, c.df)
+                    e.exact = e.exact || c.exact
+                    e.stemEx = e.stemEx || c.stemEx
+                    e.strictOnly = e.strictOnly && c.strictOnly
+                    cands[path] = e
+                } else {
+                    cands[path] = c
+                }
+            }
+        }
+        guard !cands.isEmpty else { return [] }
+        return try store.pool.read { db in
             // Name fragments alone can't rank `sitectl` over `p8ctl` —
             // the candidates' CONTENT against the translated terms is
             // the discriminator the fused head already trusts. One FTS
