@@ -275,6 +275,7 @@ public enum SwctxTools {
             // name-guesses only — never verified.
             var verifiedPaths = Set<String>()
             var stemExPaths = Set<String>()
+            var matchCount: [String: Int] = [:]
             // Deterministic substring vocabulary — model-free, so it
             // runs on EVERY query for the cost of a few ms LIKE scans:
             // the query's own folded atoms (the most central atoms
@@ -321,7 +322,11 @@ public enum SwctxTools {
             var subAtoms = (qAtoms.filter { $0.count >= 4 }
                 + pfxSubs
                 + Translation.commandSuffixAtoms(for: q)
-                + rescoreTerms.filter { $0.count >= 4 })
+                + rescoreTerms.filter { $0.count >= 4 }
+                // Co-occurrence siblings ("cloudflare"→"purge") reach
+                // filenames only through substring matching — they are
+                // corpus-mined vocabulary, never a probe fetch lane.
+                + probe.expansionAtoms.filter { $0.count >= 4 })
                 .filter { seenSub.insert($0).inserted }
             // 3-char query syllables scan under the strict
             // full-basename-token rule ("doi" names doi-ngu.md, never
@@ -409,17 +414,45 @@ public enum SwctxTools {
                 central.formUnion(
                     Translation.commandSuffixAtoms(for: q))
                 central.formUnion(camelSubs)
+                // Expansion atoms stay OUT of central: a candidate
+                // matching only mined siblings tiers with jargon —
+                // real query/derived atoms decide lead order.
                 // Verified substring tiers: content-corroborated,
                 // stem-equality (the file is literally named an atom),
                 // or multi-atom exact-token matches. Single-fragment
                 // matches ("trang" → trang.html) stay unverified.
-                for c in subs
-                where c.corroborated || c.stemEx
-                    || (c.exact && !c.strictOnly && c.atoms.count >= 2) {
-                    verifiedPaths.insert(c.hit.path)
-                }
-                for c in subs where c.stemEx {
-                    stemExPaths.insert(c.hit.path)
+                // Every tier needs ≥1 non-expansion atom: a candidate
+                // named only by mined siblings is circular evidence —
+                // the vocabulary came FROM the corpus, so matching it
+                // back proves nothing. Expansion widens reach; it never
+                // verifies. (cloudflare+purge verifies on the query
+                // anchor; build.py matching only "build" doesn't.)
+                let expansionSet = Set(probe.expansionAtoms)
+                for c in subs {
+                    // Test/mock files share the query's vocabulary but
+                    // aren't the answer — same demotion as the fused
+                    // lane; they never earn the verified rescue tier.
+                    guard !Search.isTestLikePath(c.hit.path) else {
+                        continue }
+                    let anchored = c.atoms.contains(where: {
+                        !expansionSet.contains($0) })
+                    matchCount[c.hit.path] = max(
+                        matchCount[c.hit.path] ?? 0, c.atoms.count)
+                    // The multi-atom tier counts only non-expansion
+                    // atoms — mined siblings inflate coverage of
+                    // candidates they were mined from (data +
+                    // keywords + 202630 all came from the same
+                    // corpus family), which is circular.
+                    let anchoredCount = c.atoms.filter {
+                        !expansionSet.contains($0) }.count
+                    if anchored && (c.corroborated || c.stemEx
+                        || (c.exact && !c.strictOnly
+                            && anchoredCount >= 2)) {
+                        verifiedPaths.insert(c.hit.path)
+                    }
+                    if c.stemEx && anchored {
+                        stemExPaths.insert(c.hit.path)
+                    }
                 }
                 for c in subs where !c.atoms.isDisjoint(with: central) {
                     if rescueSeen.insert(c.hit.path).inserted {
@@ -454,6 +487,7 @@ public enum SwctxTools {
             var window = Search.tailRescue(
                 Array(hits.prefix(limit)), candidates: rescuePool,
                 verifiedPaths: verifiedPaths, stemExPaths: stemExPaths,
+                matchCount: matchCount,
                 queryNameAtoms: detNameAtoms,
                 limit: limit, protect: protect)
             if let pick = r2pick,

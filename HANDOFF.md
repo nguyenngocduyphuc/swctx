@@ -1,6 +1,28 @@
 # swctx — Handoff & Status
 
-Date: 2026-09-23 (tối) · Status: **working — holdout restored 11/20 deterministic (3 identical runs), vn-tuning 20/22, ratchet PASS 35/36, 262 tests green**
+Date: 2026-09-24 · Status: **working — vn-tuning 20/22, holdout 11/20, ratchet PASS 36/36 @ p95 146.7ms, 262 tests green**
+
+## 2026-09-24 — Co-occurrence expansion (reach ≠ evidence) + rescue coverage ordering
+
+**Goal**: recover vocabulary-gap holdout misses (hseo-02: query says "cloudflare" but the file is `p8_cloudflare_purge.py` — the missing word "purge" is the corpus's own co-naming convention).
+
+**Design**: deterministic sibling mining inside `plannerPathProbe`, gated `detConfident == 0` (same weak-evidence trigger as round-2 — easy queries never pay). Phase 1 fans out LIKE scans over `files` per expandable det atom (pathDF ≤ `SWCTX_COOC_CAP`=30); phase 2 counts each sibling's corpus df in parallel and keeps rare ones (≤ `rareMaxFiles`), budget `SWCTX_COOC_MAX`=8. Expansion atoms join the substring lane only — they widen reach, **never verify**: the verified tiers and `stemExPaths` require ≥1 non-expansion atom, and the multi-atom exact tier counts only non-expansion atoms (mined siblings inflating coverage of the same corpus family is circular — `data-csv-keywords_202630.README` matched "data"+"keywords"+"202630" all mined).
+
+**Bugfixes folded in**:
+- `tailRescue.uncorroborated` now camel-splits the basename (split on case, then fold) — `RankStore.swift`/`IndexNowStore.swift` were being evicted as "unjustified" because naive non-alnum tokenization kept `rankstore` glued while the index/query speak `rank`,`store`. Regression exposed by expansion shifting windows; ratchet went 36/36 → 34/36 → back to 36/36 after the fix.
+- `isTestLikePath` extended: `.mock.` in path, `test-`/`test_` basename prefix — and test-like candidates can never earn the verified rescue tier (`test-backend-local.MOCK.py` was out-verifying `vaid_issues.py` on generic "local"/"backend" atoms).
+- Rescue passes order verified candidates by matched-atom coverage (two-concept name beats a one-word translated stemEx: `cloudflare+purge` > `workflow`), tie-break stemEx then path.
+- English stopwords filtered before the 12-token FTS cap (VN already filtered) — long queries kept losing "telegram"-class tail terms to function words; same filter applied to `ftsTranslatedQuery`.
+- `pathSubstringProbe` per-atom COUNT+SELECT fetches fan out on separate readers (was ~26 serial LIKEs).
+
+**Verification** (release binary, machine load ~27):
+
+| Check | Result |
+|---|---|
+| vn-tuning 22q | **20/22** — crm-10 recovered via test-demote + anchored-count; seo-05/seo-10 remain same-tier losses |
+| holdout 20q | **11/20** — hseo-02 newly rescued (rank 5 via mined "purge"); hcrm-01 flips vs yesterday's set |
+| nightly ratchet | **PASS** — 36/36 recall, p95 146.7ms, schema 26/26 |
+| tests | **262, 0 fail** |
 
 ## 2026-09-23 (tối) — Holdout-regression repair: protected fused head + deterministic round-2
 

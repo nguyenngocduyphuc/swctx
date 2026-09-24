@@ -20,10 +20,20 @@ public enum Search {
     /// gas.ts — the extra OR terms cost nothing per-query (one MATCH,
     /// wider vocabulary) and OR'd tail terms can't outrank real hits.
     static func ftsQuery(_ raw: String) -> String? {
-        let tokens = raw
+        var tokens = raw
             .components(separatedBy: CharacterSet.alphanumerics.inverted)
             .map { $0.trimmingCharacters(in: .whitespaces) }
             .filter { $0.count >= 2 }
+        // Function words are OR-noise that floods the window with docs
+        // matching only "của"/"the" — drop them BEFORE the 12-token cap
+        // so content terms further right still reach the query
+        // ("…ba mươi giờ không cập nhật thì báo telegram": "telegram"
+        // was token 13, previously cut).
+        let content = tokens.filter {
+            let f = foldText($0)
+            return !vnStopwords.contains(f) && !enStopwords.contains(f)
+        }
+        if !content.isEmpty { tokens = content }
         guard !tokens.isEmpty else { return nil }
         let prim = Array(tokens.prefix(12))
         var clauses = prim.map { "\"\($0)\"*" }
@@ -56,6 +66,11 @@ public enum Search {
             || lp.contains("/__tests__/")
             || lp.contains(".test.") || lp.contains(".spec.")
             || lp.contains("_test.")
+            || lp.lowercased().contains(".mock.")
+            || (lp as NSString).lastPathComponent.lowercased()
+                .hasPrefix("test-")
+            || (lp as NSString).lastPathComponent.lowercased()
+                .hasPrefix("test_")
     }
 
     /// Query tokens whose diacritic fold differs ("chấm" → "cham",
@@ -125,7 +140,7 @@ public enum Search {
         for t in terms.prefix(8) {
             let toks = t.lowercased()
                 .components(separatedBy: CharacterSet.alphanumerics.inverted)
-                .filter { $0.count >= 2 }
+                .filter { $0.count >= 2 && !enStopwords.contains($0) }
             for tok in toks where atoms < 20 && seen.insert(tok).inserted {
                 clauses.append("\"\(tok)\"*")
                 atoms += 1
@@ -271,6 +286,16 @@ public enum Search {
         "khong", "duoc", "nay", "kia", "day", "gi", "ai", "thu",
     ]
 
+    /// English function words — same role as `vnStopwords` for the fts
+    /// lane. Kept separate so probe-atom callers that want VN-only
+    /// filtering keep their current contract.
+    static let enStopwords: Set<String> = [
+        "the", "an", "of", "to", "in", "for", "on", "at", "by", "with",
+        "from", "into", "and", "or", "but", "is", "are", "was", "were",
+        "be", "been", "it", "its", "that", "this", "one", "when", "while",
+        "as", "do", "does", "over", "under", "inside",
+    ]
+
     /// Atom pool for the planner filename probe: extra terms FIRST —
     /// they are the curated rescue vocabulary (VN lexicon, cached
     /// translations) added precisely because the raw query lacks them —
@@ -407,6 +432,11 @@ public enum Search {
         /// model leg runs must use this: a cache-warmth-dependent gate
         /// flips eligibility between runs on the same query.
         var detConfident: Int = 0
+        /// Co-occurrence-mined sibling atoms (corpus naming convention:
+        /// "cloudflare" co-names p8_cloudflare_purge.py → "purge").
+        /// Rescue vocabulary only — feeding them through the probe's
+        /// fetch lane lets archive floods reach the strong head.
+        var expansionAtoms: [String] = []
         var strongCount: Int { hits.count - belowBarCount }
         var champions: ArraySlice<SearchHit> { hits.dropFirst(strongCount) }
         static let empty = ProbeResult(hits: [], belowBarCount: 0,
@@ -450,6 +480,7 @@ public enum Search {
                            candidates: [SearchHit],
                            verifiedPaths: Set<String> = [],
                            stemExPaths: Set<String> = [],
+                           matchCount: [String: Int] = [:],
                            queryNameAtoms: Set<String>,
                            limit: Int, protect: Int = 2) -> [SearchHit] {
         guard !candidates.isEmpty else { return hits }
@@ -481,35 +512,56 @@ public enum Search {
         }
         func uncorroborated(_ path: String) -> Bool {
             let base = (path as NSString).lastPathComponent
-            let toks = Set(base.lowercased().split(
+            // Fusion name-justified this hit via the INDEX's tokens,
+            // which camel-split (RankStore → rank, store). Speak the
+            // same language — split on case FIRST, then fold — or every
+            // camelCase occupant looks unjustified and becomes
+            // evictable.
+            var toks = Set(base.split(
                 omittingEmptySubsequences: true,
                 whereSeparator: { !$0.isLetter && !$0.isNumber })
-                .map(String.init))
+                .map { $0.lowercased() })
+            for t in base.split(
+                omittingEmptySubsequences: true,
+                whereSeparator: { !$0.isLetter && !$0.isNumber }) {
+                toks.formUnion(symbolTokens(String(t)))
+            }
             return toks.isDisjoint(with: queryNameAtoms)
         }
         // Pass 1: the best candidate may take the weakest slot whose
         // occupant fusion never name-justified. Verified evidence wins
-        // over unverified guesses when both compete for the slot.
+        // over unverified guesses when both compete for the slot —
+        // ordered by matched-atom coverage so a two-concept name beats
+        // a single translated word.
+        let byEvidence: (SearchHit, SearchHit) -> Bool = { a, b in
+            let ca = matchCount[a.path] ?? 0, cb = matchCount[b.path] ?? 0
+            if ca != cb { return ca > cb }
+            let sa = stemExPaths.contains(a.path),
+                sb = stemExPaths.contains(b.path)
+            if sa != sb { return sa }
+            return a.path < b.path
+        }
         for i in stride(from: limit - 1, through: protect, by: -1)
         where uncorroborated(out[i].path) {
-            let r = candidates.first(where: {
+            let r = candidates.filter({
                 eligible($0) && verifiedPaths.contains($0.path)
-            }) ?? candidates.first(where: eligible)
+            }).sorted(by: byEvidence).first
+                ?? candidates.first(where: eligible)
             guard let r else { return out }
             out[i] = r
             return out
         }
         // Pass 2: every tail occupant is name-justified — only a
         // CONTENT-VERIFIED candidate may still displace, and only the
-        // weakest slot. Stem-equality (the file is literally NAMED an
-        // atom) is the strongest name evidence a rescue can carry and
-        // wins first; other verified evidence follows in pool order.
-        // Unverified guesses may not touch the window.
-        guard let r = candidates.first(where: {
-            eligible($0) && stemExPaths.contains($0.path)
-        }) ?? candidates.first(where: {
+        // weakest slot. Order by matched-atom coverage first: a file
+        // named by TWO of the query's concepts (p8_cloudflare_purge ←
+        // cloudflare+purge) is a better answer than a single-atom
+        // stem hit (WORKFLOW.md ← one translated word); stem-equality
+        // and pool order break ties.
+        let verified = candidates.filter {
             eligible($0) && verifiedPaths.contains($0.path)
-        }) else {
+        }
+        guard let r = verified.sorted(by: byEvidence).first else {
             if ProcessInfo.processInfo.environment["SWCTX_PROBE_DEBUG"] == "1" {
                 FileHandle.standardError.write(
                     ("rescue p2: none eligible+verified of "
@@ -930,9 +982,110 @@ public enum Search {
             out.append(s.hit)
             if out.count >= limit { break }
         }
+        // Co-occurrence expansion: a rare deterministic atom's filename
+        // siblings are the corpus's own naming convention ("cloudflare"
+        // co-names `p8_cloudflare_purge.py` → sibling "purge" is the
+        // vocabulary the query lacked). One hop, deterministic atoms
+        // only — guessed/stem atoms would expand hallucinations. New
+        // atoms are weak + championless: they fetch and claim evidence
+        // but can never crown; rare-only (pathDF ≤ rareMaxFiles) keeps
+        // the expansion identifying rather than generic. Runs ONLY when
+        // the probe's own vocabulary found nothing confident — the same
+        // weak-evidence condition that triggers round-2 — so easy
+        // queries never pay the mining cost.
+        var expansionAtoms: [String] = []
+        if detConfident == 0 {
+            let coocCap = envInt("SWCTX_COOC_CAP", 30)
+            var expanded = 0
+            var sibDFCache: [String: Int] = [:]
+            let expandBudget = envInt("SWCTX_COOC_MAX", 8)
+            // Phase 1 (parallel): fetch each expandable atom's co-name
+            // vocabulary. A LIKE scan over `files` (a few thousand
+            // rows) beats an FTS prefix scan per atom here; sibling
+            // mining only needs the matching paths, which carry the
+            // same tokens the index's path_tokens column was built
+            // from. Rarest atoms first — they are the identifying
+            // vocabulary whose siblings matter.
+            let expandable = atoms.filter {
+                detAtoms.contains($0)
+                    && (pathDF[$0] ?? 0) >= 1
+                    && (pathDF[$0] ?? 0) <= coocCap
+            }.sorted {
+                (pathDF[$0] ?? 0) != (pathDF[$1] ?? 0)
+                    ? (pathDF[$0] ?? 0) < (pathDF[$1] ?? 0)
+                    : $0 < $1
+            }
+            var sibDFs = [String: [String: Int]](
+                minimumCapacity: expandable.count)
+            let sibLock = NSLock()
+            DispatchQueue.concurrentPerform(
+                iterations: expandable.count) { i in
+                let a = expandable[i]
+                let paths = (try? store.pool.read { db in
+                    try String.fetchAll(db, sql: """
+                        SELECT path FROM files WHERE path LIKE ?
+                        LIMIT 60
+                        """, arguments: ["%\(a)%"])
+                }) ?? []
+                var siblingDF: [String: Int] = [:]
+                for tl in paths {
+                    var perFile = Set<String>()
+                    for t in tl.components(
+                        separatedBy: .alphanumerics.inverted)
+                    where t.count >= 3 {
+                        let f = foldText(t)
+                        if f != a, !atoms.contains(f),
+                           !vnStopwords.contains(f),
+                           !enStopwords.contains(f) {
+                            perFile.insert(f)
+                        }
+                    }
+                    for t in perFile { siblingDF[t, default: 0] += 1 }
+                }
+                sibLock.lock()
+                sibDFs[a] = siblingDF
+                sibLock.unlock()
+            }
+            // Phase 2 (serial): most-conventional siblings first
+            // (co-name frequency across the atom's files); each
+            // candidate costs one fileCount, so check only the local
+            // top-6 and memoize — the same sibling recurs across atoms
+            // ("store", "service"). Counts fan out once in parallel
+            // over the unique top-6 union.
+            var orderedSibs: [[String]] = []
+            var allSibs: [String] = []
+            var seenSib: Set<String> = []
+            for a in expandable {
+                let top = (sibDFs[a] ?? [:]).sorted(by: {
+                    $0.value != $1.value
+                        ? $0.value > $1.value : $0.key < $1.key
+                }).map(\.key).prefix(6).map { $0 }
+                orderedSibs.append(top)
+                for s in top where seenSib.insert(s).inserted {
+                    allSibs.append(s)
+                }
+            }
+            DispatchQueue.concurrentPerform(
+                iterations: allSibs.count) { i in
+                let g = fileCount("path_tokens : \"\(allSibs[i])\"*")
+                sibLock.lock()
+                sibDFCache[allSibs[i]] = g
+                sibLock.unlock()
+            }
+            for top in orderedSibs where expanded < expandBudget {
+                for sib in top where expanded < expandBudget {
+                    let g = sibDFCache[sib] ?? 0
+                    if g >= 1, g <= rareMaxFiles {
+                        expansionAtoms.append(sib)
+                        expanded += 1
+                    }
+                }
+            }
+        }
         var pr = ProbeResult(hits: out, belowBarCount: belowBar,
                              confidentCount: confident)
         pr.detConfident = detConfident
+        pr.expansionAtoms = expansionAtoms
         return pr
     }
 
@@ -1004,74 +1157,103 @@ public enum Search {
         throws -> [(hit: SearchHit, atoms: Set<String>,
                     exact: Bool, stemEx: Bool, strictOnly: Bool,
                     corroborated: Bool)] {
-        try store.pool.read { db in
-            // path → (hit, atomDF, exact, basenameHits, matchedAtoms). A
-            // file whose NAME contains several guessed atoms is the
-            // guess corroborated; a dir-component match is weaker.
-            var cands: [String: (hit: SearchHit, df: Int, exact: Bool,
-                                 stemEx: Bool, baseHits: Int,
-                                 matched: Set<String>,
-                                 strictOnly: Bool)] = [:]
-            // strictAtoms are short query syllables ("doi", "ngu"): a
-            // VN compound name splits into 3-char tokens no ≥4 rule can
-            // keep, so they demand the strictest evidence — the atom
-            // must be a FULL token of the basename itself.
-            let plan = atoms.prefix(envInt("SWCTX_SUBSTR_ATOMS", 20))
-                .map { ($0, false) }
-                + strictAtoms.prefix(6).map { ($0, true) }
-            for (atom, strict) in plan where atom.count >= 3 {
-                var whereSql = "f.path LIKE ?"
-                var args: [DatabaseValueConvertible] = ["%\(atom)%"]
-                if let p = pathFilter, !p.isEmpty {
-                    whereSql += " AND f.path LIKE ?"
-                    args.append(p.hasSuffix("/") ? p + "%" : p + "/%")
-                }
-                let total = (try Int.fetchOne(db, sql: """
-                    SELECT COUNT(*) FROM files f WHERE \(whereSql)
-                    """, arguments: StatementArguments(args))) ?? 0
-                guard total > 0 else { continue }
-                // Flood-atom guard: a "name guess" substring present in
-                // dozens of paths names nothing ("site" reaches
-                // sitectl but also half the corpus). Over-cap atoms
-                // degrade to the strictest evidence: the atom must be a
-                // FULL token of the basename — frequency doesn't matter
-                // for an exact name ("workflow" → WORKFLOW.md, "hoach"
-                // → ke-hoach.md both qualify).
-                let dfCap = envInt("SWCTX_SUBSTR_DF", 25)
-                let exactOnly = !strict && total > dfCap
-                var rows: [Row] = []
-                if exactOnly {
-                    var exactSql = """
-                        SELECT f.path, MIN(c.id) AS cid
-                        FROM files f
-                        JOIN chunks c ON c.file_id = f.id
-                        WHERE f.path LIKE ?
-                        """
-                    var exactArgs: [DatabaseValueConvertible] =
-                        ["%\(atom)%"]
+        // path → (hit, atomDF, exact, basenameHits, matchedAtoms). A
+        // file whose NAME contains several guessed atoms is the
+        // guess corroborated; a dir-component match is weaker.
+        var cands: [String: (hit: SearchHit, df: Int, exact: Bool,
+                             stemEx: Bool, baseHits: Int,
+                             matched: Set<String>,
+                             strictOnly: Bool)] = [:]
+        // strictAtoms are short query syllables ("doi", "ngu"): a
+        // VN compound name splits into 3-char tokens no ≥4 rule can
+        // keep, so they demand the strictest evidence — the atom
+        // must be a FULL token of the basename itself.
+        let plan = atoms.prefix(envInt("SWCTX_SUBSTR_ATOMS", 20))
+            .map { ($0, false) }
+            + strictAtoms.prefix(6).map { ($0, true) }
+        let dfCap = envInt("SWCTX_SUBSTR_DF", 25)
+        // Per-atom COUNT+SELECT are independent LIKE scans over the
+        // small files table — ~26 of them serial were the substr lane's
+        // whole cost, so fan out on separate readers like the probe's
+        // DF fan-out.
+        var fetched: [(atom: String, strict: Bool,
+                       total: Int, rows: [Row])?] =
+            Array(repeating: nil, count: plan.count)
+        var firstFetchError: Error?
+        let fetchLock = NSLock()
+        DispatchQueue.concurrentPerform(iterations: plan.count) { i in
+            let (atom, strict) = plan[i]
+            guard atom.count >= 3 else { return }
+            do {
+                let res = try store.pool.read {
+                    db -> (Int, [Row]) in
+                    var whereSql = "f.path LIKE ?"
+                    var args: [DatabaseValueConvertible] = ["%\(atom)%"]
                     if let p = pathFilter, !p.isEmpty {
-                        exactSql += " AND f.path LIKE ?"
-                        exactArgs.append(
+                        whereSql += " AND f.path LIKE ?"
+                        args.append(
                             p.hasSuffix("/") ? p + "%" : p + "/%")
                     }
-                    exactSql += """
-                         GROUP BY f.id ORDER BY f.mtime DESC
-                        LIMIT ?
-                        """
-                    exactArgs.append(perAtom * 4)
-                    rows = try Row.fetchAll(db, sql: exactSql,
-                        arguments: StatementArguments(exactArgs))
-                } else {
-                    rows = try Row.fetchAll(db, sql: """
-                        SELECT f.path, MIN(c.id) AS cid
-                        FROM files f
-                        JOIN chunks c ON c.file_id = f.id
-                        WHERE \(whereSql)
-                        GROUP BY f.id ORDER BY f.mtime DESC
-                        LIMIT ?
-                        """, arguments: StatementArguments(
-                            args + [strict ? perAtom * 4 : perAtom]))
+                    let total = (try Int.fetchOne(db, sql: """
+                        SELECT COUNT(*) FROM files f WHERE \(whereSql)
+                        """,
+                        arguments: StatementArguments(args))) ?? 0
+                    guard total > 0 else { return (0, []) }
+                    // Flood-atom guard: a "name guess" substring present
+                    // in dozens of paths names nothing ("site" reaches
+                    // sitectl but also half the corpus). Over-cap atoms
+                    // degrade to the strictest evidence: the atom must
+                    // be a FULL token of the basename — frequency
+                    // doesn't matter for an exact name ("workflow" →
+                    // WORKFLOW.md, "hoach" → ke-hoach.md both qualify).
+                    let exactOnly = !strict && total > dfCap
+                    var rows: [Row] = []
+                    if exactOnly {
+                        var exactSql = """
+                            SELECT f.path, MIN(c.id) AS cid
+                            FROM files f
+                            JOIN chunks c ON c.file_id = f.id
+                            WHERE f.path LIKE ?
+                            """
+                        var exactArgs: [DatabaseValueConvertible] =
+                            ["%\(atom)%"]
+                        if let p = pathFilter, !p.isEmpty {
+                            exactSql += " AND f.path LIKE ?"
+                            exactArgs.append(
+                                p.hasSuffix("/") ? p + "%" : p + "/%")
+                        }
+                        exactSql += """
+                             GROUP BY f.id ORDER BY f.mtime DESC
+                            LIMIT ?
+                            """
+                        exactArgs.append(perAtom * 4)
+                        rows = try Row.fetchAll(db, sql: exactSql,
+                            arguments: StatementArguments(exactArgs))
+                    } else {
+                        rows = try Row.fetchAll(db, sql: """
+                            SELECT f.path, MIN(c.id) AS cid
+                            FROM files f
+                            JOIN chunks c ON c.file_id = f.id
+                            WHERE \(whereSql)
+                            GROUP BY f.id ORDER BY f.mtime DESC
+                            LIMIT ?
+                            """, arguments: StatementArguments(
+                                args + [strict ? perAtom * 4 : perAtom]))
+                    }
+                    return (total, rows)
                 }
+                fetched[i] = (atom, strict, res.0, res.1)
+            } catch {
+                fetchLock.lock()
+                if firstFetchError == nil { firstFetchError = error }
+                fetchLock.unlock()
+            }
+        }
+        return try store.pool.read { db in
+            for item in fetched {
+                guard let (atom, strict, total, rows) = item,
+                      total > 0 else { continue }
+                let exactOnly = !strict && total > dfCap
                 for row in rows {
                     guard let path = row["path"] as? String else { continue }
                     let base = path.split(separator: "/").last
